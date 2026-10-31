@@ -304,14 +304,6 @@ SolarService/
 - ตั้งค่า email templates, SMTP, redirect URLs และ production hosting
 - เพิ่ม automated tests และแนวทาง deploy/migrate สำหรับ environment จริง
 
-<a id="team-work"></a>
-## 🤝 แนวทางแบ่งงานทีม (4 คน)
 
-| สมาชิก | โมดูลหลัก |
-|---|---|
-| คนที่ 1 | สมาชิก Login/Register โปรไฟล์ และการกำหนดสิทธิ์ |
-| คนที่ 2 | สินค้า แพ็กเกจ ตะกร้า และคำสั่งซื้อ |
-| คนที่ 3 | จองช่าง นัดหมาย มอบหมายงาน และผลสำรวจ |
-| คนที่ 4 | Admin ใบเสนอราคา ติดตามงานติดตั้ง และรายงาน |
 
 ทุกคนร่วมกันทบทวน schema, RLS policies, API/data contract และทดสอบการทำงานข้ามโมดูล
