@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck,
   CalendarDays, Check, ChevronRight, ClipboardList, Clock3,
-  CreditCard, Download, FileText, Headphones, House, Leaf, LogIn, Menu,
+  CreditCard, Download, Eye, EyeOff, FileText, Headphones, House, Leaf, LogIn, Menu,
   Package, Plus, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sun,
   Wrench, X, Zap,
 } from 'lucide-react';
@@ -25,8 +25,11 @@ const roleMenus = {
   Guest: [{ label: 'หน้าแรก', path: '/' }, { label: 'สินค้า', path: '/products' }, { label: 'แพ็กเกจติดตั้ง', path: '/packages' }, { label: 'บริการช่าง', path: '/services' }, { label: 'เกี่ยวกับเรา', path: '/about' }],
   Customer: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'การจองของฉัน', path: '/bookings' }, { label: 'ใบเสนอราคา', path: '/quotes' }, { label: 'ติดตามงาน', path: '/tracking' }],
   Technician: [{ label: 'ภาพรวม', path: '/technician' }, { label: 'ตารางนัดหมาย', path: '/schedule' }, { label: 'งานของฉัน', path: '/jobs' }, { label: 'ประวัติงาน', path: '/work-history' }],
-  Admin: [{ label: 'Dashboard', path: '/admin' }, { label: 'จัดการสินค้า', path: '/manage-products' }, { label: 'การจอง', path: '/manage-bookings' }, { label: 'ใบเสนอราคา', path: '/manage-quotes' }, { label: 'รายงาน', path: '/reports' }],
+  Admin: [{ label: 'Dashboard', path: '/admin' }, { label: 'จัดการสินค้า', path: '/manage-products' }, { label: 'ผู้ใช้งาน', path: '/manage-users' }, { label: 'การจอง', path: '/manage-bookings' }, { label: 'คำสั่งซื้อ', path: '/manage-orders' }, { label: 'รายงาน', path: '/reports' }],
 };
+
+const adminRoutes = new Set(['/admin', '/manage-products', '/manage-users', '/manage-bookings', '/manage-quotes', '/manage-orders', '/installations', '/reports']);
+const technicianRoutes = new Set(['/technician', '/schedule', '/jobs', '/survey', '/work-history']);
 
 const pageTitles = {
   '/customer': 'ภาพรวมของฉัน', '/bookings': 'การจองของฉัน', '/quotes': 'ใบเสนอราคา',
@@ -75,9 +78,12 @@ function App() {
     let active = true;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
-      setAuthUser(session?.user ?? null);
-      setRole(session?.user ? 'Customer' : 'Guest');
-      setAuthLoading(false);
+      const user = session?.user ?? null;
+      setAuthUser(user);
+      if (!user) {
+        setRole('Guest');
+        setAuthLoading(false);
+      }
     });
 
     supabase.auth.getSession()
@@ -88,9 +94,12 @@ function App() {
           setToast(`ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ: ${error.message}`);
           return;
         }
-        setAuthUser(data.session?.user ?? null);
-        setRole(data.session?.user ? 'Customer' : 'Guest');
-        setAuthLoading(false);
+        const user = data.session?.user ?? null;
+        setAuthUser(user);
+        if (!user) {
+          setRole('Guest');
+          setAuthLoading(false);
+        }
       })
       .catch((error) => {
         if (!active) return;
@@ -105,6 +114,42 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!authUser || !supabase) return undefined;
+    let active = true;
+    setAuthLoading(true);
+
+    supabase.from('profiles').select('role').eq('id', authUser.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          setRole('Customer');
+          setToast(`อ่านบทบาทผู้ใช้ไม่สำเร็จ: ${error.message}`);
+        } else if (!data) {
+          setRole('Customer');
+          setToast('ไม่พบโปรไฟล์ผู้ใช้ กรุณาตรวจสอบว่าได้ตั้งค่า migration ของ Supabase แล้ว');
+        } else {
+          const roles = { customer: 'Customer', technician: 'Technician', admin: 'Admin' };
+          const userRole = roles[data.role];
+          if (!userRole) {
+            setRole('Customer');
+            setToast(`ไม่รู้จักบทบาทผู้ใช้: ${data.role}`);
+          } else {
+            setRole(userRole);
+          }
+        }
+        setAuthLoading(false);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setRole('Customer');
+        setAuthLoading(false);
+        setToast(`อ่านบทบาทผู้ใช้ไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ'}`);
+      });
+
+    return () => { active = false; };
+  }, [authUser?.id]);
+
+  useEffect(() => {
     const onHashChange = () => {
       setRoute(routeFromHash());
       setMobileMenu(false);
@@ -115,8 +160,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (authUser && ['/login', '/register'].includes(route)) navigate('/customer');
-  }, [authUser, route]);
+    if (!authUser || authLoading) return;
+    const landingRoute = role === 'Admin' ? '/admin' : role === 'Technician' ? '/technician' : '/customer';
+    if ((adminRoutes.has(route) && role !== 'Admin')
+      || (technicianRoutes.has(route) && !['Technician', 'Admin'].includes(role))) {
+      navigate(landingRoute);
+      return;
+    }
+    if (['/login', '/register', '/customer', '/technician', '/admin'].includes(route) && route !== landingRoute) {
+      navigate(landingRoute);
+    }
+  }, [authUser, authLoading, role, route]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -132,7 +186,13 @@ function App() {
     '/technician', '/schedule', '/jobs', '/survey', '/work-history', '/admin', '/manage-products',
     '/manage-users', '/manage-bookings', '/manage-quotes', '/manage-orders', '/installations', '/reports',
   ]);
-  const screen = !authUser && protectedRoutes.has(route) ? '/login' : route;
+  const screen = !authUser && protectedRoutes.has(route)
+    ? '/login'
+    : adminRoutes.has(route) && role !== 'Admin'
+      ? '/customer'
+      : technicianRoutes.has(route) && !['Technician', 'Admin'].includes(role)
+        ? '/customer'
+        : route;
 
   function navigate(path) {
     if (window.location.hash === `#${path}`) {
@@ -143,7 +203,6 @@ function App() {
   }
 
   function onAuthenticated() {
-    setRole('Customer');
     navigate('/customer');
   }
 
@@ -318,6 +377,7 @@ function AuthPage({ route, navigate, onAuthenticated, setToast }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -376,7 +436,37 @@ function AuthPage({ route, navigate, onAuthenticated, setToast }) {
   }
 
   const title = isRegister ? 'สร้างบัญชีของคุณ' : isForgot ? 'ลืมรหัสผ่าน?' : isReset ? 'ตั้งรหัสผ่านใหม่' : 'ยินดีต้อนรับกลับ';
-  return <div className="auth-page"><div className="auth-aside"><div className="auth-aside-content"><div className="eyebrow">POWER YOUR EVERYDAY</div><h2>ทุกวันที่สดใส<br />เริ่มต้นที่บ้านคุณ</h2><p>จัดการระบบโซลาร์เซลล์ สั่งซื้อสินค้า และติดตามบริการได้ในที่เดียว</p><div className="auth-benefit"><BadgeCheck size={18} /> สมัครง่าย ใช้งานสะดวก ดูแลครบทุกขั้นตอน</div><div className="auth-sun"><Sun size={120} /></div></div></div><div className="auth-form-wrap"><form className="auth-form" onSubmit={handleSubmit}><a href="#/" className="back-link"><ArrowLeft size={16} /> กลับหน้าหลัก</a><div className="eyebrow">{isRegister ? 'CREATE ACCOUNT' : isForgot || isReset ? 'RESET PASSWORD' : 'WELCOME BACK'}</div><h1>{title}</h1><p>{isRegister ? 'เริ่มต้นจัดการพลังงานในบ้านของคุณ' : isForgot ? 'กรอกอีเมลเพื่อรับลิงก์ตั้งรหัสผ่านใหม่' : isReset ? 'ตั้งรหัสผ่านใหม่เพื่อเข้าใช้งานบัญชี' : 'เข้าสู่ระบบเพื่อใช้งาน SolarService'}</p>{isRegister && <label>ชื่อ-นามสกุล<input name="full_name" required autoComplete="name" placeholder="ชื่อของคุณ" /></label>}{!isReset && <label>อีเมล<input name="email" type="email" required autoComplete="email" placeholder="name@example.com" /></label>}{!isForgot && <label>รหัสผ่าน<input name="password" type="password" required minLength="8" autoComplete={isRegister ? 'new-password' : isReset ? 'new-password' : 'current-password'} placeholder="อย่างน้อย 8 ตัวอักษร" /></label>}{!isRegister && !isForgot && !isReset && <a className="forgot-link" href="#/forgot-password">ลืมรหัสผ่าน?</a>}{errorMessage && <div className="auth-message error" role="alert">{errorMessage}</div>}{successMessage && <div className="auth-message success" role="status">{successMessage}</div>}<button type="submit" className="button button-green auth-submit" disabled={submitting}>{submitting ? 'กำลังดำเนินการ…' : isRegister ? 'สมัครสมาชิก' : isForgot ? 'ส่งลิงก์ตั้งรหัสผ่าน' : isReset ? 'บันทึกรหัสผ่านใหม่' : 'เข้าสู่ระบบ'} <ArrowRight size={16} /></button>{!isReset && <div className="auth-switch">{isRegister ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชี?'} <a href={isRegister ? '#/login' : '#/register'}>{isRegister ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</a></div>}{isRegister || isForgot || isReset ? null : <div className="demo-hint"><strong>ระบบสมาชิกผ่าน Supabase</strong><span>การสมัครสมาชิกอาจต้องยืนยันอีเมลก่อนเข้าใช้งาน</span></div>}</form></div></div>;
+  return <div className="auth-page">
+    <div className="auth-aside"><div className="auth-aside-content">
+      <div className="eyebrow">POWER YOUR EVERYDAY</div>
+      <h2>ทุกวันที่สดใส<br />เริ่มต้นที่บ้านคุณ</h2>
+      <p>จัดการระบบโซลาร์เซลล์ สั่งซื้อสินค้า และติดตามบริการได้ในที่เดียว</p>
+      <div className="auth-benefit"><BadgeCheck size={18} /> สมัครง่าย ใช้งานสะดวก ดูแลครบทุกขั้นตอน</div>
+      <div className="auth-sun"><Sun size={120} /></div>
+    </div></div>
+    <div className="auth-form-wrap"><form className="auth-form" onSubmit={handleSubmit}>
+      <a href="#/" className="back-link"><ArrowLeft size={16} /> กลับหน้าหลัก</a>
+      <div className="eyebrow">{isRegister ? 'CREATE ACCOUNT' : isForgot || isReset ? 'RESET PASSWORD' : 'WELCOME BACK'}</div>
+      <h1>{title}</h1>
+      <p>{isRegister ? 'เริ่มต้นจัดการพลังงานในบ้านของคุณ' : isForgot ? 'กรอกอีเมลเพื่อรับลิงก์ตั้งรหัสผ่านใหม่' : isReset ? 'ตั้งรหัสผ่านใหม่เพื่อเข้าใช้งานบัญชี' : 'เข้าสู่ระบบเพื่อใช้งาน SolarService'}</p>
+      {isRegister && <label>ชื่อ-นามสกุล<input name="full_name" required autoComplete="name" placeholder="ชื่อของคุณ" /></label>}
+      {!isReset && <label>อีเมล<input name="email" type="email" required autoComplete="email" placeholder="name@example.com" /></label>}
+      {!isForgot && <label>รหัสผ่าน
+        <span className="password-input-wrap">
+          <input name="password" type={showPassword ? 'text' : 'password'} required minLength="8" autoComplete={isRegister || isReset ? 'new-password' : 'current-password'} placeholder="อย่างน้อย 8 ตัวอักษร" />
+          <button className="password-toggle" type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} aria-pressed={showPassword}>
+            {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+          </button>
+        </span>
+      </label>}
+      {!isRegister && !isForgot && !isReset && <a className="forgot-link" href="#/forgot-password">ลืมรหัสผ่าน?</a>}
+      {errorMessage && <div className="auth-message error" role="alert">{errorMessage}</div>}
+      {successMessage && <div className="auth-message success" role="status">{successMessage}</div>}
+      <button type="submit" className="button button-green auth-submit" disabled={submitting}>{submitting ? 'กำลังดำเนินการ…' : isRegister ? 'สมัครสมาชิก' : isForgot ? 'ส่งลิงก์ตั้งรหัสผ่าน' : isReset ? 'บันทึกรหัสผ่านใหม่' : 'เข้าสู่ระบบ'} <ArrowRight size={16} /></button>
+      {!isReset && <div className="auth-switch">{isRegister ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชี?'} <a href={isRegister ? '#/login' : '#/register'}>{isRegister ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}</a></div>}
+      {isRegister || isForgot || isReset ? null : <div className="demo-hint"><strong>ระบบสมาชิกผ่าน Supabase</strong><span>การสมัครสมาชิกอาจต้องยืนยันอีเมลก่อนเข้าใช้งาน</span></div>}
+    </form></div>
+  </div>;
 }
 
 function Cart({ cart, setCart, navigate }) {
