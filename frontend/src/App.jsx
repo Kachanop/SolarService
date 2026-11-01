@@ -174,8 +174,11 @@ function App() {
     `${product.name} ${product.category}`.toLowerCase().includes(search.toLowerCase())), [catalogProducts, search]);
   const protectedRoutes = new Set([
     '/customer', '/bookings', '/quotes', '/tracking', '/cart', '/checkout', '/profile', '/account', '/reviews',
-    '/technician', '/schedule', '/jobs', '/survey', '/work-history', '/admin', '/manage-products',
-    '/manage-users', '/manage-bookings', '/manage-quotes', '/manage-orders', '/installations', '/reports',
+    '/technician', '/schedule', '/jobs', '/survey', '/work-history',
+    '/admin', '/manage-products', '/manage-packages', '/manage-users',
+    '/manage-bookings', '/manage-quotes', '/manage-orders', '/manage-payments',
+    '/installations', '/warranties', '/maintenance', '/tickets',
+    '/manage-reviews', '/manage-cms', '/reports',
   ]);
   const screen = !authUser && protectedRoutes.has(route)
     ? '/login'

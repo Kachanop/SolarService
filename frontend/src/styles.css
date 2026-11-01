@@ -328,3 +328,467 @@ a { color: inherit; text-decoration: none; }
   .logout-button-account { width: 100%; justify-content: center; }
 }
 
+/* ====================================================================
+   ADMIN ENHANCEMENT STYLES (Analytics, Warranty, CRM, CMS, Payments)
+   ==================================================================== */
+
+.admin-nav-scroll-wrap {
+  overflow-x: auto;
+  margin: -10px 0 20px;
+  padding-bottom: 4px;
+}
+.admin-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: max-content;
+  padding: 4px;
+  background: #edf2e8;
+  border-radius: 9px;
+  border: 1px solid #dfe5da;
+}
+.admin-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  color: #556250;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s ease;
+}
+.admin-nav-item:hover {
+  color: #243522;
+  background: rgba(255,255,255,0.6);
+}
+.admin-nav-item.active {
+  color: #1e331b;
+  background: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(32,42,35,0.08);
+}
+.admin-nav-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  background: #e1e8db;
+  color: #4b5d44;
+}
+.admin-nav-badge.alert {
+  background: #e85347;
+  color: #ffffff;
+}
+
+/* Toolbar & Filters */
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.admin-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 280px;
+  flex-wrap: wrap;
+}
+.admin-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.admin-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  background: #ffffff;
+  border: 1px solid #dce2d6;
+  border-radius: 6px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 380px;
+}
+.admin-search-box input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 11px;
+  color: #2e3b2e;
+}
+.admin-filter-select {
+  padding: 7px 10px;
+  background: #ffffff;
+  border: 1px solid #dce2d6;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #465544;
+  outline: 0;
+  cursor: pointer;
+}
+
+/* Pagination */
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  background: #fbfcf9;
+  border: 1px solid #edf0ea;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #6a7667;
+  flex-wrap: wrap;
+}
+.admin-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.admin-page-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #dce2d6;
+  background: #ffffff;
+  color: #465544;
+  border-radius: 5px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.admin-page-btn:hover:not(:disabled) {
+  border-color: #587b45;
+  color: #587b45;
+}
+.admin-page-btn.active {
+  background: #587b45;
+  color: #ffffff;
+  border-color: #587b45;
+  font-weight: 600;
+}
+.admin-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Status Pills */
+.status-pill.red {
+  color: #a03b30;
+  background: #fdf0ed;
+}
+.status-pill.purple {
+  color: #673ab7;
+  background: #f3ebfa;
+}
+
+/* Charts & Analytics Visuals */
+.admin-charts-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1.1fr;
+  gap: 16px;
+  margin: 18px 0;
+}
+.admin-chart-card {
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e5ebe0;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(32,42,35,0.03);
+  display: flex;
+  flex-direction: column;
+}
+.admin-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.admin-chart-header h3 {
+  margin: 0 0 3px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #273729;
+}
+.admin-chart-header p {
+  margin: 0;
+  font-size: 10px;
+  color: #7d8a7c;
+}
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+  color: #61705f;
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+/* Donut Chart Visual */
+.admin-donut-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 16px;
+  padding: 10px 0;
+  flex-wrap: wrap;
+}
+.donut-svg-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: grid;
+  place-items: center;
+}
+.donut-center-text {
+  position: absolute;
+  text-align: center;
+  pointer-events: none;
+}
+.donut-center-text strong {
+  display: block;
+  font-size: 18px;
+  color: #253928;
+  font-weight: 700;
+}
+.donut-center-text small {
+  font-size: 9px;
+  color: #798677;
+}
+.donut-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 150px;
+}
+.donut-stat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.donut-stat-row span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #4b5a49;
+}
+.donut-stat-row strong {
+  padding-left: 14px;
+  font-size: 12px;
+  color: #263828;
+}
+
+/* Leaderboard */
+.admin-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+.leaderboard-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #f9fbf7;
+  border: 1px solid #edf2e9;
+  border-radius: 7px;
+}
+.leaderboard-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+.leaderboard-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #2e3e2c;
+}
+.leaderboard-rank {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #edf3e8;
+  color: #557945;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.leaderboard-progress-bg {
+  height: 6px;
+  width: 100%;
+  background: #e8eee4;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.leaderboard-progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #6c9356, #4d713c);
+  transition: width 0.4s ease;
+}
+
+/* Modals & Drawers */
+.admin-modal-card {
+  width: min(680px, 96%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 16px 50px rgba(22,35,24,0.22);
+}
+.admin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #edf1e9;
+}
+.admin-modal-header h2 {
+  margin: 0 0 3px;
+  font-size: 17px;
+  color: #273729;
+}
+.admin-modal-header p {
+  margin: 0;
+  font-size: 10px;
+  color: #7b8879;
+}
+
+/* Slip Preview Image */
+.slip-preview-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f7f9f5;
+  border: 1px dashed #ced9c7;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+.slip-preview-img {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* CRM 360 Customer Drawer */
+.crm-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #f4f8f1;
+  border-radius: 8px;
+  margin-bottom: 18px;
+}
+.crm-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #587b45;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.crm-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid #e5ebe0;
+  margin-bottom: 16px;
+}
+.crm-tab-btn {
+  padding: 8px 12px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #687666;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.crm-tab-btn.active {
+  color: #4a6c38;
+  border-bottom-color: #587b45;
+}
+
+/* Warranty Certificate Card */
+.warranty-cert-card {
+  padding: 24px;
+  background: linear-gradient(135deg, #fdfbf7 0%, #f6f8f2 100%);
+  border: 2px solid #d4dfcb;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.warranty-cert-card:before {
+  content: 'SOLARSERVICE WARRANTY';
+  position: absolute;
+  top: 10px;
+  right: -25px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(88,123,69,0.15);
+  transform: rotate(25deg);
+}
+.cert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #d5e0cd;
+}
+.cert-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .admin-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+

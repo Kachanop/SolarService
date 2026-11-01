@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronRight, ClipboardList, Clock3, Download, FileText, Plus, ShoppingBag, Sun, User, Wrench } from 'lucide-react';
+import { adminRoutes } from '../lib/routes.js';
 import AdminWorkspace from './AdminWorkspace.jsx';
 import Booking from '../technician/Booking.jsx';
 import TechnicianDashboard from '../technician/TechnicianDashboard.jsx';
@@ -12,8 +13,8 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
   const isSurvey = route === '/survey';
   const isReview = route === '/reviews';
   const isProfile = route === '/profile' || route === '/account';
-  if (['/admin', '/manage-products', '/manage-users', '/manage-bookings', '/manage-quotes', '/manage-orders', '/installations', '/reports'].includes(route)) {
-    return <AdminWorkspace route={route} title={title} navigate={navigate} authUser={authUser} />;
+  if (adminRoutes.has(route)) {
+    return <AdminWorkspace route={route} title={title} navigate={navigate} authUser={authUser} setToast={setToast} />;
   }
   if (isTechnician && !isSurvey) {
     return <TechnicianDashboard route={route} title={title} authUser={authUser} navigate={navigate} />;
