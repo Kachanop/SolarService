@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check, LogIn, Menu, ShoppingCart, Sun, X } from 'lucide-react';
+import { ArrowRight, Check, LogIn, Menu, ShoppingCart, Sun, User, X } from 'lucide-react';
 import { supabase, supabaseConfigError } from './lib/supabase.js';
 import { products } from './data/catalog.js';
 import { adminRoutes, pageTitles, roleMenus, routeFromHash, technicianRoutes } from './lib/routes.js';
@@ -10,6 +10,7 @@ import Services from './pages/Services.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 import AuthPage from './pages/AuthPage.jsx';
+import AccountPage from './pages/AccountPage.jsx';
 import { Cart, Checkout } from './pages/CartPages.jsx';
 import WorkspacePage from './pages/WorkspacePage.jsx';
 import { NotFound, Footer } from './components/SiteLayout.jsx';
@@ -172,7 +173,7 @@ function App() {
   const filteredProducts = useMemo(() => catalogProducts.filter((product) =>
     `${product.name} ${product.category}`.toLowerCase().includes(search.toLowerCase())), [catalogProducts, search]);
   const protectedRoutes = new Set([
-    '/customer', '/bookings', '/quotes', '/tracking', '/cart', '/checkout', '/profile', '/reviews',
+    '/customer', '/bookings', '/quotes', '/tracking', '/cart', '/checkout', '/profile', '/account', '/reviews',
     '/technician', '/schedule', '/jobs', '/survey', '/work-history', '/admin', '/manage-products',
     '/manage-users', '/manage-bookings', '/manage-quotes', '/manage-orders', '/installations', '/reports',
   ]);
@@ -249,7 +250,26 @@ function App() {
           {!isWorkspace && <a href="#/contact">ติดต่อเรา</a>}
         </nav>
         <div className="header-actions">
-          {!isWorkspace ? <a className="login-link" href="#/login"><LogIn size={16} /> เข้าสู่ระบบ</a> : <><a className="cart-button" href="#/cart" aria-label={`ตะกร้า ${cartCount} รายการ`}><ShoppingCart size={18} /><span>ตะกร้า</span>{cartCount > 0 && <b>{cartCount}</b>}</a><button className="signout-button" onClick={signOut} title={authUser.email || 'ออกจากระบบ'}>ออกจากระบบ</button></>}
+          {!isWorkspace ? (
+            <a className="login-link" href="#/login"><LogIn size={16} /> เข้าสู่ระบบ</a>
+          ) : (
+            <>
+              <a
+                className={`account-nav-link ${['/account', '/profile'].includes(route) ? 'active' : ''}`}
+                href="#/account"
+                title="จัดการบัญชีของฉัน"
+              >
+                <User size={15} />
+                <span className="account-nav-name">
+                  {authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'บัญชีของฉัน'}
+                </span>
+              </a>
+              <a className="cart-button" href="#/cart" aria-label={`ตะกร้า ${cartCount} รายการ`}>
+                <ShoppingCart size={18} /><span>ตะกร้า</span>{cartCount > 0 && <b>{cartCount}</b>}
+              </a>
+              <button className="signout-button" onClick={signOut} title={authUser.email || 'ออกจากระบบ'}>ออกจากระบบ</button>
+            </>
+          )}
           {!isWorkspace && <a className="button button-dark header-cta" href="#/register">สมัครสมาชิก <ArrowRight size={15} /></a>}
         </div>
       </header>
@@ -264,10 +284,11 @@ function App() {
         {!authLoading && screen === '/about' && <About navigate={navigate} />}
         {!authLoading && screen === '/contact' && <Contact setToast={setToast} />}
         {!authLoading && ['/login', '/register', '/forgot-password', '/reset-password'].includes(screen) && !(screen === '/login' && route !== '/login') && <AuthPage route={screen} navigate={navigate} onAuthenticated={onAuthenticated} setToast={setToast} />}
+        {!authLoading && (screen === '/account' || screen === '/profile') && <AccountPage authUser={authUser} role={role} navigate={navigate} setToast={setToast} signOut={signOut} />}
         {!authLoading && screen === '/cart' && <Cart cart={cart} setCart={setCart} navigate={navigate} />}
         {!authLoading && screen === '/checkout' && <Checkout setToast={setToast} navigate={navigate} />}
-        {!authLoading && pageTitles[screen] && screen !== '/cart' && screen !== '/checkout' && <WorkspacePage route={screen} title={pageTitles[screen]} navigate={navigate} setToast={setToast} authUser={authUser} />}
-        {!authLoading && !['/', '/products', '/packages', '/services', '/about', '/contact', '/login', '/register', '/forgot-password', '/reset-password', '/cart', '/checkout', ...Object.keys(pageTitles)].includes(screen) && <NotFound navigate={navigate} />}
+        {!authLoading && pageTitles[screen] && screen !== '/cart' && screen !== '/checkout' && screen !== '/account' && screen !== '/profile' && <WorkspacePage route={screen} title={pageTitles[screen]} navigate={navigate} setToast={setToast} authUser={authUser} />}
+        {!authLoading && !['/', '/products', '/packages', '/services', '/about', '/contact', '/login', '/register', '/forgot-password', '/reset-password', '/cart', '/checkout', '/account', '/profile', ...Object.keys(pageTitles)].includes(screen) && <NotFound navigate={navigate} />}
       </main>
       <Footer navigate={navigate} />
       {toast && <div className="toast"><span className="toast-check"><Check size={15} /></span>{toast}</div>}

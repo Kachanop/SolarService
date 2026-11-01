@@ -227,3 +227,104 @@ a { color: inherit; text-decoration: none; }
   .technician-job-card { align-items: flex-start; gap: 8px; padding: 10px; }
   .technician-call { align-self: center; padding: 7px; }
 }
+
+/* Account / Profile Page */
+.account-nav-link { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; background: #eef3ea; color: #3d5038; border: 1px solid #d7e2d1; border-radius: 6px; font-size: 11px; font-weight: 600; text-decoration: none; transition: all .2s; }
+.account-nav-link:hover, .account-nav-link.active { background: #e0ebd9; color: var(--deep-green); border-color: #bacdb1; }
+.account-nav-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.account-page-wrap { max-width: 1040px; margin: 0 auto; padding: 36px 24px 60px; display: flex; flex-direction: column; gap: 24px; }
+
+.account-hero-card { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 26px 30px; background: linear-gradient(135deg, #ffffff 0%, #f4f7f1 100%); border: 1px solid #e3e8de; border-radius: 12px; box-shadow: 0 4px 18px rgba(32,42,35,0.04); }
+.account-hero-main { display: flex; align-items: center; gap: 20px; }
+.account-avatar-circle { position: relative; width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #587b45 0%, #3a562d 100%); color: #ffffff; display: grid; place-items: center; font-size: 26px; font-weight: 700; box-shadow: 0 6px 14px rgba(88,123,69,0.25); flex-shrink: 0; }
+.account-avatar-badge { position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 50%; background: #ffffff; color: #587b45; display: grid; place-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.12); }
+.account-hero-text h1 { margin: 6px 0 3px; font-size: 24px; font-weight: 700; color: #202a23; letter-spacing: -0.5px; }
+.account-hero-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.account-role-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.account-role-badge.tone-green { background: #eaf2e5; color: #446435; border: 1px solid #cce0c2; }
+.account-role-badge.tone-blue { background: #e6f0fa; color: #275685; border: 1px solid #c2daf0; }
+.account-role-badge.tone-purple { background: #f3ebfa; color: #64318c; border: 1px solid #dec9ee; }
+.account-verified-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #e8f5e9; color: #2e7d32; border-radius: 20px; font-size: 10px; font-weight: 500; }
+.account-hero-email { margin: 0; color: #667265; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+
+.account-hero-meta { display: flex; gap: 24px; padding-left: 24px; border-left: 1px solid #e3e8de; flex-shrink: 0; }
+.meta-item { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.meta-label { color: #7f8a7e; font-size: 10px; display: inline-flex; align-items: center; gap: 5px; }
+.meta-item strong { color: #2e3a2f; font-weight: 600; }
+.uid-copy-wrap { display: flex; align-items: center; gap: 6px; }
+.uid-copy-wrap code { font-family: monospace; font-size: 11px; background: #edf1e9; padding: 2px 6px; border-radius: 4px; color: #435442; }
+.copy-uid-btn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; background: transparent; border: 1px solid #d2dbcd; border-radius: 4px; color: #5a6858; font-size: 10px; cursor: pointer; transition: all .2s; }
+.copy-uid-btn:hover { background: #eef3ea; color: #2a3828; border-color: #b5c4ad; }
+.text-green { color: #4f733c; }
+
+.account-loading-box { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px; background: #ffffff; border: 1px solid #e6ebdf; border-radius: 8px; color: #667364; font-size: 12px; }
+.spin-icon { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.account-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.account-card { background: #ffffff; border: 1px solid #e6ebe0; border-radius: 12px; padding: 26px; box-shadow: 0 2px 12px rgba(32,42,35,0.03); display: flex; flex-direction: column; }
+.account-card-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #edf1e8; }
+.account-icon-wrap { width: 40px; height: 40px; border-radius: 10px; background: #eef4e9; color: var(--green); display: grid; place-items: center; flex-shrink: 0; }
+.account-icon-wrap.security-icon { background: #fbf0e8; color: #9c552a; }
+.account-card-header h2 { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #202a23; }
+.account-card-header p { margin: 0; font-size: 11px; color: #768175; line-height: 1.5; }
+
+.account-alert { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 8px; font-size: 11px; line-height: 1.5; margin-bottom: 18px; }
+.account-alert.success { background: #eaf5e6; color: #2f6920; border: 1px solid #c9e6c1; }
+.account-alert.error { background: #fdf0ed; color: #9b392b; border: 1px solid #f6cfc7; }
+
+.account-form { display: flex; flex-direction: column; gap: 16px; }
+.account-form-group { display: flex; flex-direction: column; gap: 6px; }
+.account-form-group label { font-size: 11px; font-weight: 600; color: #3b473a; }
+.input-with-icon { position: relative; display: flex; align-items: center; width: 100%; }
+.input-with-icon .input-icon { position: absolute; left: 12px; color: #889486; pointer-events: none; }
+.input-with-icon input { width: 100%; padding: 10px 12px 10px 38px; border: 1px solid #dbe2d6; border-radius: 7px; font-size: 12px; color: #253325; background: #ffffff; transition: border-color .2s, box-shadow .2s; }
+.input-with-icon input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(88,123,69,0.12); }
+.input-with-icon.disabled input { background: #f5f7f3; color: #798577; cursor: not-allowed; border-color: #e4e8df; }
+.password-toggle-btn { position: absolute; right: 10px; background: none; border: none; color: #828e80; padding: 4px; cursor: pointer; display: grid; place-items: center; }
+.password-toggle-btn:hover { color: #334233; }
+.form-hint { font-size: 10px; color: #849182; line-height: 1.4; }
+
+.role-explainer-card { padding: 10px 14px; background: #f7f9f5; border: 1px solid #e6ebe1; border-radius: 7px; font-size: 11px; }
+.role-explainer-card strong { display: block; color: #364834; margin-bottom: 2px; }
+.role-explainer-card p { margin: 0; color: #748172; font-size: 10px; }
+
+.account-form-actions { margin-top: 6px; }
+.account-submit-btn { width: 100%; justify-content: center; padding: 11px 16px; font-size: 12px; border-radius: 7px; }
+
+.sub-form-heading { display: flex; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 13px; font-weight: 700; color: #2a3829; }
+.password-rules-box { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; background: #f8faf6; border: 1px solid #e7ece2; border-radius: 7px; font-size: 10px; color: #849082; }
+.rule-check { display: flex; align-items: center; gap: 6px; }
+.rule-check.valid { color: #386d26; font-weight: 600; }
+.rule-check.valid svg { color: #43842c; }
+
+.account-divider { display: flex; align-items: center; text-align: center; margin: 18px 0; color: #9da89b; font-size: 10px; text-transform: uppercase; }
+.account-divider:before, .account-divider:after { content: ''; flex: 1; border-bottom: 1px solid #e9eee4; }
+.account-divider span { padding: 0 12px; }
+
+.email-reset-card { padding: 14px; background: #fafdff; border: 1px solid #dce8f2; border-radius: 8px; display: flex; flex-direction: column; gap: 12px; }
+.email-reset-header { display: flex; gap: 10px; align-items: flex-start; }
+.email-reset-icon { color: #3572a5; margin-top: 2px; flex-shrink: 0; }
+.email-reset-header strong { display: block; font-size: 11px; color: #224361; }
+.email-reset-header p { margin: 3px 0 0; font-size: 10px; color: #61798e; line-height: 1.4; }
+.email-reset-btn { width: 100%; justify-content: center; font-size: 11px; padding: 9px 12px; color: #2c5980; border-color: #cadbe9; }
+.email-reset-btn:hover { background: #eaf3fa; border-color: #a9c6de; color: #1c3e5d; }
+
+.account-footer-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 22px; background: #ffffff; border: 1px solid #e6ebe0; border-radius: 10px; }
+.account-quick-links { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 11px; }
+.account-quick-links span { color: #7a8678; font-weight: 600; }
+.account-quick-links button { display: inline-flex; align-items: center; gap: 5px; background: #f3f6ef; border: 1px solid #dce4d6; padding: 6px 12px; border-radius: 6px; font-size: 11px; color: #41523e; cursor: pointer; transition: all .2s; }
+.account-quick-links button:hover { background: #e7eedf; color: #202f1d; }
+.logout-button-account { color: #8e392b; border-color: #f1cfc9; padding: 8px 14px; font-size: 11px; }
+.logout-button-account:hover { background: #fdf1ef; border-color: #e5a79c; }
+
+@media (max-width: 820px) {
+  .account-hero-card { flex-direction: column; align-items: flex-start; padding: 20px; }
+  .account-hero-meta { border-left: none; border-top: 1px solid #e3e8de; padding-left: 0; padding-top: 16px; width: 100%; flex-direction: column; gap: 12px; }
+  .account-grid { grid-template-columns: 1fr; }
+  .account-footer-bar { flex-direction: column; align-items: stretch; gap: 14px; }
+  .account-quick-links { justify-content: flex-start; }
+  .logout-button-account { width: 100%; justify-content: center; }
+}
+
