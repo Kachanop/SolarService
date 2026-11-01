@@ -12,8 +12,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Auth_%2B_Postgres-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 [![License](https://img.shields.io/badge/Status-Complete_%26_Production_Ready-4CAF50?style=for-the-badge)](#)
 
-</div>
-![Uploading Screenshot 2026-11-01 233145.png…]()
+
 
 ---
 
