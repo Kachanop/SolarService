@@ -1,0 +1,7 @@
+import React from 'react';
+import { ArrowRight, FileText, Headphones, House } from 'lucide-react';
+import { PageIntro } from '../components/Shared.jsx';
+
+export default function Contact({ setToast }) {
+  return <div className="page-wrap"><PageIntro eyebrow="CONTACT US" title="คุยกับเราได้เลย" description="ทีมงานยินดีตอบทุกคำถามเรื่องโซลาร์เซลล์และบริการของเรา" /><div className="contact-grid"><div className="contact-details"><h2>เราพร้อมช่วยคุณ</h2><p>ปรึกษาเบื้องต้นได้ฟรี ไม่มีข้อผูกมัด</p><div><span><Headphones /></span><section><small>โทรศัพท์</small><strong>02-123-4567</strong><small>จันทร์ – เสาร์, 09:00 – 18:00 น.</small></section></div><div><span><FileText /></span><section><small>อีเมล</small><strong>hello@solarservice.co.th</strong></section></div><div><span><House /></span><section><small>สำนักงาน</small><strong>กรุงเทพมหานคร ประเทศไทย</strong></section></div></div><form className="form-card" onSubmit={(event) => { event.preventDefault(); setToast('ส่งข้อความเรียบร้อยแล้ว ทีมงานจะติดต่อกลับ'); }}><h3>ส่งข้อความถึงเรา</h3><label>ชื่อของคุณ<input required placeholder="เช่น คุณสมชาย ใจดี" /></label><label>อีเมลหรือเบอร์โทร<input required placeholder="สำหรับติดต่อกลับ" /></label><label>ข้อความ<textarea required rows="4" placeholder="บอกเราได้เลยว่าต้องการคำปรึกษาเรื่องอะไร" /></label><button className="button button-green" type="submit">ส่งข้อความ <ArrowRight size={16} /></button></form></div></div>;
+}

@@ -39,15 +39,16 @@
 | ความสามารถ | สถานะ |
 |---|---|
 | หน้าแรกและเมนูนำทาง Responsive | ✅ พร้อมใช้งาน |
-| หน้าสินค้า ค้นหา และกรองหมวดหมู่ | 🧩 UI ตัวอย่าง |
+| หน้าสินค้า ค้นหา และกรองหมวดหมู่ | ✅ อ่านสินค้าที่เผยแพร่จาก Supabase; การแก้ไขใน Admin แสดงในหน้าร้าน |
 | ตะกร้าและ checkout | 🧩 UI ตัวอย่าง; ข้อมูลอยู่ใน state ของหน้าเว็บ |
 | หน้าแพ็กเกจและบริการช่าง | ✅ มีหน้า UI และข้อมูลตัวอย่าง |
 | สมัครสมาชิก/เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน | ✅ เชื่อม Supabase Auth |
 | ออกจากระบบและคืนค่าสถานะ session | ✅ เชื่อม Supabase Auth |
 | กู้คืนและตั้งรหัสผ่านใหม่ | ✅ เชื่อม Auth; ต้องตั้ง redirect URL |
 | เมนูและพื้นที่ Admin/ช่างตาม role ใน `profiles` | ✅ อ่าน role และจำกัดเส้นทางใน Frontend |
+| Admin Dashboard, รายงาน, จัดการสินค้า/ผู้ใช้/การจอง/ใบเสนอราคา/คำสั่งซื้อ/งานติดตั้ง | ✅ อ่านข้อมูลจริงจาก Supabase; เพิ่ม/แก้ไขสินค้า มอบหมายช่าง และเปลี่ยน role/สถานะได้ |
 | Schema และ Row Level Security | 🗄️ มี migration; ต้องนำไปรันใน Supabase |
-| สินค้า การจอง ผลสำรวจ ใบเสนอราคา และติดตามงาน | 🧩 มีหน้าตัวอย่าง; ยังไม่อ่าน/เขียนฐานข้อมูลจริง |
+| หน้าลูกค้าและช่าง เช่น checkout การจอง และผลสำรวจ | 🧩 ยังมีข้อมูลตัวอย่าง; ไม่อยู่ในขอบเขตการเชื่อม Admin ครั้งนี้ |
 | อัปโหลดรูปสำรวจไปยัง Supabase Storage | ⏳ ยังไม่ได้เชื่อม |
 | Payment Gateway | ⏳ ยังไม่ได้เชื่อม |
 
@@ -77,7 +78,7 @@
    - จัดการคำสั่งซื้อ การชำระเงิน และงานติดตั้ง
    - ดู Dashboard และรายงาน
 
-> Frontend อ่านบทบาทจาก `profiles` เพื่อแสดงพื้นที่ลูกค้า ช่าง หรือ Admin และจำกัดเส้นทางตามบทบาท หน้าจัดการยังใช้ข้อมูลตัวอย่างและยังไม่อ่าน/เขียนข้อมูลธุรกิจจากฐานข้อมูล การกำหนดสิทธิ์ที่สำคัญต้องตรวจด้วย RLS ใน Supabase ด้วยเสมอ
+> Frontend อ่านบทบาทจาก `profiles` เพื่อแสดงพื้นที่ลูกค้า ช่าง หรือ Admin และจำกัดเส้นทางตามบทบาท หน้าจัดการ Admin อ่านและเขียนข้อมูลธุรกิจผ่าน Supabase โดยตรง จึงต้องนำ migration ไปรันและกำหนด Admin เริ่มต้นก่อนใช้งาน การกำหนดสิทธิ์ที่สำคัญต้องตรวจด้วย RLS ใน Supabase ด้วยเสมอ
 
 <a id="site-pages"></a>
 ## 🖥️ หน้าเว็บไซต์
@@ -263,11 +264,28 @@ SolarService/
 ├── package.json                 # scripts และ dependencies
 ├── README.md
 ├── src/
-│   ├── App.jsx                  # routing แบบ hash, หน้า UI และ auth flow
+│   ├── App.jsx                  # ประสาน routing, session และ layout หลัก
 │   ├── main.jsx                 # React entry point
 │   ├── styles.css               # styles และ responsive layout
-│   └── lib/
-│       └── supabase.js          # Supabase client
+│   ├── components/
+│   │   ├── Shared.jsx           # Money, PageIntro และ ProductCard
+│   │   └── SiteLayout.jsx       # Footer และหน้า 404
+│   ├── data/
+│   │   └── catalog.js           # ข้อมูลตัวอย่างสินค้าและแพ็กเกจ
+│   ├── lib/
+│   │   ├── routes.js            # เมนู, route titles และ route helpers
+│   │   └── supabase.js          # Supabase client
+│   └── pages/
+│       ├── About.jsx            # หน้าเกี่ยวกับเรา
+│       ├── AdminWorkspace.jsx   # Dashboard และหน้าจัดการ Admin
+│       ├── AuthPage.jsx         # สมัคร, เข้าสู่ระบบ และกู้รหัสผ่าน
+│       ├── CartPages.jsx        # ตะกร้าและ checkout
+│       ├── Contact.jsx          # หน้าติดต่อเรา
+│       ├── Home.jsx             # หน้าแรก
+│       ├── Packages.jsx         # หน้าแพ็กเกจ
+│       ├── Products.jsx         # หน้ารายการสินค้า
+│       ├── Services.jsx         # หน้าบริการ
+│       └── WorkspacePage.jsx    # พื้นที่ลูกค้าและช่าง
 └── supabase/
     └── migrations/
         └── 20261031200000_initial_schema.sql
