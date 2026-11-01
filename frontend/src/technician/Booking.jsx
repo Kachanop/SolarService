@@ -21,7 +21,7 @@ function normalizePhone(value) {
   return value.replace(/[\s-]/g, '');
 }
 
-function Booking({ user, navigate, setToast }) {
+export default function Booking({ user, navigate, setToast }) {
   const today = toDateInputValue(new Date());
   const submittingRef = useRef(false);
 
@@ -283,5 +283,3 @@ function Booking({ user, navigate, setToast }) {
     </div>
   );
 }
-
-export default Booking;

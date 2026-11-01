@@ -48,7 +48,8 @@
 | เมนูและพื้นที่ Admin/ช่างตาม role ใน `profiles` | ✅ อ่าน role และจำกัดเส้นทางใน Frontend |
 | Admin Dashboard, รายงาน, จัดการสินค้า/ผู้ใช้/การจอง/ใบเสนอราคา/คำสั่งซื้อ/งานติดตั้ง | ✅ อ่านข้อมูลจริงจาก Supabase; เพิ่ม/แก้ไขสินค้า มอบหมายช่าง และเปลี่ยน role/สถานะได้ |
 | Schema และ Row Level Security | 🗄️ มี migration; ต้องนำไปรันใน Supabase |
-| หน้าลูกค้าและช่าง เช่น checkout การจอง และผลสำรวจ | 🧩 ยังมีข้อมูลตัวอย่าง; ไม่อยู่ในขอบเขตการเชื่อม Admin ครั้งนี้ |
+| Dashboard/ตารางงานช่าง | ✅ อ่านงานที่มอบหมายจาก Supabase; การบันทึกผลสำรวจยังเป็น UI ตัวอย่าง |
+| แบบฟอร์มจองบริการลูกค้า | 🧩 UI พร้อม แต่ยังไม่เชื่อมการจองจริงกับฐานข้อมูล |
 | อัปโหลดรูปสำรวจไปยัง Supabase Storage | ⏳ ยังไม่ได้เชื่อม |
 | Payment Gateway | ⏳ ยังไม่ได้เชื่อม |
 
@@ -266,7 +267,11 @@ SolarService/
 │   ├── .env.example             # ตัวอย่าง Supabase environment
 │   ├── index.html
 │   ├── package.json             # Dependencies ของ Frontend
-│   ├── src/                     # App, pages, components และ styles
+│   ├── src/
+│   │   ├── pages/               # หน้าร้าน พื้นที่ผู้ใช้ และ Admin
+│   │   ├── technician/         # Dashboard ช่างและแบบฟอร์มจอง
+│   │   ├── services/           # service layer ของการจอง (ยังไม่เชื่อม backend)
+│   │   └── components/         # Components ใช้ร่วมกัน
 │   └── vite.config.js
 └── backend/                     # Supabase backend configuration
     ├── README.md

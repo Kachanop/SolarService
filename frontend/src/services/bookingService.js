@@ -1,4 +1,4 @@
-const backendUnavailable = () => new Error('ระบบจองบริการยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง');
+const bookingBackendUnavailable = () => new Error('ระบบจองบริการยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง');
 
 export const SERVICE_TYPES = [
   { value: 'survey', label: 'สำรวจหน้างาน', description: 'ประเมินพื้นที่และการใช้ไฟก่อนติดตั้ง' },
@@ -7,13 +7,13 @@ export const SERVICE_TYPES = [
 ];
 
 export async function createBooking() {
-  throw backendUnavailable();
+  throw bookingBackendUnavailable();
 }
 
 export async function getMyProfile() {
-  throw backendUnavailable();
+  throw bookingBackendUnavailable();
 }
 
 export async function getSlotAvailability() {
-  throw backendUnavailable();
+  throw bookingBackendUnavailable();
 }

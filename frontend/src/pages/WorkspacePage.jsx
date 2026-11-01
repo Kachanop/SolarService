@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronRight, ClipboardList, Clock3, Download, FileText, Plus, ShoppingBag, Sun, Wrench } from 'lucide-react';
 import AdminWorkspace from './AdminWorkspace.jsx';
 import Booking from '../technician/Booking.jsx';
-import TechnicianWorkspace from '../technician/TechnicianWorkspace.jsx';
+import TechnicianDashboard from '../technician/TechnicianDashboard.jsx';
 
 export default function WorkspacePage({ route, title, navigate, setToast, authUser }) {
   const isTechnician = ['/technician', '/schedule', '/jobs', '/survey', '/work-history'].includes(route);
@@ -15,7 +15,7 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
     return <AdminWorkspace route={route} title={title} navigate={navigate} authUser={authUser} />;
   }
   if (isTechnician && !isSurvey) {
-    return <TechnicianWorkspace route={route} title={title} authUser={authUser} navigate={navigate} />;
+    return <TechnicianDashboard route={route} title={title} authUser={authUser} navigate={navigate} />;
   }
   const bookingRows = [{ name: 'สำรวจพื้นที่ติดตั้ง', date: '12 พ.ย. 2568 · 09:00 น.', status: 'รอยืนยันช่าง', tone: 'yellow' }, { name: 'สำรวจระบบโซลาร์ 5 kW', date: '18 พ.ย. 2568 · 13:30 น.', status: 'ยืนยันแล้ว', tone: 'green' }];
   const genericRows = isTechnician
