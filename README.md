@@ -12,7 +12,11 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Auth_%2B_Postgres-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 [![License](https://img.shields.io/badge/Status-Complete_%26_Production_Ready-4CAF50?style=for-the-badge)](#)
 
+<br /><br />
 
+<img src="./docs/images/architecture-overview.jpg" alt="SolarService Architecture Overview" width="100%" style="border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.12);" />
+
+</div>
 
 ---
 
@@ -39,6 +43,25 @@
 - **หน้าบ้าน (Storefront & Portals)**: รองรับการเข้าชมทั้งบนมือถือและคอมพิวเตอร์ (Responsive Design 100%) พร้อมระบบค้นหา กรองหมวดหมู่ ตะกร้าสินค้า และพอร์ทัลแยกตามบทบาท
 - **ระบบหลังบ้าน (Enterprise Admin)**: ระบบโมดูลาร์ 15 เครื่องมือที่ครอบคลุมงานขาย, คลังสินค้า, การเงิน, คิวช่าง, ทะเบียนประกัน, CRM และการตลาด
 - **ความทนทานของข้อมูล (Data Resilience)**: สถาปัตยกรรม Service Layer (`adminService.js`) รองรับทั้งการเชื่อมต่อสดกับฐานข้อมูล **Supabase PostgreSQL** และมีกลไก Local Fallback Data อัตโนมัติ ทำให้ระบบสามารถแสดงผลและทำงานต่อเนื่องได้ตลอดเวลา
+
+### 📐 สถาปัตยกรรมระบบและการไหลของข้อมูล (Architecture & Data Flow)
+- **Client / Frontend Layer (React 18 + Vite 6)**:
+  - 🖥️ **Web Browser (ลูกค้า / Guest)**: ร้านค้าออนไลน์, พอร์ทัลลูกค้า, ตะกร้าสินค้า และระบบจองคิว
+  - 📱 **Technician UI (ช่างเทคนิค)**: ตารางงานประจำวัน, ฟอร์มสำรวจหน้างาน (Survey) และรายงานสถานะ
+  - 🏢 **Admin Panel (ผู้ดูแลระบบ)**: พอร์ทัลบริหารจัดการ 15 เครื่องมือ, CRM 360°, รายงาน และการเงิน
+- **Backend & Webservices (Supabase API)**:
+  - ตรวจสอบความถูกต้องและสิทธิ์ผู้ใช้งานด้วย **JWT Authentication**
+  - ป้องกันและจำกัดการเข้าถึงข้อมูลตามบทบาทด้วย **Row Level Security (RLS)**
+  - จัดการเส้นทางคำขออัตโนมัติผ่าน PostgREST Engine
+- **Core Modules & Services (Schema)**:
+  - 👤 **User & Role**: จัดการโปรไฟล์และระดับสิทธิ์ (`profiles`)
+  - 📅 **Booking Service**: คิวจองช่างสำรวจและการมอบหมายงาน (`service_bookings`)
+  - 📦 **Product Service**: แคตตาล็อกสินค้า, สต็อก และแพ็กเกจติดตั้ง (`products`, `packages`)
+  - 📐 **Survey Service**: รายละเอียดหลังคา, ทิศทาง และภาพถ่ายสำรวจ (`site_surveys`)
+  - 📄 **Order Service**: ใบเสนอราคา, คำสั่งซื้อ และยอดชำระ (`orders`, `quotations`)
+  - 🔧 **Installation Service**: ติดตามงานติดตั้ง, ทะเบียนรับประกัน และรีวิว (`installations`, `warranties`)
+- **Data Flow Pipeline**:
+  $$\text{Client} \longrightarrow \text{HTTPS / Internet} \longrightarrow \text{Supabase Auth} \longrightarrow \text{PostgREST API} \longrightarrow \text{PostgreSQL (RLS)} \longrightarrow \text{Response}$$
 
 ---
 
