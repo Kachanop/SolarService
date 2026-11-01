@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check, Menu, ShoppingCart, Sun, X } from 'lucide-react';
+import { ArrowRight, Check, LogIn, Menu, ShoppingCart, Sun, X } from 'lucide-react';
 import { supabase, supabaseConfigError } from './lib/supabase.js';
 import { products } from './data/catalog.js';
 import { adminRoutes, pageTitles, roleMenus, routeFromHash, technicianRoutes } from './lib/routes.js';
