@@ -236,7 +236,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div className="announcement"><Sun size={14} /> เปลี่ยนพลังงานแสงอาทิตย์ให้เป็นค่าไฟที่เบาลง <a href="#/packages">ดูแพ็กเกจที่ใช่ <ArrowRight size={13} /></a></div>
+      {!adminRoutes.has(route) && <div className="announcement"><Sun size={14} /> เปลี่ยนพลังงานแสงอาทิตย์ให้เป็นค่าไฟที่เบาลง <a href="#/packages">ดูแพ็กเกจที่ใช่ <ArrowRight size={13} /></a></div>}
       <header className="site-header">
         <a className="brand" href="#/" aria-label="SolarService หน้าแรก">
           <span className="brand-mark"><Sun size={21} strokeWidth={2.2} /></span>

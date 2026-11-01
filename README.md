@@ -151,7 +151,7 @@
 npm install
 ```
 
-คัดลอก `.env.example` เป็น `.env.local` แล้วกรอกค่า Supabase ตามหัวข้อ [ตั้งค่า Supabase](#ตั้งค่า-supabase) จากนั้นรัน:
+ติดตั้ง dependencies ที่ root ของ repository จากนั้นคัดลอก `frontend/.env.example` เป็น `frontend/.env.local` แล้วกรอกค่า Supabase ตามหัวข้อ [ตั้งค่า Supabase](#ตั้งค่า-supabase) จากนั้นรัน:
 
 ```bash
 npm run dev
@@ -160,7 +160,7 @@ npm run dev
 คำสั่งอื่น:
 
 ```bash
-npm run build    # สร้าง production build ไว้ใน dist/
+npm run build    # สร้าง production build ไว้ใน frontend/dist/
 npm run preview  # เปิดดู production build ในเครื่อง
 ```
 
@@ -172,10 +172,10 @@ npm run preview  # เปิดดู production build ในเครื่อ�
 คัดลอกไฟล์ตัวอย่าง:
 
 ```powershell
-Copy-Item .env.example .env.local
+Copy-Item frontend\.env.example frontend\.env.local
 ```
 
-ใส่ URL และ **Publishable key** ของโปรเจกต์ใน `.env.local`:
+ใส่ URL และ **Publishable key** ของโปรเจกต์ใน `frontend/.env.local`:
 
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
@@ -184,7 +184,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
 
 หลังแก้ environment variables ให้ restart Vite (`Ctrl+C` แล้ว `npm run dev`)
 
-> ห้ามใส่ `sb_secret_` หรือ `service_role` key ในตัวแปร `VITE_` หรือโค้ดฝั่ง Browser เด็ดขาด ไฟล์ `.env.local` ถูก ignore โดย Git ส่วน `.env.example` ใช้แชร์เฉพาะชื่อตัวแปรและค่าตัวอย่างเท่านั้น
+> ห้ามใส่ `sb_secret_` หรือ `service_role` key ในตัวแปร `VITE_` หรือโค้ดฝั่ง Browser เด็ดขาด ไฟล์ `frontend/.env.local` ถูก ignore โดย Git ส่วน `frontend/.env.example` ใช้แชร์เฉพาะชื่อตัวแปรและค่าตัวอย่างเท่านั้น
 
 ### 2. ตั้งค่า Authentication redirect URLs
 
@@ -197,7 +197,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
 
 ### 3. สร้างตารางและ RLS
 
-Schema อยู่ใน [supabase/migrations/20261031200000_initial_schema.sql](./supabase/migrations/20261031200000_initial_schema.sql)
+Schema อยู่ใน [backend/supabase/migrations/20261031200000_initial_schema.sql](./backend/supabase/migrations/20261031200000_initial_schema.sql)
 
 วิธีใช้งานปัจจุบัน:
 
@@ -259,36 +259,20 @@ Migration ยังเพิ่ม:
 
 ```text
 SolarService/
-├── .env.example                 # ตัวอย่างตัวแปร Supabase (ไม่มี secret จริง)
-├── index.html                   # HTML entry point
-├── package.json                 # scripts และ dependencies
+├── package.json                 # npm workspace และคำสั่งพัฒนา/Build
+├── package-lock.json            # lockfile สำหรับทุก workspace
 ├── README.md
-├── src/
-│   ├── App.jsx                  # ประสาน routing, session และ layout หลัก
-│   ├── main.jsx                 # React entry point
-│   ├── styles.css               # styles และ responsive layout
-│   ├── components/
-│   │   ├── Shared.jsx           # Money, PageIntro และ ProductCard
-│   │   └── SiteLayout.jsx       # Footer และหน้า 404
-│   ├── data/
-│   │   └── catalog.js           # ข้อมูลตัวอย่างสินค้าและแพ็กเกจ
-│   ├── lib/
-│   │   ├── routes.js            # เมนู, route titles และ route helpers
-│   │   └── supabase.js          # Supabase client
-│   └── pages/
-│       ├── About.jsx            # หน้าเกี่ยวกับเรา
-│       ├── AdminWorkspace.jsx   # Dashboard และหน้าจัดการ Admin
-│       ├── AuthPage.jsx         # สมัคร, เข้าสู่ระบบ และกู้รหัสผ่าน
-│       ├── CartPages.jsx        # ตะกร้าและ checkout
-│       ├── Contact.jsx          # หน้าติดต่อเรา
-│       ├── Home.jsx             # หน้าแรก
-│       ├── Packages.jsx         # หน้าแพ็กเกจ
-│       ├── Products.jsx         # หน้ารายการสินค้า
-│       ├── Services.jsx         # หน้าบริการ
-│       └── WorkspacePage.jsx    # พื้นที่ลูกค้าและช่าง
-└── supabase/
-    └── migrations/
-        └── 20261031200000_initial_schema.sql
+├── frontend/                    # React/Vite application
+│   ├── .env.example             # ตัวอย่าง Supabase environment
+│   ├── index.html
+│   ├── package.json             # Dependencies ของ Frontend
+│   ├── src/                     # App, pages, components และ styles
+│   └── vite.config.js
+└── backend/                     # Supabase backend configuration
+    ├── README.md
+    └── supabase/
+        └── migrations/
+            └── 20261031200000_initial_schema.sql
 ```
 
 <a id="mvp-scope"></a>
