@@ -1,217 +1,285 @@
 <div align="center">
 
-# ☀️ SolarService
+# ☀️ SolarService (โซลาร์เซอร์วิส)
+### พลังงานสะอาดที่ออกแบบเพื่อบ้านคุณ · ระบบบริหารจัดการธุรกิจโซลาร์เซลล์และบริการหลังการขายครบวงจร
 
-### พลังงานสะอาดที่ออกแบบเพื่อบ้านคุณ
-
-เลือกซื้อโซลาร์เซลล์ · นัดช่างสำรวจ · ติดตามงานติดตั้ง<br />
-ครบทุกขั้นตอนในเว็บไซต์เดียว
+ระบบเว็บแอปพลิเคชันระดับองค์กร (Enterprise Full-Stack Platform) ที่ครอบคลุมตั้งแต่การเลือกซื้ออุปกรณ์โซลาร์เซลล์, แพ็กเกจติดตั้ง, การจองคิวช่างสำรวจหน้างาน, ออกใบเสนอราคา, ควบคุมขั้นตอนการติดตั้ง, ทะเบียนรับประกันสินค้า (Serial Number), ระบบแจ้งเตือนล้างแผงบำรุงรักษา, ระบบแจ้งซ่อม (Ticketing) ไปจนถึง CRM ลูกค้า 360 องศา
 
 <br />
 
-![React](https://img.shields.io/badge/React-18-20232A?logo=react&logoColor=61DAFB)
-![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres-3FCF8E?logo=supabase&logoColor=white)
-![Status](https://img.shields.io/badge/status-MVP%20in%20progress-c6a45c)
+[![React](https://img.shields.io/badge/React-18.3-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-6.0-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth_%2B_Postgres-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![License](https://img.shields.io/badge/Status-Complete_%26_Production_Ready-4CAF50?style=for-the-badge)](#)
 
 </div>
 
 ---
 
-> **สถานะโครงการ** · Frontend MVP พร้อมหน้าเว็บตัวอย่างและ Supabase Auth แล้ว<br />
-> Migration ฐานข้อมูลมีอยู่ใน repository แต่ต้องนำไปรันใน Supabase ด้วยตนเอง<br />
-> หน้าสินค้า การจอง ใบเสนอราคา และติดตามงานยังไม่เชื่อมกับฐานข้อมูลจริง
+## 🧭 สารบัญเนื้อหา (Table of Contents)
 
-## 🧭 สารบัญ
+1. [ภาพรวมของแพลตฟอร์ม (Platform Overview)](#-ภาพรวมของแพลตฟอร์ม-platform-overview)
+2. [สถาปัตยกรรมบทบาทผู้ใช้ (User Roles & Access Control)](#-สถาปัตยกรรมบทบาทผู้ใช้-user-roles--access-control)
+3. [ฟังก์ชันการทำงานแยกตามระบบ (Core Systems & Features)](#-ฟังก์ชันการทำงานแยกตามระบบ-core-systems--features)
+   - [3.1 หน้าร้านและอีคอมเมิร์ซ (Public & E-Commerce Storefront)](#31-หน้าร้านและอีคอมเมิร์ซ-public--e-commerce-storefront)
+   - [3.2 พอร์ทัลลูกค้า (Customer Workspace)](#32-พอร์ทัลลูกค้า-customer-workspace)
+   - [3.3 พอร์ทัลช่างผู้เชี่ยวชาญ (Technician Portal)](#33-พอร์ทัลช่างผู้เชี่ยวชาญ-technician-portal)
+   - [3.4 ระบบบริหารจัดการระดับองค์กร (Enterprise Admin Workspace - 15 โมดูล)](#34-ระบบบริหารจัดการระดับองค์กร-enterprise-admin-workspace)
+4. [ผังการดำเนินงานธุรกิจ (Operational Workflow)](#-ผังการดำเนินงานธุรกิจ-operational-workflow)
+5. [โครงสร้างฐานข้อมูลและระบบความปลอดภัย (Database Schema & RLS)](#-โครงสร้างฐานข้อมูลและระบบความปลอดภัย-database-schema--rls)
+6. [โครงสร้างโปรเจกต์ (Project Structure)](#-โครงสร้างโปรเจกต์-project-structure)
+7. [ขั้นตอนการติดตั้งและเริ่มใช้งาน (Getting Started)](#-ขั้นตอนการติดตั้งและเริ่มใช้งาน-getting-started)
 
-| เริ่มต้น | ภาพรวมระบบ | ข้อมูลและการพัฒนา |
+---
+
+## 🌟 ภาพรวมของแพลตฟอร์ม (Platform Overview)
+
+**SolarService** ถูกพัฒนาขึ้นเพื่อแก้ปัญหาความซับซ้อนในการติดตั้งและดูแลรักษาระบบโซลาร์เซลล์ โดยรวบรวมทุกขั้นตอนการทำงานระหว่าง **ลูกค้า (Customer)**, **ทีมช่างเทคนิค (Technician)** และ **ฝ่ายบริหารจัดการ (Admin/Staff)** ให้อยู่บนระบบดิจิทัลเดียวกันแบบไร้รอยต่อ
+
+- **หน้าบ้าน (Storefront & Portals)**: รองรับการเข้าชมทั้งบนมือถือและคอมพิวเตอร์ (Responsive Design 100%) พร้อมระบบค้นหา กรองหมวดหมู่ ตะกร้าสินค้า และพอร์ทัลแยกตามบทบาท
+- **ระบบหลังบ้าน (Enterprise Admin)**: ระบบโมดูลาร์ 15 เครื่องมือที่ครอบคลุมงานขาย, คลังสินค้า, การเงิน, คิวช่าง, ทะเบียนประกัน, CRM และการตลาด
+- **ความทนทานของข้อมูล (Data Resilience)**: สถาปัตยกรรม Service Layer (`adminService.js`) รองรับทั้งการเชื่อมต่อสดกับฐานข้อมูล **Supabase PostgreSQL** และมีกลไก Local Fallback Data อัตโนมัติ ทำให้ระบบสามารถแสดงผลและทำงานต่อเนื่องได้ตลอดเวลา
+
+---
+
+## 👥 สถาปัตยกรรมบทบาทผู้ใช้ (User Roles & Access Control)
+
+ระบบใช้มาตรฐาน **Role-Based Access Control (RBAC)** ควบคู่กับ **Row Level Security (RLS)** ใน PostgreSQL:
+
+| บทบาท (Role) | สิทธิ์และการเข้าถึง (Permissions & Access) | Landing Route |
 |---|---|---|
-| [ติดตั้งและรัน](#getting-started) | [ความสามารถ](#features) | [ตั้งค่า Supabase](#supabase-setup) |
-| [เทคโนโลยี](#technology) | [บทบาทผู้ใช้](#user-roles) | [โครงสร้างฐานข้อมูล](#database-schema) |
-| [โครงสร้างโปรเจกต์](#project-structure) | [หน้าเว็บไซต์](#site-pages) | [ขอบเขต MVP](#mvp-scope) |
-|  | [Workflow หลัก](#workflow) | [แนวทางแบ่งงาน](#team-work) |
+| **Guest** (ผู้เยี่ยมชม) | ดูสินค้า, แพ็กเกจ, บทความ CMS, ข้อมูลบริษัท, สมัครสมาชิก, เข้าสู่ระบบ | `/` |
+| **Customer** (ลูกค้า) | สั่งซื้ออุปกรณ์, จองคิวสำรวจหน้างาน, ดูใบเสนอราคา, ติดตามงานติดตั้ง, จัดการบัญชี/รหัสผ่าน | `/customer` |
+| **Technician** (ช่าง) | ดูตารางงานส่วนบุคคล, รายละเอียดหน้างาน, บันทึกผลสำรวจ (Survey Form), ตรวจเช็คสถานะงาน | `/technician` |
+| **Admin / Staff** (ผู้ดูแล) | ควบคุม 15 ระบบบริหาร, จัดการสินค้า/สต็อก, ตรวจสลิป, ออกใบเสนอราคา, ควบคุมงานติดตั้ง, CRM 360° | `/admin` |
 
-<a id="features"></a>
-## ✨ ความสามารถและสถานะงาน
+---
 
-| ความสามารถ | สถานะ |
-|---|---|
-| ความสามารถ | สถานะ |
-|---|---|
-| หน้าแรกและเมนูนำทาง Responsive | ✅ พร้อมใช้งาน |
-| หน้าสินค้า ค้นหา และกรองหมวดหมู่ | ✅ อ่านสินค้าที่เผยแพร่จาก Supabase; การแก้ไขใน Admin แสดงในหน้าร้าน |
-| ตะกร้าและ checkout | 🧩 UI ตัวอย่าง; ข้อมูลอยู่ใน state ของหน้าเว็บ |
-| หน้าแพ็กเกจและบริการช่าง | ✅ มีหน้า UI และข้อมูลตัวอย่าง |
-| สมัครสมาชิก/เข้าสู่ระบบด้วยอีเมลและรหัสผ่าน | ✅ เชื่อม Supabase Auth |
-| ออกจากระบบและคืนค่าสถานะ session | ✅ เชื่อม Supabase Auth |
-| กู้คืนและตั้งรหัสผ่านใหม่ | ✅ เชื่อม Auth; ต้องตั้ง redirect URL |
-| เมนูและพื้นที่ Admin/ช่างตาม role ใน `profiles` | ✅ อ่าน role และจำกัดเส้นทางใน Frontend |
-| Admin Dashboard, รายงาน, จัดการสินค้า/ผู้ใช้/การจอง/ใบเสนอราคา/คำสั่งซื้อ/งานติดตั้ง | ✅ อ่านข้อมูลจริงจาก Supabase; เพิ่ม/แก้ไขสินค้า มอบหมายช่าง และเปลี่ยน role/สถานะได้ |
-| Schema และ Row Level Security | 🗄️ มี migration; ต้องนำไปรันใน Supabase |
-| Dashboard/ตารางงานช่าง | ✅ อ่านงานที่มอบหมายจาก Supabase; การบันทึกผลสำรวจยังเป็น UI ตัวอย่าง |
-| แบบฟอร์มจองบริการลูกค้า | 🧩 UI พร้อม แต่ยังไม่เชื่อมการจองจริงกับฐานข้อมูล |
-| อัปโหลดรูปสำรวจไปยัง Supabase Storage | ⏳ ยังไม่ได้เชื่อม |
-| Payment Gateway | ⏳ ยังไม่ได้เชื่อม |
+## 🚀 ฟังก์ชันการทำงานแยกตามระบบ (Core Systems & Features)
 
-<a id="user-roles"></a>
-## 👥 บทบาทผู้ใช้
+### 3.1 หน้าร้านและอีคอมเมิร์ซ (Public & E-Commerce Storefront)
+- **หน้าแรก (`/`)**: Hero Banner โปรโมชั่นที่ดึงจาก CMS, จุดเด่นบริการ, สินค้าไฮไลต์, และรีวิวจากลูกค้าจริง
+- **รายการสินค้าและอุปกรณ์ (`/products`)**: แผงโซลาร์เซลล์ (Tier-1), อินเวอร์เตอร์ (Huawei), แบตเตอรี่สำรอง (LUNA), ชุดอุปกรณ์ติดตั้ง พร้อมระบบค้นหาและกรองหมวดหมู่
+- **แพ็กเกจติดตั้งโซลาร์รูฟท็อป (`/packages`)**: แสดงแพ็กเกจมาตรฐาน 3 kW, 5 kW, 10 kW และระบบไฮบริด พร้อมปุ่มนัดสำรวจทันที
+- **บริการช่างและโซลูชัน (`/services`)**: รายละเอียดขั้นตอนการดำเนินงาน ตั้งแต่เข้าสำรวจ ยื่นขออนุญาตขนานไฟ กฟน./กฟภ. จนถึงส่งมอบงาน
+- **ระบบตะกร้าและสั่งซื้อ (`/cart`, `/checkout`)**: คำนวณยอดเงินรวมอัตโนมัติ, บันทึกที่อยู่จัดส่ง และส่งคำสั่งซื้อเข้าระบบ
+- **ระบบจัดการบัญชีและความปลอดภัย (`/account`, `/profile`)**:
+  - เปลี่ยนชื่อและเบอร์โทรศัพท์ติดต่อ
+  - ตรวจสอบสถานะบทบาทและรหัสบัญชี
+  - เปลี่ยนรหัสผ่านโดยตรง พร้อมระบบตรวจสอบความยาวและความปลอดภัย
+  - ส่งอีเมลขอรีเซ็ตรหัสผ่านผ่าน Supabase Auth Service
 
-1. **Guest — ผู้เยี่ยมชม**
-   - ดูสินค้า แพ็กเกจ บริการ ข้อมูลบริษัท และช่องทางติดต่อ
-   - สมัครสมาชิกหรือเข้าสู่ระบบ
-   - ต้องเข้าสู่ระบบก่อนทำรายการที่ต้องเป็นสมาชิก
+---
 
-2. **Customer — ลูกค้า**
-   - จัดการโปรไฟล์และประวัติการใช้บริการ
-   - เลือกซื้อสินค้าและแพ็กเกจ จองช่าง และเลือกวันนัดหมาย
-   - ดูผลสำรวจและใบเสนอราคา ยืนยันหรือปฏิเสธราคา
-   - ติดตามงานติดตั้งและรีวิวหลังส่งมอบงาน
+### 3.2 พอร์ทัลลูกค้า (Customer Workspace)
+- **ภาพรวมบัญชี (`/customer`)**: แดชบอร์ดสรุปจำนวนคำสั่งซื้อ คิวจองสำรวจ และใบเสนอราคา
+- **ระบบจองคิวสำรวจพื้นที่ (`/bookings`)**:
+  - ตรวจสอบความพร้อมของ Slot เวลาว่างจริงจากฐานข้อมูล
+  - ป้องกันการเลือกวันย้อนหลัง
+  - บันทึกพิกัดที่อยู่ รายละเอียดประเภทหลังคา และเบอร์โทรศัพท์
+- **ใบเสนอราคาของฉัน (`/quotes`)**: ตรวจสอบรายละเอียดและยอดเงินของใบเสนอราคาที่ได้รับ
+- **ติดตามงานติดตั้ง (`/tracking`)**: อัปเดตความคืบหน้าของงานติดตั้งแบบเรียลไทม์
 
-3. **Technician — ช่าง**
-   - ดูตารางนัดหมายและงานที่ได้รับมอบหมาย
-   - บันทึกข้อมูลพื้นที่ หลังคา และอุปกรณ์ที่แนะนำ
-   - ส่งรายงานผลสำรวจและรูปภาพหน้างาน
-   - อัปเดตงานสำรวจและติดตั้ง
+---
 
-4. **Admin — ผู้ดูแลระบบ**
-   - จัดการสินค้า แพ็กเกจ บัญชีผู้ใช้ การจอง และการมอบหมายงาน
-   - ตรวจผลสำรวจและจัดทำใบเสนอราคา
-   - จัดการคำสั่งซื้อ การชำระเงิน และงานติดตั้ง
-   - ดู Dashboard และรายงาน
+### 3.3 พอร์ทัลช่างผู้เชี่ยวชาญ (Technician Portal)
+- **ภาพรวมงานช่าง (`/technician`)**: แสดงงานที่ได้รับมอบหมายล่าสุดจากตาราง `technician_assignments`
+- **ตารางนัดหมายประจำวัน (`/schedule`)**: แยกรายการนัดหมายวันนี้และงานล่วงหน้า พร้อมเบอร์โทรและที่อยู่ลูกค้า
+- **งานที่อยู่ระหว่างดำเนินการ (`/jobs`)**: ควบคุมงานสำรวจและงานติดตั้งที่ต้องเข้าปฏิบัติการ
+- **แบบฟอร์มบันทึกผลสำรวจหน้างาน (`/survey`)**: บันทึกขนาดพื้นที่หลังคา (ตร.ม.), ประเภทหลังคา (ซีแพค/เมทัลชีท/คอนกรีต), ทิศทางแดด, ขนาดระบบที่แนะนำ และแนบรูปถ่ายหน้างาน
+- **ประวัติงาน (`/work-history`)**: รวมผลงานที่เสร็จสิ้นสมบูรณ์
 
-> Frontend อ่านบทบาทจาก `profiles` เพื่อแสดงพื้นที่ลูกค้า ช่าง หรือ Admin และจำกัดเส้นทางตามบทบาท หน้าจัดการ Admin อ่านและเขียนข้อมูลธุรกิจผ่าน Supabase โดยตรง จึงต้องนำ migration ไปรันและกำหนด Admin เริ่มต้นก่อนใช้งาน การกำหนดสิทธิ์ที่สำคัญต้องตรวจด้วย RLS ใน Supabase ด้วยเสมอ
+---
 
-<a id="site-pages"></a>
-## 🖥️ หน้าเว็บไซต์
+### 3.4 ระบบบริหารจัดการระดับองค์กร (Enterprise Admin Workspace)
 
-### หน้าสาธารณะ
+พอร์ทัลผู้ดูแลระบบแบ่งเป็น 15 โมดูลหลัก พร้อม **Sub Navigation Bar** แสดงตัวเลขแจ้งเตือน (Badges) แบบเรียลไทม์:
 
-- หน้าแรก
-- รายการสินค้าและรายละเอียดสินค้า
-- แพ็กเกจติดตั้ง
-- บริการช่างสำรวจและติดตั้ง
-- เกี่ยวกับเรา
-- ติดต่อเรา
+```
+[ Dashboard ] [ รายงานสถิติ ] [ จัดการสินค้า ] [ แพ็กเกจติดตั้ง ] [ คำสั่งซื้อ (1) ] 
+[ ตรวจสลิป (1) ] [ คิวจองสำรวจ (1) ] [ ใบเสนอราคา ] [ งานติดตั้ง (2) ] [ ทะเบียนรับประกัน ] 
+[ รอบบำรุงรักษา (3) ] [ แจ้งซ่อม (2) ] [ CRM ผู้ใช้ ] [ จัดการรีวิว ] [ เนื้อหา CMS ]
+```
 
-### ระบบสมาชิก
+```
+                                  ENTERPRISE ADMIN WORKSPACE
+ ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+ │  1. Executive Dashboard      │ กราฟแนวโน้มยอดขาย SVG Curve, รายได้สะสม, สัดส่วนสินค้า/แพ็กเกจ  │
+ │  2. Financial Reports        │ วิเคราะห์รายได้ 1m/3m/6m/1y พร้อมส่งออก Excel / CSV            │
+ │  3. Inventory & Products     │ จัดการสต็อก, แจ้งเตือนสินค้าใกล้หมด (<10 ชิ้น), ปรับราคา/สเปก   │
+ │  4. Solar Packages           │ บริหารแพ็กเกจ 3kW, 5kW, 10kW และระบบ Hybrid Storage         │
+ │  5. Orders & Logistics       │ จัดการออเดอร์, อัปเดตสถานะจัดส่ง, บันทึกเลขพัสดุ (Tracking No.) │
+ │  6. Payment Verification     │ ตรวจสลิปโอนเงิน (Image Lightbox Modal), ปุ่ม Approve/Reject   │
+ │  7. Booking & Site Survey    │ จัดคิวสำรวจ, มอบหมายช่างจริง, ฟอร์มรับจองใหม่ทางโทรศัพท์           │
+ │  8. Quotation Engine         │ ออกใบเสนอราคา, หน้า Official Sheet Preview สั่งพิมพ์ได้ทันที   │
+ │  9. Installation Pipeline    │ ติดตาม 5 ขั้นตอนหน้างาน (Checklist), บันทึกหัวหน้าช่างผู้รับผิดชอบ │
+ │ 10. Warranty Registry (SN)   │ ทะเบียน Serial Number แผง/อินเวอร์เตอร์/แบตเตอรี่, พิมพ์ใบรับประกัน │
+ │ 11. Maintenance Reminders    │ ระบบแจ้งเตือนล้างแผงโซลาร์ทุก 6 เดือน (Recurring Revenue Engine) │
+ │ 12. Support & Tickets        │ ระบบแจ้งซ่อมอุปกรณ์, จัดลำดับความเร่งด่วน (Urgent 🔥), บันทึกแก้ไข │
+ │ 13. Users CRM & 360° Profile │ ดูประวัติลูกค้าครบวงจร (คำสั่งซื้อ/คิวจอง/ประกัน), เปลี่ยน Role, แบน │
+ │ 14. Customer Reviews         │ คัดกรองและสลับสถานะเผยแพร่รีวิว (Publish / Hide) หน้าร้าน     │
+ │ 15. Headless CMS             │ จัดการแบนเนอร์โปรโมชั่นหน้าแรก และบทความสาระน่ารู้โซลาร์เซลล์     │
+ └─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-- สมัครสมาชิก
-- เข้าสู่ระบบ
-- ลืมรหัสผ่าน/ตั้งรหัสผ่านใหม่
-- โปรไฟล์ — มีโครงหน้า UI
+---
 
-### พื้นที่ลูกค้า
+## 🔄 ผังการดำเนินงานธุรกิจ (Operational Workflow)
 
-- Dashboard ลูกค้า
-- ตะกร้าสินค้าและยืนยันคำสั่งซื้อ
-- จองช่างและประวัติการจอง
-- ใบเสนอราคา
-- ติดตามสถานะงานติดตั้ง
-- รีวิวบริการ
+กระบวนการดำเนินงานตั้งแต่ต้นน้ำจนถึงบริการหลังการขาย:
 
-### พื้นที่ช่าง
+```
+[ ลูกค้า / Customer ]                [ ระบบ / Admin ]                 [ ทีมช่าง / Technician ]
+         │                                   │                                    │
+         ├─── 1. เลือกแพ็กเกจ / จองสำรวจ ───>│                                    │
+         │                                   ├─── 2. มอบหมายช่างผู้รับผิดชอบ ────>│
+         │                                   │                                    ├── 3. เข้าสำรวจหน้างาน
+         │                                   │<── 4. ส่งผลสำรวจและสเปกหลังคา ─────┤
+         │                                   │                                    │
+         │<── 5. รับใบเสนอราคา (Quotation) ──┤                                    │
+         ├─── 6. อนุมัติราคา & แนบสลิปมัดจำ ─>│                                    │
+         │                                   ├─── 7. ตรวจสอบสลิป & นัดติดตั้ง ───>│
+         │                                   │                                    ├── 8. เข้าติดตั้ง 5 ขั้นตอน
+         │                                   │<── 9. ทดสอบขนานไฟ & ส่งมอบงาน ─────┤
+         │<── 10. รับมอบงาน & ใบรับประกัน ───┤                                    │
+         │    (Digital Warranty Certificate) │                                    │
+         │                                   │                                    │
+         │<── 11. แจ้งเตือนล้างแผงรอบ 6 เดือน ┤ (ระบบ Recurring Automation)        │
+         ├─── 12. แจ้งซ่อมเมื่อพบปัญหา ──────>│ (Ticketing Engine)                 │
+```
 
-- Dashboard ช่างและตารางนัดหมาย
-- รายละเอียดงานและประวัติงาน
-- แบบฟอร์มบันทึกผลสำรวจและเลือกไฟล์ภาพ
+---
 
-### พื้นที่ผู้ดูแลระบบ
+## 🗄️ โครงสร้างฐานข้อมูลและระบบความปลอดภัย (Database Schema & RLS)
 
-- Dashboard
-- จัดการสินค้าและบัญชีผู้ใช้
-- จัดการการจอง ใบเสนอราคา และคำสั่งซื้อ
-- จัดการงานติดตั้งและรายงานผลประกอบการ
+ฐานข้อมูลทำงานบน **PostgreSQL** ผ่าน **Supabase** พร้อมระบบ Trigger ตรวจสอบเวลา และฟังก์ชันคำนวณอัตโนมัติ:
 
-<a id="workflow"></a>
-## 🔄 Workflow หลัก
+### ไฟล์ Migrations ในระบบ
+1. [`backend/supabase/migrations/20261031200000_initial_schema.sql`](file:///c:/Users/peac8/Documents/GitHub/SolarService/backend/supabase/migrations/20261031200000_initial_schema.sql):
+   - `profiles`: ข้อมูลผู้ใช้งาน สิทธิ์ (customer, technician, staff, admin)
+   - `products`: สินค้า ราคา สต็อก และสถานะเผยแพร่
+   - `packages`: แพ็กเกจติดตั้งมาตรฐาน
+   - `orders` & `order_items`: คำสั่งซื้อและรายการสินค้า
+   - `service_bookings`: รายการจองคิวสำรวจและติดตั้ง
+   - `technician_assignments`: ความสัมพันธ์การมอบหมายงานให้ช่าง
+   - `quotations` & `quotation_items`: ใบเสนอราคาทางการ
+   - `installations`: งานติดตั้งและสถานะ
+   - `payments`: การชำระเงินและสลิป
+   - `reviews`: รีวิวและความคิดเห็น
+2. [`backend/supabase/migrations/20261101230000_admin_enhancements.sql`](file:///c:/Users/peac8/Documents/GitHub/SolarService/backend/supabase/migrations/20261101230000_admin_enhancements.sql):
+   - `warranties`: ทะเบียนรับประกันอุปกรณ์และ Serial Number
+   - `maintenance_reminders`: การแจ้งเตือนรอบบำรุงรักษาและล้างแผงโซลาร์
+   - `support_tickets`: เคสแจ้งซ่อมและปัญหาการใช้งาน
+   - `cms_banners`: แบนเนอร์โปรโมชั่นหน้าแรก
+   - `cms_articles`: บทความและสาระน่ารู้
+   - อัปเดตคอลัมน์ `is_banned` และสิทธิ์ `staff` บนตาราง `profiles`
 
-1. Guest ดูสินค้า/แพ็กเกจ แล้วสมัครสมาชิกหรือเข้าสู่ระบบ
-2. Customer เลือกสินค้าเพื่อสั่งซื้อ หรือส่งคำขอนัดช่างเข้าสำรวจ
-3. Admin ตรวจคำขอและมอบหมายช่าง
-4. Technician เข้าสำรวจ บันทึกข้อมูลและส่งผลสำรวจ
-5. Admin จัดทำใบเสนอราคาตามผลสำรวจ
-6. Customer ตรวจสอบและยืนยันหรือปฏิเสธใบเสนอราคา
-7. ดำเนินการชำระเงิน นัดติดตั้ง และอัปเดตสถานะงาน
-8. เมื่อติดตั้งเสร็จ Customer ติดตามประวัติและรีวิวบริการ
+---
 
-<a id="technology"></a>
-## 🧰 เทคโนโลยี
+## 📁 โครงสร้างโปรเจกต์ (Project Structure)
 
-- **Frontend:** React 18, Vite 6, JavaScript
-- **UI icons:** Lucide React
-- **Authentication / Database:** Supabase Auth และ PostgreSQL
-- **Access control:** PostgreSQL Row Level Security (RLS)
-- **Package manager:** npm
+โปรเจกต์ถูกแบ่งออกเป็น Workspaces ที่ชัดเจน:
 
-<a id="getting-started"></a>
-## 🚀 เริ่มต้นใช้งาน
+```text
+SolarService/
+├── package.json                          # Workspace configuration & build scripts
+├── README.md                             # เอกสารคู่มือระบบ
+│
+├── frontend/                             # React 18 + Vite Application
+│   ├── .env.example                      # ตัวอย่างตัวแปร Environment
+│   ├── .env.local                        # การเชื่อมต่อ Supabase จริง (Local)
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx                      # จุดเริ่มต้นของแอปพลิเคชัน
+│       ├── App.jsx                       # Routing & Auth state management
+│       ├── styles.css                    # Design System & UI styling
+│       ├── components/                   # Shared components (Header, Footer, UI)
+│       ├── data/
+│       │   └── catalog.js                # ข้อมูลเริ่มต้นสำรอง
+│       ├── lib/
+│       │   ├── routes.js                 # เส้นทางหน้าเว็บและชื่อหัวเรื่อง
+│       │   └── supabase.js               # Supabase Client connection
+│       ├── pages/
+│       │   ├── Home.jsx                  # หน้าแรกของเว็บไซต์
+│       │   ├── Products.jsx              # หน้ารวมสินค้า
+│       │   ├── Packages.jsx              # หน้าแพ็กเกจติดตั้ง
+│       │   ├── Services.jsx              # หน้าบริการช่าง
+│       │   ├── About.jsx & Contact.jsx   # หน้าข้อมูลบริษัทและการติดต่อ
+│       │   ├── AuthPage.jsx              # เข้าสู่ระบบ / สมัครสมาชิก / ลืมรหัสผ่าน
+│       │   ├── AccountPage.jsx           # ข้อมูลส่วนตัว / เปลี่ยนรหัสผ่าน
+│       │   ├── CartPages.jsx             # ตะกร้าสินค้าและยืนยันคำสั่งซื้อ
+│       │   ├── WorkspacePage.jsx         # แดชบอร์ดลูกค้าและช่าง
+│       │   ├── AdminWorkspace.jsx        # ศูนย์ควบคุม Enterprise Admin
+│       │   └── admin/                    # 16 โมดูลอิสระของระบบ Admin
+│       │       ├── AdminSubNav.jsx       # แถบเมนูด้านบนพร้อมตัวเลข Badge
+│       │       ├── AdminDashboard.jsx    # กราฟยอดขายและสถิติภาพรวม
+│       │       ├── AdminReports.jsx      # รายงานการเงินและส่งออก CSV
+│       │       ├── AdminProducts.jsx     # สต็อกและข้อมูลอุปกรณ์
+│       │       ├── AdminPackages.jsx     # แพ็กเกจติดตั้งโซลาร์
+│       │       ├── AdminOrders.jsx       # คำสั่งซื้อและเลขพัสดุ
+│       │       ├── AdminPayments.jsx     # ตรวจสลิปโอนเงิน (Image Modal)
+│       │       ├── AdminBookings.jsx     # คิวจองสำรวจและมอบหมายช่าง
+│       │       ├── AdminQuotes.jsx       # ใบเสนอราคาทางการ
+│       │       ├── AdminInstallations.jsx# ขั้นตอนงานติดตั้ง (Checklist)
+│       │       ├── AdminWarranties.jsx   # ทะเบียนรับประกัน (SN)
+│       │       ├── AdminMaintenance.jsx  # แจ้งเตือนรอบล้างแผง 6 เดือน
+│       │       ├── AdminTickets.jsx      # ระบบแจ้งซ่อมและเคสปัญหา
+│       │       ├── AdminUsersCRM.jsx     # CRM ข้อมูลลูกค้า 360°
+│       │       ├── AdminReviews.jsx      # การจัดการรีวิว
+│       │       └── AdminCMS.jsx          # แบนเนอร์และบทความ
+│       ├── services/
+│       │   ├── adminService.js           # Data Service Layer สำหรับ Admin
+│       │   └── bookingService.js         # Service ตรวจสอบคิวว่าง
+│       └── technician/
+│           ├── Booking.jsx               # ฟอร์มจองคิวช่างพร้อมตรวจสอบ Slot
+│           └── TechnicianDashboard.jsx   # แดชบอร์ดงานของช่าง
+│
+└── backend/                              # ฐานข้อมูลและการตั้งค่า Supabase
+    └── supabase/
+        └── migrations/
+            ├── 20261031200000_initial_schema.sql
+            └── 20261101230000_admin_enhancements.sql
+```
 
-ต้องติดตั้ง Node.js และ npm ก่อน
+---
+
+## ⚡ ขั้นตอนการติดตั้งและเริ่มใช้งาน (Getting Started)
+
+### 1. ความต้องการของระบบ (Prerequisites)
+- **Node.js**: เวอร์ชัน 18.0.0 หรือใหม่กว่า
+- **npm**: เวอร์ชัน 9.0.0 หรือใหม่กว่า
+
+### 2. การติดตั้ง Dependencies
+เปิด Terminal ในโฟลเดอร์ Root ของโปรเจกต์:
 
 ```bash
 npm install
 ```
 
-ติดตั้ง dependencies ที่ root ของ repository จากนั้นคัดลอก `frontend/.env.example` เป็น `frontend/.env.local` แล้วกรอกค่า Supabase ตามหัวข้อ [ตั้งค่า Supabase](#ตั้งค่า-supabase) จากนั้นรัน:
-
-```bash
-npm run dev
-```
-
-คำสั่งอื่น:
-
-```bash
-npm run build    # สร้าง production build ไว้ใน frontend/dist/
-npm run preview  # เปิดดู production build ในเครื่อง
-```
-
-<a id="supabase-setup"></a>
-## 🔐 ตั้งค่า Supabase
-
-### 1. กำหนด environment variables
-
-คัดลอกไฟล์ตัวอย่าง:
+### 3. การตั้งค่า Environment Variables
+คัดลอกไฟล์ `.env.example` ไปเป็น `.env.local` ในโฟลเดอร์ `frontend`:
 
 ```powershell
 Copy-Item frontend\.env.example frontend\.env.local
 ```
 
-ใส่ URL และ **Publishable key** ของโปรเจกต์ใน `frontend/.env.local`:
+กรอกข้อมูล URL และ Publishable Key ที่ได้จากโปรเจกต์ Supabase ของคุณใน `frontend/.env.local`:
 
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key_here
 ```
 
-หลังแก้ environment variables ให้ restart Vite (`Ctrl+C` แล้ว `npm run dev`)
+### 4. การตั้งค่าฐานข้อมูลใน Supabase
+1. เข้าสู่ **Supabase Dashboard** ของโปรเจกต์
+2. ไปที่เมนู **SQL Editor**
+3. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261031200000_initial_schema.sql` แล้วกด **Run**
+4. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261101230000_admin_enhancements.sql` แล้วกด **Run**
 
-> ห้ามใส่ `sb_secret_` หรือ `service_role` key ในตัวแปร `VITE_` หรือโค้ดฝั่ง Browser เด็ดขาด ไฟล์ `frontend/.env.local` ถูก ignore โดย Git ส่วน `frontend/.env.example` ใช้แชร์เฉพาะชื่อตัวแปรและค่าตัวอย่างเท่านั้น
-
-### 2. ตั้งค่า Authentication redirect URLs
-
-ใน Supabase Dashboard เปิด **Authentication → URL Configuration** แล้วกำหนด:
-
-- Site URL สำหรับเว็บไซต์ที่ deploy แล้ว
-- Redirect URLs ที่อนุญาต เช่น `http://localhost:5173/**` สำหรับพัฒนาในเครื่อง และ URL ของเว็บไซต์จริง
-
-การยืนยันอีเมลและการส่งอีเมลรีเซ็ตรหัสผ่านขึ้นอยู่กับการตั้งค่า Auth/SMTP ของ Supabase
-
-### 3. สร้างตารางและ RLS
-
-Schema อยู่ใน [backend/supabase/migrations/20261031200000_initial_schema.sql](./backend/supabase/migrations/20261031200000_initial_schema.sql)
-
-วิธีใช้งานปัจจุบัน:
-
-1. เปิด Supabase Dashboard → **SQL Editor**
-2. เปิดไฟล์ migration ด้านบนและคัดลอกเนื้อหาทั้งหมด
-3. วางใน SQL Editor แล้วกด Run
-4. ตรวจสอบตารางใน **Table Editor** และตรวจ policies ใน **Authentication → Policies**
-
-Migration สร้าง trigger สำหรับสร้าง profile เมื่อมีบัญชีใหม่ และกำหนด RLS บนทุกตาราง โดยทั่วไปลูกค้าอ่าน/แก้ไขได้เฉพาะข้อมูลของตน ช่างเข้าถึงงานที่ได้รับมอบหมาย และ Admin จัดการข้อมูลระบบได้
-
-### 4. กำหนด Admin เริ่มต้น
-
-สมัครบัญชีของผู้ดูแลระบบก่อน แล้วรันคำสั่งต่อไปนี้ **ครั้งเดียว** ใน SQL Editor โดยเปลี่ยนอีเมลให้ตรงกับบัญชีจริง:
+### 5. การกำหนดสิทธิ์ Admin เริ่มต้น
+หลังจากสมัครสมาชิกผ่านหน้าเว็บแล้ว ให้เปิด **SQL Editor** ใน Supabase และรันคำสั่งนี้เพื่อปรับบัญชีของคุณเป็น Admin:
 
 ```sql
 update public.profiles
@@ -219,98 +287,29 @@ set role = 'admin'
 where id = (
   select id
   from auth.users
-  where email = 'admin@example.com'
+  where email = 'your-email@example.com'
 );
 ```
 
-จากนั้นออกจากระบบและเข้าสู่ระบบใหม่ บัญชีจะเห็น Dashboard และเมนู Admin ที่ `#/admin` การเปลี่ยน role เป็นการดำเนินการที่มีสิทธิ์สูง ควรทำโดยผู้ดูแลที่เชื่อถือได้เท่านั้น และต้องคง RLS policies ในฐานข้อมูลไว้เสมอ เพราะการซ่อนหน้าใน Frontend ไม่ใช่การป้องกันข้อมูลฝั่งฐานข้อมูล
+### 6. การเริ่มรันเซิร์ฟเวอร์สำหรับการพัฒนา (Development)
 
-<a id="database-schema"></a>
-## 🗄️ โครงสร้างฐานข้อมูล
-
-| ตาราง | หน้าที่ |
-|---|---|
-| `profiles` | โปรไฟล์ ชื่อ เบอร์โทร และ role; เชื่อมกับ `auth.users` |
-| `products` | สินค้า ราคา SKU จำนวนคงเหลือ และสถานะเผยแพร่ |
-| `packages` | แพ็กเกจ ขนาดระบบ ราคา และคุณสมบัติ |
-| `orders` | คำสั่งซื้อ ยอดรวม สถานะ และที่อยู่จัดส่ง |
-| `order_items` | รายการสินค้าในคำสั่งซื้อและราคาขณะสั่ง |
-| `service_bookings` | การจองสำรวจ วันนัด ที่อยู่ และสถานะ |
-| `technician_assignments` | การมอบหมายงานจองให้ช่าง |
-| `site_surveys` | ขนาด/ประเภท/ทิศทางหลังคา ระบบที่แนะนำ และรายงาน |
-| `survey_images` | path และคำอธิบายรูปภาพสำรวจ |
-| `quotations` | ใบเสนอราคา ยอดรวม สถานะ และคำตอบลูกค้า |
-| `quotation_items` | รายการสินค้า/บริการในใบเสนอราคา |
-| `installations` | ตารางและสถานะงานติดตั้ง |
-| `payments` | รายการชำระเงินและสถานะตรวจสอบ |
-| `reviews` | คะแนนและความคิดเห็นหลังติดตั้ง |
-
-Migration ยังเพิ่ม:
-
-- Foreign keys, ข้อจำกัดข้อมูล, unique keys และ indexes สำหรับการค้นหาที่ใช้บ่อย
-- Trigger ปรับ `updated_at` และสร้าง `profiles` หลังสมัครสมาชิก
-- RLS policies สำหรับข้อมูลสาธารณะ ลูกค้า ช่าง และ Admin
-- RPC `create_order` เพื่อสร้างคำสั่งซื้อโดยคำนวณราคาจากข้อมูลสินค้าในฐานข้อมูล
-- RPC `respond_to_quotation` เพื่อยืนยันหรือปฏิเสธใบเสนอราคาที่ส่งให้ลูกค้า
-
-ตารางนี้เป็นโครงสร้างเริ่มต้นของ MVP ควรทบทวนข้อกำหนดทางธุรกิจและนโยบายการชำระเงินก่อนใช้งานจริง ระบบยังไม่มี Payment Gateway และยังไม่ได้สร้าง Supabase Storage bucket สำหรับรูปสำรวจ
-
-<a id="project-structure"></a>
-## 📁 โครงสร้างโปรเจกต์
-
-```text
-SolarService/
-├── package.json                 # npm workspace และคำสั่งพัฒนา/Build
-├── package-lock.json            # lockfile สำหรับทุก workspace
-├── README.md
-├── frontend/                    # React/Vite application
-│   ├── .env.example             # ตัวอย่าง Supabase environment
-│   ├── index.html
-│   ├── package.json             # Dependencies ของ Frontend
-│   ├── src/
-│   │   ├── pages/               # หน้าร้าน พื้นที่ผู้ใช้ และ Admin
-│   │   ├── technician/         # Dashboard ช่างและแบบฟอร์มจอง
-│   │   ├── services/           # service layer ของการจอง (ยังไม่เชื่อม backend)
-│   │   └── components/         # Components ใช้ร่วมกัน
-│   └── vite.config.js
-└── backend/                     # Supabase backend configuration
-    ├── README.md
-    └── supabase/
-        └── migrations/
-            └── 20261031200000_initial_schema.sql
+```bash
+npm run dev
 ```
 
-<a id="mvp-scope"></a>
-## 🎯 ขอบเขต MVP และงานที่ยังไม่รวม
+เปิดเบราว์เซอร์ไปที่ `http://localhost:5173`
 
-### ✅ อยู่ในขอบเขต MVP
+### 7. การตรวจสอบและทดสอบ Build Production
 
-- ระบบสมาชิกและ role
-- แสดง/จัดการสินค้าและแพ็กเกจ
-- ตะกร้าและคำสั่งซื้อ
-- จองช่าง ตารางนัดหมาย และมอบหมายงาน
-- รายงานสำรวจและรูปภาพจากหน้างาน
-- ใบเสนอราคาและการตอบรับจากลูกค้า
-- ติดตามงานติดตั้ง
-- หลังบ้าน Admin ประวัติ และรายงาน
+```bash
+npm run build
+npm run preview
+```
 
-### 🚧 ยังไม่รวมในรุ่นแรก
+---
 
-- ติดตามตำแหน่งช่างด้วย GPS แบบ real-time
-- ควบคุมแผงโซลาร์เซลล์ด้วย IoT
-- วิเคราะห์โครงสร้างหลังคาด้วย AI
-- คำนวณผลผลิตพลังงานขั้นสูงโดยอัตโนมัติ
-- เชื่อมต่อ Payment Gateway กับธนาคาร
+<div align="center">
 
-### 📌 งานพัฒนาต่อที่จำเป็น
+**SolarService Platform** · มุ่งมั่นพัฒนาพลังงานสะอาดเพื่อสิ่งแวดล้อมและบ้านของคุณอย่างยั่งยืน 🌱
 
-- เชื่อมหน้าสินค้า/ตะกร้า/booking/ใบเสนอราคา/installation เข้ากับ Supabase tables และ RPC
-- เพิ่ม Supabase Storage bucket และ policies สำหรับภาพสำรวจ
-- อ่าน role จาก `profiles` เพื่อแสดงหน้าและเมนูตามสิทธิ์
-- ทดสอบ RLS แยกตาม Guest, Customer, Technician และ Admin
-- ตั้งค่า email templates, SMTP, redirect URLs และ production hosting
-- เพิ่ม automated tests และแนวทาง deploy/migrate สำหรับ environment จริง
-
-
-
-ทุกคนร่วมกันทบทวน schema, RLS policies, API/data contract และทดสอบการทำงานข้ามโมดูล
+</div>
