@@ -14,6 +14,7 @@ import { Cart, Checkout } from './pages/CartPages.jsx';
 import WorkspacePage from './pages/WorkspacePage.jsx';
 import { NotFound, Footer } from './components/SiteLayout.jsx';
 
+
 function App() {
   const [route, setRoute] = useState(routeFromHash);
   const [role, setRole] = useState('Guest');

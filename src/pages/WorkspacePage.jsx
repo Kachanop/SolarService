@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronRight, ClipboardList, Clock3, Download, FileText, Plus, ShoppingBag, Sun, Wrench } from 'lucide-react';
 import AdminWorkspace from './AdminWorkspace.jsx';
+import Booking from '../technician/Booking.jsx';
+import TechnicianWorkspace from '../technician/TechnicianWorkspace.jsx';
 
 export default function WorkspacePage({ route, title, navigate, setToast, authUser }) {
   const isTechnician = ['/technician', '/schedule', '/jobs', '/survey', '/work-history'].includes(route);
@@ -12,6 +14,9 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
   if (['/admin', '/manage-products', '/manage-users', '/manage-bookings', '/manage-quotes', '/manage-orders', '/installations', '/reports'].includes(route)) {
     return <AdminWorkspace route={route} title={title} navigate={navigate} authUser={authUser} />;
   }
+  if (isTechnician && !isSurvey) {
+    return <TechnicianWorkspace route={route} title={title} authUser={authUser} navigate={navigate} />;
+  }
   const bookingRows = [{ name: 'สำรวจพื้นที่ติดตั้ง', date: '12 พ.ย. 2568 · 09:00 น.', status: 'รอยืนยันช่าง', tone: 'yellow' }, { name: 'สำรวจระบบโซลาร์ 5 kW', date: '18 พ.ย. 2568 · 13:30 น.', status: 'ยืนยันแล้ว', tone: 'green' }];
   const genericRows = isTechnician
     ? [{ name: 'สำรวจบ้านคุณสมชาย', date: 'วันนี้ · 09:00 น.', customer: 'สมชาย ใจดี', status: 'รอดำเนินการ', tone: 'yellow' }, { name: 'ติดตั้งระบบ 5 kW', date: 'พรุ่งนี้ · 10:30 น.', customer: 'คุณนภา แสงทอง', status: 'กำลังดำเนินการ', tone: 'blue' }]
@@ -20,7 +25,7 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
       ? [{ label: 'ดูตารางนัดหมาย', icon: <CalendarDays />, path: '/schedule' }, { label: 'งานที่ได้รับมอบหมาย', icon: <ClipboardList />, path: '/jobs' }, { label: 'บันทึกผลสำรวจ', icon: <FileText />, path: '/survey' }, { label: 'ประวัติงาน', icon: <Clock3 />, path: '/work-history' }]
       : [{ label: 'จองช่างสำรวจ', icon: <CalendarDays />, path: '/bookings' }, { label: 'เลือกแพ็กเกจ', icon: <Sun />, path: '/packages' }, { label: 'ดูใบเสนอราคา', icon: <FileText />, path: '/quotes' }, { label: 'ติดตามงาน', icon: <Wrench />, path: '/tracking' }];
   function pageAction() {
-    if (isBooking) return <BookingForm setToast={setToast} />;
+    if (isBooking) return <Booking user={authUser} navigate={navigate} setToast={setToast} />;
     if (isSurvey) return <SurveyForm setToast={setToast} />;
     if (isReview) return <ReviewForm setToast={setToast} />;
     if (isProfile) return <ProfileForm setToast={setToast} />;
@@ -36,10 +41,6 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
     <div className="workspace-content"><div className="workspace-section-heading"><div><h2>{isDashboard ? 'รายการล่าสุด' : isBooking ? 'จองช่างเข้าสำรวจพื้นที่' : isSurvey ? 'บันทึกรายงานผลสำรวจ' : title}</h2><p>{isDashboard ? 'ติดตามความเคลื่อนไหวและเข้าถึงเมนูที่ใช้บ่อย' : 'ตรวจสอบรายละเอียดและจัดการข้อมูลของคุณ'}</p></div>{!isDashboard && <button className="button button-outline small-button" onClick={() => setToast('ดาวน์โหลดรายงานเรียบร้อยแล้ว')}><Download size={15} /> ส่งออก</button>}</div>{pageAction()}</div>
   </div>;
 }
-function BookingForm({ setToast }) {
-  return <form className="booking-form" onSubmit={(event) => { event.preventDefault(); setToast('ส่งคำขอนัดหมายแล้ว ทีมงานจะยืนยันภายใน 24 ชั่วโมง'); }}><div className="form-helper"><span><CalendarDays size={19} /></span><p><strong>นัดสำรวจฟรี ไม่มีค่าใช้จ่าย</strong><small>กรอกข้อมูลที่สะดวกให้ทีมช่างเข้าตรวจสอบพื้นที่ติดตั้ง</small></p></div><div className="form-fields"><label>วันที่สะดวก<input type="date" required /></label><label>ช่วงเวลาที่สะดวก<select required defaultValue=""><option value="" disabled>เลือกช่วงเวลา</option><option>09:00 – 12:00 น.</option><option>13:00 – 16:00 น.</option></select></label><label>เบอร์โทรศัพท์<input type="tel" required placeholder="08X-XXX-XXXX" /></label><label>จังหวัดที่ติดตั้ง<select required defaultValue=""><option value="" disabled>เลือกจังหวัด</option><option>กรุงเทพมหานคร</option><option>นนทบุรี</option><option>สมุทรปราการ</option><option>เชียงใหม่</option><option>อื่น ๆ</option></select></label><label className="full-width">ที่อยู่สำหรับเข้าสำรวจ<textarea rows="3" required placeholder="บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด" /></label><button className="button button-green full-width">ยืนยันการจอง <ArrowRight size={16} /></button></div></form>;
-}
-
 function SurveyForm({ setToast }) {
   return <form className="booking-form" onSubmit={(event) => { event.preventDefault(); setToast('บันทึกผลสำรวจและส่งรายงานเรียบร้อยแล้ว'); }}><div className="form-fields"><label>ขนาดพื้นที่หลังคา (ตร.ม.)<input type="number" min="0" required placeholder="เช่น 80" /></label><label>ประเภทหลังคา<select required defaultValue=""><option value="" disabled>เลือกประเภท</option><option>กระเบื้อง</option><option>เมทัลชีท</option><option>คอนกรีต</option><option>อื่น ๆ</option></select></label><label>ทิศทางหลังคา<select required defaultValue=""><option value="" disabled>เลือกทิศทาง</option><option>ทิศเหนือ</option><option>ทิศใต้</option><option>ทิศตะวันออก</option><option>ทิศตะวันตก</option></select></label><label>ระบบที่แนะนำ<select required defaultValue=""><option value="" disabled>เลือกระบบ</option><option>3 kW</option><option>5 kW</option><option>10 kW</option></select></label><label className="full-width">หมายเหตุ / สภาพพื้นที่<textarea rows="3" placeholder="รายละเอียดเพิ่มเติมเกี่ยวกับหน้างาน" /></label><label className="full-width upload-field"><span><Plus size={16} /> เพิ่มรูปภาพจากหน้างาน</span><input type="file" accept="image/*" multiple /></label><button className="button button-green full-width">บันทึกและส่งรายงาน <ArrowRight size={16} /></button></div></form>;
 }
