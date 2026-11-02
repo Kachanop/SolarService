@@ -45,23 +45,35 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
     if (!formModal.name || !formModal.price) {
       alert('กรุณากรอกชื่อสินค้าและราคาขาย');
       return;
     }
-    onSaveProduct(formModal);
-    setFormModal(null);
-    if (setToast) {
-      setToast(formModal.id ? 'แก้ไขข้อมูลสินค้าเรียบร้อยแล้ว' : 'เพิ่มสินค้าใหม่ลงระบบเรียบร้อยแล้ว');
+    try {
+      await onSaveProduct(formModal);
+      setFormModal(null);
+      if (setToast) {
+        setToast(formModal.id ? 'แก้ไขข้อมูลสินค้าเรียบร้อยแล้ว' : 'เพิ่มสินค้าใหม่ลงระบบเรียบร้อยแล้ว');
+      }
+    } catch (error) {
+      if (setToast) {
+        setToast(`บันทึกสินค้าไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาด'}`);
+      }
     }
   }
 
-  function handleDelete(id, name) {
+  async function handleDelete(id, name) {
     if (confirm(`คุณต้องการลบสินค้า "${name}" ออกจากระบบหรือไม่?`)) {
-      onDeleteProduct(id);
-      if (setToast) setToast('ลบสินค้าเรียบร้อยแล้ว');
+      try {
+        await onDeleteProduct(id);
+        if (setToast) setToast('ลบสินค้าเรียบร้อยแล้ว');
+      } catch (error) {
+        if (setToast) {
+          setToast(`ลบสินค้าไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาด'}`);
+        }
+      }
     }
   }
 
@@ -491,4 +503,3 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
     </div>
   );
 }
-

@@ -20,6 +20,7 @@ const methodLabels = {
 
 const statusLabels = {
   pending: { label: 'รอตรวจสอบสลิป', tone: 'yellow' },
+  submitted: { label: 'รอชำระผ่าน PromptPay', tone: 'yellow' },
   verified: { label: 'ยืนยันเรียบร้อย', tone: 'green' },
   rejected: { label: 'ปฏิเสธ / สลิปไม่ถูกต้อง', tone: 'red' },
 };
@@ -77,6 +78,7 @@ export default function AdminPayments({ payments, onVerify, setToast }) {
           >
             <option value="">ทุกสถานะการชำระเงิน</option>
             <option value="pending">รอตรวจสอบสลิป</option>
+            <option value="submitted">รอชำระผ่าน PromptPay</option>
             <option value="verified">ยืนยันแล้ว</option>
             <option value="rejected">ปฏิเสธ / มีปัญหา</option>
           </select>

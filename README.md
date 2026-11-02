@@ -82,10 +82,11 @@
 
 ### 3.1 หน้าร้านและอีคอมเมิร์ซ (Public & E-Commerce Storefront)
 - **หน้าแรก (`/`)**: Hero Banner โปรโมชั่นที่ดึงจาก CMS, จุดเด่นบริการ, สินค้าไฮไลต์, และรีวิวจากลูกค้าจริง
-- **รายการสินค้าและอุปกรณ์ (`/products`)**: แผงโซลาร์เซลล์ (Tier-1), อินเวอร์เตอร์ (Huawei), แบตเตอรี่สำรอง (LUNA), ชุดอุปกรณ์ติดตั้ง พร้อมระบบค้นหาและกรองหมวดหมู่
+- **รายการสินค้าและอุปกรณ์ (`/products`)**: ดึงสินค้าที่แอดมินเผยแพร่จาก Supabase พร้อมราคา รายละเอียด และรูปสินค้าที่ตั้งไว้ในระบบแอดมิน รองรับค้นหาและกรองหมวดหมู่; เมื่อแอดมินเพิ่ม แก้ไข ซ่อน หรือลบสินค้า รายการหน้าร้านจะโหลดข้อมูลล่าสุด
 - **แพ็กเกจติดตั้งโซลาร์รูฟท็อป (`/packages`)**: แสดงแพ็กเกจมาตรฐาน 3 kW, 5 kW, 10 kW และระบบไฮบริด พร้อมปุ่มนัดสำรวจทันที
 - **บริการช่างและโซลูชัน (`/services`)**: รายละเอียดขั้นตอนการดำเนินงาน ตั้งแต่เข้าสำรวจ ยื่นขออนุญาตขนานไฟ กฟน./กฟภ. จนถึงส่งมอบงาน
-- **ระบบตะกร้าและสั่งซื้อ (`/cart`, `/checkout`)**: คำนวณยอดเงินรวมอัตโนมัติ, บันทึกที่อยู่จัดส่ง และส่งคำสั่งซื้อเข้าระบบ
+- **ระบบตะกร้าและสั่งซื้อ (`/cart`, `/checkout`)**: ใช้สินค้าจากแคตตาล็อกที่เผยแพร่ บันทึกชื่อสินค้า ราคา และจำนวนลงคำสั่งซื้อจากฐานข้อมูล จากนั้นสร้าง QR PromptPay ตามยอดจริงและแสดงรายละเอียดสินค้าก่อนชำระ
+- **การชำระเงิน PromptPay**: ลูกค้าสร้าง QR จากหน้า Checkout; แอดมินสร้าง QR จากคำสั่งซื้อในหน้าจัดการออเดอร์ โดย Express API ใช้ Stripe Secret Key ฝั่งเซิร์ฟเวอร์เท่านั้นและส่ง URL ภาพ QR กลับให้หน้าเว็บ เมื่อ Stripe webhook ยืนยันรับชำระ ระบบจะอัปเดตสถานะคำสั่งซื้อและการชำระเงิน
 - **ระบบจัดการบัญชีและความปลอดภัย (`/account`, `/profile`)**:
   - เปลี่ยนชื่อและเบอร์โทรศัพท์ติดต่อ
   - ตรวจสอบสถานะบทบาทและรหัสบัญชี
@@ -293,15 +294,24 @@ Copy-Item frontend\.env.example frontend\.env.local
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key_here
+VITE_API_BASE_URL=/api
 ```
 
-### 4. การตั้งค่าฐานข้อมูลใน Supabase
+### 4. การตั้งค่า Stripe PromptPay
+1. คัดลอก `backend/.env.example` เป็น `backend/.env`
+2. กรอก `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` และ Stripe test keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) ใน `backend/.env` เท่านั้น
+3. ไม่ต้องใส่ Stripe Secret Key หรือ Publishable Key ใน frontend; API จะสร้าง PaymentIntent และส่ง QR image URL กลับมาให้ React
+4. เปิด PromptPay ใน Stripe Dashboard และใช้ Stripe CLI ส่ง event `payment_intent.succeeded` ในเครื่องด้วย `stripe listen --forward-to localhost:3001/api/stripe/webhook` จากนั้นนำ signing secret ที่ CLI แสดงไปใส่ใน `STRIPE_WEBHOOK_SECRET`
+5. สำหรับ production ให้ตั้ง webhook ส่ง event `payment_intent.succeeded` ไปที่ `/api/stripe/webhook`
+6. เริ่ม API ด้วย `npm run dev:backend` และเริ่ม frontend อีก terminal ด้วย `npm run dev`
+
+### 5. การตั้งค่าฐานข้อมูลใน Supabase
 1. เข้าสู่ **Supabase Dashboard** ของโปรเจกต์
 2. ไปที่เมนู **SQL Editor**
 3. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261031200000_initial_schema.sql` แล้วกด **Run**
 4. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261101230000_admin_enhancements.sql` แล้วกด **Run**
 
-### 5. การกำหนดสิทธิ์ Admin เริ่มต้น
+### 6. การกำหนดสิทธิ์ Admin เริ่มต้น
 หลังจากสมัครสมาชิกผ่านหน้าเว็บแล้ว ให้เปิด **SQL Editor** ใน Supabase และรันคำสั่งนี้เพื่อปรับบัญชีของคุณเป็น Admin:
 
 ```sql
@@ -314,7 +324,7 @@ where id = (
 );
 ```
 
-### 6. การเริ่มรันเซิร์ฟเวอร์สำหรับการพัฒนา (Development)
+### 7. การเริ่มรันเซิร์ฟเวอร์สำหรับการพัฒนา (Development)
 
 ```bash
 npm run dev
@@ -322,7 +332,7 @@ npm run dev
 
 เปิดเบราว์เซอร์ไปที่ `http://localhost:5173`
 
-### 7. การตรวจสอบและทดสอบ Build Production
+### 8. การตรวจสอบและทดสอบ Build Production
 
 ```bash
 npm run build

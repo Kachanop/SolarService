@@ -1091,15 +1091,12 @@ export const adminService = {
 
   // 10. Products CRUD
   async getProducts() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) return data;
-      } catch (e) {
-        console.warn('Supabase products fetch error:', e);
-      }
+    if (!supabase) {
+      return getLocalStore('products', defaultMockData.products);
     }
-    return getLocalStore('products', defaultMockData.products);
+    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
   },
 
   async saveProduct(item) {
@@ -1117,17 +1114,13 @@ export const adminService = {
     };
 
     if (supabase) {
-      try {
-        const res = item.id && !String(item.id).startsWith('prod-')
-          ? await supabase.from('products').update(payload).eq('id', item.id).select()
-          : await supabase.from('products').insert(payload).select();
-        if (!res.error && res.data) {
-          window.dispatchEvent(new Event('solarservice:products-updated'));
-          return res.data[0];
-        }
-      } catch (e) {
-        console.warn('Supabase saveProduct error, falling back locally:', e);
-      }
+      const { data, error } = item.id && !String(item.id).startsWith('prod-')
+        ? await supabase.from('products').update(payload).eq('id', item.id).select()
+        : await supabase.from('products').insert(payload).select();
+      if (error) throw error;
+      if (!data?.[0]) throw new Error('ไม่พบข้อมูลสินค้าที่บันทึกใน Supabase');
+      window.dispatchEvent(new Event('solarservice:products-updated'));
+      return data[0];
     }
 
     const current = getLocalStore('products', defaultMockData.products);
@@ -1145,11 +1138,10 @@ export const adminService = {
 
   async deleteProduct(id) {
     if (supabase && !String(id).startsWith('prod-')) {
-      try {
-        await supabase.from('products').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase deleteProduct error:', e);
-      }
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      window.dispatchEvent(new Event('solarservice:products-updated'));
+      return true;
     }
     const current = getLocalStore('products', defaultMockData.products);
     const updated = current.filter((p) => p.id !== id);

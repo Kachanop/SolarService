@@ -14,8 +14,10 @@ import {
   Phone,
   MapPin,
   Calendar,
+  QrCode,
 } from 'lucide-react';
 import { Money } from '../../components/Shared.jsx';
+import { createPromptPayQr, getPromptPayPaymentStatus } from '../../services/paymentService.js';
 
 const statusLabels = {
   pending: { label: 'รอชำระ/ตรวจสลิป', tone: 'yellow' },
@@ -32,6 +34,9 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [detailModal, setDetailModal] = useState(null);
+  const [qrPayment, setQrPayment] = useState(null);
+  const [creatingQrFor, setCreatingQrFor] = useState('');
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const [trackingInput, setTrackingInput] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -66,6 +71,35 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
     onUpdateStatus(order.id, order.status, { tracking_number: trackingInput.trim() });
     setDetailModal({ ...order, tracking_number: trackingInput.trim() });
     if (setToast) setToast(`บันทึกเลขพัสดุ ${trackingInput.trim()} เรียบร้อยแล้ว`);
+  }
+
+  async function handleCreateQr(order) {
+    setCreatingQrFor(order.id);
+    try {
+      const payment = await createPromptPayQr(order.id);
+      setQrPayment({ ...payment, orderId: order.id, orderNumber: order.order_number, amount: order.total });
+    } catch (error) {
+      if (setToast) setToast(`สร้าง QR ไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาด'}`);
+    } finally {
+      setCreatingQrFor('');
+    }
+  }
+
+  async function handleCheckPayment() {
+    if (!qrPayment || checkingPayment) return;
+    setCheckingPayment(true);
+    try {
+      const result = await getPromptPayPaymentStatus(qrPayment.orderId);
+      if (result.paid) {
+        setToast(`ยืนยันการชำระเงินสำหรับ ${qrPayment.orderNumber} แล้ว`);
+      } else {
+        setToast('ยังไม่พบการยืนยันการชำระเงินจาก Stripe');
+      }
+    } catch (error) {
+      setToast(`ตรวจสอบการชำระเงินไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาด'}`);
+    } finally {
+      setCheckingPayment(false);
+    }
   }
 
   function exportCSV() {
@@ -234,6 +268,17 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
                 </div>
 
                 <div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {order.status === 'pending' && (
+                    <button
+                      type="button"
+                      className="button button-green small-button"
+                      disabled={creatingQrFor === order.id}
+                      onClick={() => handleCreateQr(order)}
+                    >
+                      <QrCode size={12} /> {creatingQrFor === order.id ? 'กำลังสร้าง…' : 'สร้าง QR'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="button button-outline small-button"
@@ -244,6 +289,7 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
                   >
                     <Eye size={12} /> รายละเอียด
                   </button>
+                  </div>
                 </div>
               </div>
             );
@@ -417,7 +463,43 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
           </div>
         </div>
       )}
+      {qrPayment && (
+        <div
+          className="admin-form-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setQrPayment(null);
+          }}
+        >
+          <div className="admin-modal-card promptpay-admin-modal">
+            <div className="admin-modal-header">
+              <div>
+                <h2>QR PromptPay · {qrPayment.orderNumber}</h2>
+                <p>ยอดชำระ <Money value={qrPayment.amountInBaht ?? qrPayment.amount} /></p>
+              </div>
+              <button type="button" className="icon-action" onClick={() => setQrPayment(null)}>×</button>
+            </div>
+            {qrPayment.qrCodeUrl ? (
+              <img className="promptpay-qr-image" src={qrPayment.qrCodeUrl} alt={`QR PromptPay สำหรับคำสั่งซื้อ ${qrPayment.orderNumber}`} />
+            ) : (
+              <p>รายการนี้ชำระแล้วหรือ Stripe ไม่ได้ส่งภาพ QR กลับมา</p>
+            )}
+            <div className="promptpay-order-items">
+              {(qrPayment.orderItems || []).map((item, index) => (
+                <div className="promptpay-order-item" key={`${item.name}-${index}`}>
+                  <span>{item.name} × {item.quantity}</span>
+                  <strong><Money value={item.lineTotal} /></strong>
+                </div>
+              ))}
+            </div>
+            {qrPayment.hostedInstructionsUrl && (
+              <a className="button button-outline" href={qrPayment.hostedInstructionsUrl} target="_blank" rel="noreferrer">เปิดหน้าแสดง QR จาก Stripe</a>
+            )}
+            <button type="button" className="button button-green" onClick={handleCheckPayment} disabled={checkingPayment}>
+              {checkingPayment ? 'กำลังตรวจสอบ…' : 'ตรวจสอบสถานะชำระเงิน'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

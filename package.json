@@ -2,11 +2,14 @@
   "name": "solarservice",
   "private": true,
   "workspaces": [
-    "frontend"
+    "frontend",
+    "backend"
   ],
   "scripts": {
     "dev": "npm run dev --workspace @solarservice/frontend",
+    "dev:backend": "npm run dev --workspace @solarservice/backend",
     "build": "npm run build --workspace @solarservice/frontend",
-    "preview": "npm run preview --workspace @solarservice/frontend"
+    "preview": "npm run preview --workspace @solarservice/frontend",
+    "start:backend": "npm run start --workspace @solarservice/backend"
   }
 }

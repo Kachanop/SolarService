@@ -33,7 +33,7 @@ function App() {
     async function loadCatalog() {
       try {
         const { data, error } = await supabase.from('products')
-          .select('id,name,category,description,price,compare_at_price,is_active')
+          .select('id,name,category,description,price,compare_at_price,image_url,stock_quantity,is_active')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
         if (error) throw error;
@@ -45,6 +45,8 @@ function App() {
           price: Number(product.price),
           oldPrice: product.compare_at_price === null ? null : Number(product.compare_at_price),
           detail: product.description,
+          image_url: product.image_url,
+          stock_quantity: Number(product.stock_quantity),
           icon: icons[product.category] || '▰',
           tone: tones[product.category] || ['blue', 'green', 'sand', 'lilac'][index % 4],
         })));
@@ -289,7 +291,7 @@ function App() {
         {!authLoading && ['/login', '/register', '/forgot-password', '/reset-password'].includes(screen) && !(screen === '/login' && route !== '/login') && <AuthPage route={screen} navigate={navigate} onAuthenticated={onAuthenticated} setToast={setToast} />}
         {!authLoading && (screen === '/account' || screen === '/profile') && <AccountPage authUser={authUser} role={role} navigate={navigate} setToast={setToast} signOut={signOut} />}
         {!authLoading && screen === '/cart' && <Cart cart={cart} setCart={setCart} navigate={navigate} />}
-        {!authLoading && screen === '/checkout' && <Checkout setToast={setToast} navigate={navigate} />}
+        {!authLoading && screen === '/checkout' && <Checkout cart={cart} setCart={setCart} authUser={authUser} setToast={setToast} navigate={navigate} />}
         {!authLoading && pageTitles[screen] && screen !== '/cart' && screen !== '/checkout' && screen !== '/account' && screen !== '/profile' && <WorkspacePage route={screen} title={pageTitles[screen]} navigate={navigate} setToast={setToast} authUser={authUser} />}
         {!authLoading && !['/', '/products', '/packages', '/services', '/about', '/contact', '/login', '/register', '/forgot-password', '/reset-password', '/cart', '/checkout', '/account', '/profile', ...Object.keys(pageTitles)].includes(screen) && <NotFound navigate={navigate} />}
       </main>
