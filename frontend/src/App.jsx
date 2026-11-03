@@ -175,7 +175,7 @@ function App() {
   const filteredProducts = useMemo(() => catalogProducts.filter((product) =>
     `${product.name} ${product.category}`.toLowerCase().includes(search.toLowerCase())), [catalogProducts, search]);
   const protectedRoutes = new Set([
-    '/customer', '/bookings', '/quotes', '/tracking', '/cart', '/checkout', '/profile', '/account', '/reviews',
+    '/customer', '/bookings', '/booking-history', '/quotes', '/tracking', '/cart', '/checkout', '/profile', '/account', '/reviews',
     '/technician', '/schedule', '/jobs', '/survey', '/work-history', '/job-detail',
     '/admin', '/manage-products', '/manage-packages', '/manage-users',
     '/manage-bookings', '/manage-quotes', '/manage-orders', '/manage-payments',

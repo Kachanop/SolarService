@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js';
 import { adminRoutes } from '../lib/routes.js';
 import AdminWorkspace from './AdminWorkspace.jsx';
 import Booking from '../technician/Booking.jsx';
+import BookingHistory from './BookingHistory.jsx';
 import TechnicianDashboard from '../technician/TechnicianDashboard.jsx';
 import AccountPage from './AccountPage.jsx';
 
@@ -16,6 +17,9 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
   const isProfile = route === '/profile' || route === '/account';
   if (adminRoutes.has(route)) {
     return <AdminWorkspace route={route} title={title} navigate={navigate} authUser={authUser} setToast={setToast} />;
+  }
+  if (route === '/booking-history') {
+    return <BookingHistory authUser={authUser} setToast={setToast} />;
   }
   if (isTechnician && !isSurvey) {
     return <TechnicianDashboard route={route} title={title} authUser={authUser} navigate={navigate} />;

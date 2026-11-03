@@ -52,8 +52,10 @@ export default function Booking({ user, navigate, setToast }) {
         setContactName(profile.full_name || '');
         if (profile.phone) setPhone((current) => current || profile.phone);
       })
-      .catch(() => {
-        // ไม่บล็อกการจอง ผู้ใช้กรอกเบอร์เองได้
+      .catch((error) => {
+        if (active) {
+          setFormError(`โหลดข้อมูลโปรไฟล์ไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาด'}`);
+        }
       });
     return () => { active = false; };
   }, [user?.id]);
@@ -72,7 +74,7 @@ export default function Booking({ user, navigate, setToast }) {
     } catch (error) {
       if (isActive()) {
         setSlots([]);
-        setSlotsError(error.message);
+        setSlotsError(error instanceof Error ? error.message : 'ตรวจสอบช่วงเวลานัดหมายไม่สำเร็จ');
       }
     } finally {
       if (isActive()) setSlotsLoading(false);
@@ -122,9 +124,9 @@ export default function Booking({ user, navigate, setToast }) {
         notes: notes.trim(),
       });
       setToast('จองบริการสำเร็จ ทีมงานจะยืนยันนัดหมายภายใน 24 ชั่วโมง');
-      navigate('/bookings');
+      navigate('/booking-history');
     } catch (error) {
-      setFormError(error.message);
+      setFormError(error instanceof Error ? error.message : 'จองบริการไม่สำเร็จ กรุณาลองอีกครั้ง');
       if (['SLOT_FULL', 'SLOT_IN_PAST', 'INVALID_SLOT'].includes(error.code)) {
         setSlotStart('');
         loadSlots(date);
@@ -156,6 +158,7 @@ export default function Booking({ user, navigate, setToast }) {
         <div className="eyebrow">SERVICE BOOKING</div>
         <h1>จองบริการช่าง</h1>
         <p>เลือกบริการและช่วงเวลาที่สะดวก ทีมงานจะยืนยันนัดหมายให้ภายใน 24 ชั่วโมง</p>
+        <button className="button button-outline small-button" type="button" onClick={() => navigate('/booking-history')}>ดูประวัติการจอง</button>
       </section>
 
       <form className="bk-form" onSubmit={handleSubmit} noValidate>
@@ -197,7 +200,10 @@ export default function Booking({ user, navigate, setToast }) {
 
           <div className="bk-field">
             <span className="bk-label">ช่วงเวลา</span>
-            {!date && <p className="bk-hint">เลือกวันที่ก่อน ระบบจะแสดงช่วงเวลาว่างจริง</p>}
+            {!date && <p className="bk-hint">เลือกวันที่ก่อน ระบบจะแสดงช่วงเวลาที่เลือกได้</p>}
+            {date && !slotsLoading && !slotsError && (
+              <p className="bk-hint" role="note">หมายเหตุ: ตาม RLS ปัจจุบัน ระบบตรวจสอบได้เฉพาะรายการที่บัญชีของคุณอ่านได้ จึงยังยืนยันคิวว่างของลูกค้าทุกคนไม่ได้</p>
+            )}
             {date && slotsLoading && <p className="bk-hint" role="status">กำลังตรวจสอบเวลาว่าง…</p>}
             {date && !slotsLoading && slotsError && (
               <div className="bk-inline-error" role="alert">
@@ -208,7 +214,6 @@ export default function Booking({ user, navigate, setToast }) {
             {date && !slotsLoading && !slotsError && slots.length > 0 && (
               <div className="bk-slot-grid" role="radiogroup" aria-label="ช่วงเวลา">
                 {slots.map((slot) => {
-                  const left = Math.max(slot.capacity - slot.booked, 0);
                   return (
                     <label key={slot.slot_start} className={`bk-slot ${slotStart === slot.slot_start ? 'selected' : ''} ${slot.is_available ? '' : 'disabled'}`}>
                       <input
@@ -220,7 +225,13 @@ export default function Booking({ user, navigate, setToast }) {
                         onChange={() => setSlotStart(slot.slot_start)}
                       />
                       <strong>{slot.slot_label}</strong>
-                      <small>{slot.is_available ? `ว่าง ${left} คิว` : 'ไม่ว่าง'}</small>
+                      <small>
+                        {slot.is_available
+                          ? 'ยังไม่พบรายการจองที่มองเห็นในช่วงนี้'
+                          : slot.unavailable_reason === 'past'
+                            ? 'เวลาผ่านไปแล้ว'
+                            : 'คุณมีรายการจองแล้ว'}
+                      </small>
                     </label>
                   );
                 })}
