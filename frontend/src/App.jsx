@@ -176,7 +176,7 @@ function App() {
     `${product.name} ${product.category}`.toLowerCase().includes(search.toLowerCase())), [catalogProducts, search]);
   const protectedRoutes = new Set([
     '/customer', '/bookings', '/quotes', '/tracking', '/cart', '/checkout', '/profile', '/account', '/reviews',
-    '/technician', '/schedule', '/jobs', '/survey', '/work-history',
+    '/technician', '/schedule', '/jobs', '/survey', '/work-history', '/job-detail',
     '/admin', '/manage-products', '/manage-packages', '/manage-users',
     '/manage-bookings', '/manage-quotes', '/manage-orders', '/manage-payments',
     '/installations', '/warranties', '/maintenance', '/tickets',
@@ -192,7 +192,7 @@ function App() {
 
   function navigate(path) {
     if (window.location.hash === `#${path}`) {
-      setRoute(path);
+      setRoute(routeFromHash());
       return;
     }
     window.location.hash = path;

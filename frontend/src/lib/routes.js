@@ -20,14 +20,14 @@ export const adminRoutes = new Set([
   '/installations', '/warranties', '/maintenance', '/tickets',
   '/manage-reviews', '/manage-cms', '/reports',
 ]);
-export const technicianRoutes = new Set(['/technician', '/schedule', '/jobs', '/survey', '/work-history']);
+export const technicianRoutes = new Set(['/technician', '/schedule', '/jobs', '/survey', '/work-history', '/job-detail']);
 
 export const pageTitles = {
   '/customer': 'ภาพรวมของฉัน', '/bookings': 'การจองของฉัน', '/quotes': 'ใบเสนอราคา',
   '/tracking': 'ติดตามงานติดตั้ง', '/cart': 'ตะกร้าสินค้า', '/checkout': 'ยืนยันคำสั่งซื้อ',
   '/profile': 'บัญชีของฉัน', '/account': 'บัญชีของฉัน', '/reviews': 'รีวิวบริการ',
   '/technician': 'ภาพรวมช่าง', '/schedule': 'ตารางนัดหมาย', '/jobs': 'งานที่ได้รับมอบหมาย',
-  '/survey': 'แบบฟอร์มสำรวจหน้างาน', '/work-history': 'ประวัติงาน',
+  '/survey': 'แบบฟอร์มสำรวจหน้างาน', '/work-history': 'ประวัติงาน', '/job-detail': 'รายละเอียดงาน',
   '/admin': 'Dashboard & สถิติระบบ',
   '/manage-products': 'จัดการสินค้าและสต็อก',
   '/manage-packages': 'จัดการแพ็กเกจติดตั้งโซลาร์',
@@ -46,6 +46,5 @@ export const pageTitles = {
 };
 export function routeFromHash() {
   if (new URLSearchParams(window.location.search).get('flow') === 'reset') return '/reset-password';
-  return window.location.hash.replace(/^#/, '') || '/';
+  return (window.location.hash.replace(/^#/, '').split('?')[0]) || '/';
 }
-
