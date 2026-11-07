@@ -47,6 +47,7 @@ const CSS = `
 .sx-btn-solid:hover { background: var(--sx-green-dark); }
 .sx-btn-ghost { background: #fff; color: var(--sx-green); border-color: #c5d3bd; }
 .sx-btn-ghost:hover { background: var(--sx-green-soft); }
+.sx-btn:disabled { opacity: .55; cursor: not-allowed; }
 .sx-btn-wide { width: 100%; padding: 14px; font-size: 16px; margin-top: 22px; }
 
 /* หน้าต่างรายละเอียด */
@@ -133,6 +134,7 @@ const illus = (kind) => {
    เปลี่ยน image เป็นรูปจริงของคุณได้เลย เช่น '/images/pkg-5kw.jpg' หรือ URL เต็ม */
 const DEFAULT_PACKAGES = [
   {
+    isSample: true,
     id: 'pkg-3kw',
     name: 'แพ็กเกจ 3 kW สำหรับบ้านขนาดเล็ก',
     price: 89000,
@@ -141,6 +143,7 @@ const DEFAULT_PACKAGES = [
     includes: ['แผงโซลาร์ 6 แผ่น', 'อินเวอร์เตอร์ 3 kW', 'โครงสร้างยึดหลังคา', 'ค่าติดตั้งและเดินสาย', 'รับประกันงานติดตั้ง 5 ปี'],
   },
   {
+    isSample: true,
     id: 'pkg-5kw',
     name: 'แพ็กเกจ 5 kW สำหรับบ้านทั่วไป',
     price: 139000,
@@ -150,6 +153,7 @@ const DEFAULT_PACKAGES = [
     popular: true,
   },
   {
+    isSample: true,
     id: 'pkg-10kw',
     name: 'แพ็กเกจ 10 kW สำหรับร้านค้า/โรงงานเล็ก',
     price: 259000,
@@ -163,22 +167,22 @@ const DEFAULT_PACKAGES = [
 /* ---------- ตัวอย่างสินค้า (แสดงเมื่อระบบยังไม่ส่งสินค้าเข้ามา) ----------
    ราคาและรายละเอียดเป็นข้อมูลสมมติ ให้แก้เป็นของจริง และเปลี่ยน image เป็น path รูปจริงได้ */
 const SAMPLE_PRODUCTS = [
-  { id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: illus('panel'),
+  { isSample: true, id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: illus('panel'),
     description: 'แผงโมโนคริสตัลไลน์ประสิทธิภาพสูง ทนแดด ทนฝน เหมาะกับหลังคาบ้านและโรงงาน',
     specs: { 'กำลังไฟ': '550 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี', 'ประกันกำลังผลิต': '25 ปี' }, popular: true },
-  { id: 'sample-2', name: 'แผงโซลาร์ Mono 450W', price: 3490, category: 'แผงโซลาร์', image: illus('panel-small'),
+  { isSample: true, id: 'sample-2', name: 'แผงโซลาร์ Mono 450W', price: 3490, category: 'แผงโซลาร์', image: illus('panel-small'),
     description: 'ขนาดกะทัดรัด ติดตั้งง่าย เหมาะกับพื้นที่หลังคาจำกัด',
     specs: { 'กำลังไฟ': '450 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี' } },
-  { id: 'sample-3', name: 'อินเวอร์เตอร์ On-Grid 5 kW', price: 32900, category: 'อินเวอร์เตอร์', image: illus('inverter'),
+  { isSample: true, id: 'sample-3', name: 'อินเวอร์เตอร์ On-Grid 5 kW', price: 32900, category: 'อินเวอร์เตอร์', image: illus('inverter'),
     description: 'ต่อเข้าระบบไฟบ้านโดยตรง ดูผลผลิตไฟผ่านแอปบนมือถือได้ทุกเวลา',
     specs: { 'กำลังไฟ': '5 kW', 'ประสิทธิภาพ': '98%', 'การเชื่อมต่อ': 'Wi-Fi', 'ประกัน': '5 ปี' } },
-  { id: 'sample-4', name: 'อินเวอร์เตอร์ Hybrid 8 kW', price: 54900, category: 'อินเวอร์เตอร์', image: illus('hybrid'),
+  { isSample: true, id: 'sample-4', name: 'อินเวอร์เตอร์ Hybrid 8 kW', price: 54900, category: 'อินเวอร์เตอร์', image: illus('hybrid'),
     description: 'รองรับการต่อแบตเตอรี่ ใช้ไฟต่อเนื่องแม้ไฟดับ เหมาะกับบ้านที่ต้องการความมั่นคงทางไฟฟ้า',
     specs: { 'กำลังไฟ': '8 kW', 'รองรับแบตเตอรี่': 'ได้', 'ประกัน': '5 ปี' } },
-  { id: 'sample-5', name: 'แบตเตอรี่ลิเธียม 5 kWh', price: 59900, category: 'แบตเตอรี่', image: illus('battery'),
+  { isSample: true, id: 'sample-5', name: 'แบตเตอรี่ลิเธียม 5 kWh', price: 59900, category: 'แบตเตอรี่', image: illus('battery'),
     description: 'เก็บไฟส่วนเกินตอนกลางวันไว้ใช้ตอนกลางคืน อายุการใช้งานยาวนาน',
     specs: { 'ความจุ': '5 kWh', 'เคมี': 'LiFePO4', 'รอบการชาร์จ': '6,000 รอบ', 'ประกัน': '10 ปี' } },
-  { id: 'sample-6', name: 'ชุดโครงยึดแผงบนหลังคา', price: 1890, category: 'อุปกรณ์เสริม', image: illus('mount'),
+  { isSample: true, id: 'sample-6', name: 'ชุดโครงยึดแผงบนหลังคา', price: 1890, category: 'อุปกรณ์เสริม', image: illus('mount'),
     description: 'โครงอะลูมิเนียมกันสนิม รองรับหลังคาเมทัลชีทและกระเบื้อง (ราคาต่อ 1 แผง)',
     specs: { 'วัสดุ': 'อะลูมิเนียม', 'รองรับลม': 'สูงสุด 180 กม./ชม.' } },
 ];
@@ -200,8 +204,14 @@ function ItemCard({ item, kind, onView, onAdd }) {
           <button type="button" className="sx-btn sx-btn-ghost" onClick={() => onView(item)}>
             <Eye size={16} /> ดูรายละเอียด
           </button>
-          <button type="button" className="sx-btn sx-btn-solid" onClick={() => onAdd(item)}>
-            <ShoppingCart size={16} /> เพิ่มลงตะกร้า
+          <button
+            type="button"
+            className="sx-btn sx-btn-solid"
+            onClick={() => onAdd(item)}
+            disabled={item.isSample}
+            title={item.isSample ? 'สินค้าตัวอย่าง ยังสั่งซื้อไม่ได้ (ยังไม่มีในฐานข้อมูล)' : undefined}
+          >
+            <ShoppingCart size={16} /> {item.isSample ? 'ตัวอย่าง' : 'เพิ่มลงตะกร้า'}
           </button>
         </div>
       </div>
@@ -282,8 +292,9 @@ function DetailModal({ item, kind, onClose, onAdd }) {
             type="button"
             className="sx-btn sx-btn-solid sx-btn-wide"
             onClick={() => { onAdd(item); onClose(); }}
+            disabled={item.isSample}
           >
-            <ShoppingCart size={18} /> เพิ่มลงตะกร้า
+            <ShoppingCart size={18} /> {item.isSample ? 'สินค้าตัวอย่าง ยังสั่งซื้อไม่ได้' : 'เพิ่มลงตะกร้า'}
           </button>
         </div>
       </div>
