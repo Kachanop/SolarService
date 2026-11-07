@@ -10,6 +10,7 @@ import AdminPackages from './admin/AdminPackages.jsx';
 import AdminOrders from './admin/AdminOrders.jsx';
 import AdminPayments from './admin/AdminPayments.jsx';
 import AdminBookings from './admin/AdminBookings.jsx';
+import AdminTechnicianManagement from './admin/AdminTechnicianManagement.jsx';
 import AdminQuotes from './admin/AdminQuotes.jsx';
 import AdminInstallations from './admin/AdminInstallations.jsx';
 import AdminWarranties from './admin/AdminWarranties.jsx';
@@ -48,6 +49,7 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
     return {
       pendingPayments: (paymentsData || []).filter((p) => p.status === 'pending').length,
       pendingBookings: (bookingsData || []).filter((b) => ['pending', 'assigned'].includes(b.status)).length,
+      pendingSurveys: (bookingsData || []).filter((b) => ['pending', 'assigned'].includes(b.status)).length,
       pendingOrders: (ordersData || []).filter((o) => ['pending', 'confirmed', 'processing'].includes(o.status)).length,
       activeInstallations: (installationsData || []).filter((i) => !['completed', 'cancelled'].includes(i.status)).length,
       pendingMaintenance: (maintenanceData || []).filter((m) => m.status === 'pending').length,
@@ -171,7 +173,7 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
         </div>
       </div>
 
-      {/* Sub Navigation Bar for all 15 Admin Tools */}
+      {/* Sub Navigation Bar for all 16 Admin Tools */}
       <AdminSubNav
         currentRoute={route}
         navigate={navigate}
@@ -288,6 +290,21 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
               }}
               navigate={navigate}
               setToast={setToast}
+            />
+          )}
+
+          {route === '/manage-technicians' && (
+            <AdminTechnicianManagement
+              technicians={technicians}
+              bookings={bookingsData}
+              onAssignTechnician={async (bookingId, technicianId) => {
+                const technician = technicians.find((item) => item.id === technicianId);
+                if (!technician) throw new Error('ไม่พบข้อมูลช่างที่เลือก');
+                await adminService.assignTechnician(bookingId, technicianId, technician.full_name);
+                setRefreshKey((key) => key + 1);
+              }}
+              setToast={setToast}
+              navigate={navigate}
             />
           )}
 

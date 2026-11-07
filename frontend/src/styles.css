@@ -843,3 +843,153 @@ a { color: inherit; text-decoration: none; }
     grid-template-columns: 1fr;
   }
 }
+
+.technician-team-section,
+.technician-survey-section {
+  margin-top: 24px;
+}
+.technician-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.technician-team-card {
+  display: grid;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  background: #fbfcfa;
+  border: 1px solid #e8ebe4;
+  border-radius: 7px;
+}
+.technician-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  grid-row: span 2;
+  color: #52713f;
+  background: #edf2e8;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 700;
+}
+.technician-card-info strong,
+.technician-card-info small {
+  display: block;
+}
+.technician-card-info strong {
+  color: #3e4d3d;
+  font-size: 10px;
+}
+.technician-card-info small,
+.technician-phone {
+  color: #858e82;
+  font-size: 9px;
+}
+.technician-card-info small {
+  margin-top: 4px;
+}
+.technician-workload {
+  padding: 5px 8px;
+  color: #587b45;
+  background: #edf3e8;
+  border-radius: 20px;
+  font-size: 8px;
+  white-space: nowrap;
+}
+.technician-phone {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  grid-column: 2 / -1;
+  padding-top: 8px;
+  border-top: 1px solid #edf0ea;
+}
+.technician-phone:hover {
+  color: #587b45;
+}
+.technician-phone.unavailable {
+  color: #a0a69c;
+}
+.technician-stat-caption {
+  margin: 4px 0 0;
+  color: #687766;
+  font-size: 9px;
+  font-style: normal;
+}
+.technician-active-summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #687766;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.technician-bookings-table .admin-table-head,
+.technician-bookings-table .admin-table-row {
+  min-width: 1190px;
+  grid-template-columns: minmax(145px, 1.15fr) minmax(140px, 1fr) minmax(160px, 1.2fr) minmax(105px, .8fr) minmax(125px, 1fr) minmax(230px, 1.6fr);
+}
+.technician-location small {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.technician-assignees,
+.technician-unassigned,
+.technician-assign-unavailable {
+  color: #647160;
+  font-size: 9px;
+  line-height: 1.6;
+}
+.technician-unassigned,
+.technician-assign-unavailable {
+  color: #929a8f;
+}
+.technician-assign-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.technician-assign-control select {
+  min-width: 0;
+  flex: 1;
+  padding: 7px 8px;
+  color: #485548;
+  background: white;
+  border: 1px solid #dce2d6;
+  border-radius: 5px;
+  font-size: 9px;
+}
+.technician-assign-control .button {
+  flex-shrink: 0;
+}
+.technician-assign-control .button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+  transform: none;
+}
+.technician-empty,
+.technician-no-bookings {
+  padding: 28px 16px;
+  color: #858e82;
+  text-align: center;
+  font-size: 10px;
+}
+
+@media (max-width: 700px) {
+  .technician-team-section .workspace-section-heading,
+  .technician-survey-section .workspace-section-heading {
+    align-items: flex-start;
+  }
+  .technician-team-card {
+    grid-template-columns: 34px 1fr auto;
+  }
+  .technician-avatar {
+    width: 34px;
+    height: 34px;
+  }
+}

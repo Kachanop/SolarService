@@ -12,6 +12,7 @@ import {
   BellRing,
   LifeBuoy,
   Users,
+  UsersRound,
   Star,
   FileCode2,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ export const adminNavItems = [
   { path: '/manage-orders', label: 'คำสั่งซื้อ', icon: <ShoppingBag size={15} />, badgeKey: 'pendingOrders' },
   { path: '/manage-payments', label: 'ตรวจสลิป & ชำระเงิน', icon: <CreditCard size={15} />, badgeKey: 'pendingPayments' },
   { path: '/manage-bookings', label: 'คิวจองสำรวจ', icon: <CalendarDays size={15} />, badgeKey: 'pendingBookings' },
+  { path: '/manage-technicians', label: 'ช่าง & สำรวจพื้นที่', icon: <UsersRound size={15} />, badgeKey: 'pendingSurveys' },
   { path: '/manage-quotes', label: 'ใบเสนอราคา', icon: <FileText size={15} /> },
   { path: '/installations', label: 'งานติดตั้ง', icon: <Wrench size={15} />, badgeKey: 'activeInstallations' },
   { path: '/warranties', label: 'ทะเบียนรับประกัน', icon: <ShieldCheck size={15} /> },

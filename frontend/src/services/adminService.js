@@ -1251,14 +1251,18 @@ export const adminService = {
 
   async assignTechnician(bookingId, technicianId, technicianName = '') {
     if (supabase && !String(bookingId).startsWith('bk-')) {
-      try {
-        await supabase.from('technician_assignments').insert({
-          booking_id: bookingId,
-          technician_id: technicianId,
-        });
-      } catch (e) {
-        console.warn('Supabase assignTechnician error:', e);
-      }
+      const { error: assignmentError } = await supabase.from('technician_assignments').insert({
+        booking_id: bookingId,
+        technician_id: technicianId,
+      });
+      if (assignmentError) throw assignmentError;
+
+      const { error: bookingError } = await supabase
+        .from('service_bookings')
+        .update({ status: 'assigned' })
+        .eq('id', bookingId)
+        .eq('status', 'pending');
+      if (bookingError) throw bookingError;
     }
     const current = getLocalStore('bookings', defaultMockData.bookings);
     const updated = current.map((b) => {

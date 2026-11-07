@@ -179,6 +179,7 @@ function App() {
     '/technician', '/schedule', '/jobs', '/survey', '/work-history', '/job-detail',
     '/admin', '/manage-products', '/manage-packages', '/manage-users',
     '/manage-bookings', '/manage-quotes', '/manage-orders', '/manage-payments',
+    '/manage-technicians',
     '/installations', '/warranties', '/maintenance', '/tickets',
     '/manage-reviews', '/manage-cms', '/reports',
   ]);

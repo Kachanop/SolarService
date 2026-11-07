@@ -17,6 +17,7 @@ export const roleMenus = {
 export const adminRoutes = new Set([
   '/admin', '/manage-products', '/manage-packages', '/manage-users',
   '/manage-bookings', '/manage-quotes', '/manage-orders', '/manage-payments',
+  '/manage-technicians',
   '/installations', '/warranties', '/maintenance', '/tickets',
   '/manage-reviews', '/manage-cms', '/reports',
 ]);
@@ -34,6 +35,7 @@ export const pageTitles = {
   '/manage-packages': 'จัดการแพ็กเกจติดตั้งโซลาร์',
   '/manage-users': 'จัดการผู้ใช้ & CRM & สิทธิ์',
   '/manage-bookings': 'จัดการการจองสำรวจ',
+  '/manage-technicians': 'ระบบช่างและสำรวจพื้นที่ (Technician Management)',
   '/manage-quotes': 'จัดการใบเสนอราคา',
   '/manage-orders': 'จัดการคำสั่งซื้อ',
   '/manage-payments': 'ตรวจสอบการชำระเงิน & สลิป',
