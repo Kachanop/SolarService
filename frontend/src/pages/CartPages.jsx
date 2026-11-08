@@ -18,10 +18,93 @@ const CSS = `
 .sx-choice:focus-within { outline: 3px solid #e6edba; box-shadow: 0 0 0 5px #526e48; }
 .sx-tech-panel { display: grid; gap: 14px; padding: 16px; border: 1px solid #e0e6db; border-radius: 14px; background: #fff; }
 .sx-tech-panel label { display: grid; gap: 6px; }
+.sx-tech-panel select { width: 100%; padding: 12px 14px; border: 1px solid #e0e6db; border-radius: 10px; background: #faf9f5; color: #29382c; font: inherit; }
+.sx-tech-panel select:invalid { color: #8b948a; }
 .sx-note { margin: 0; padding: 10px 12px; border-radius: 10px; background: #e6edba; color: #27392c; font-size: 14px; }
 .sx-note-warn { background: #fdeaea; color: #8a2a2a; }
 @media (max-width: 640px) { .sx-choice-group { grid-template-columns: 1fr; } }
 `;
+
+// จังหวัดทั้งหมด 77 จังหวัด (กรุงเทพมหานครอยู่บนสุด ที่เหลือเรียงตามตัวอักษร)
+const THAI_PROVINCES = [
+  'กรุงเทพมหานคร',
+  'กระบี่',
+  'กาญจนบุรี',
+  'กาฬสินธุ์',
+  'กำแพงเพชร',
+  'ขอนแก่น',
+  'จันทบุรี',
+  'ฉะเชิงเทรา',
+  'ชลบุรี',
+  'ชัยนาท',
+  'ชัยภูมิ',
+  'ชุมพร',
+  'เชียงราย',
+  'เชียงใหม่',
+  'ตรัง',
+  'ตราด',
+  'ตาก',
+  'นครนายก',
+  'นครปฐม',
+  'นครพนม',
+  'นครราชสีมา',
+  'นครศรีธรรมราช',
+  'นครสวรรค์',
+  'นนทบุรี',
+  'นราธิวาส',
+  'น่าน',
+  'บึงกาฬ',
+  'บุรีรัมย์',
+  'ปทุมธานี',
+  'ประจวบคีรีขันธ์',
+  'ปราจีนบุรี',
+  'ปัตตานี',
+  'พระนครศรีอยุธยา',
+  'พะเยา',
+  'พังงา',
+  'พัทลุง',
+  'พิจิตร',
+  'พิษณุโลก',
+  'เพชรบุรี',
+  'เพชรบูรณ์',
+  'แพร่',
+  'ภูเก็ต',
+  'มหาสารคาม',
+  'มุกดาหาร',
+  'แม่ฮ่องสอน',
+  'ยโสธร',
+  'ยะลา',
+  'ร้อยเอ็ด',
+  'ระนอง',
+  'ระยอง',
+  'ราชบุรี',
+  'ลพบุรี',
+  'ลำปาง',
+  'ลำพูน',
+  'เลย',
+  'ศรีสะเกษ',
+  'สกลนคร',
+  'สงขลา',
+  'สตูล',
+  'สมุทรปราการ',
+  'สมุทรสงคราม',
+  'สมุทรสาคร',
+  'สระแก้ว',
+  'สระบุรี',
+  'สิงห์บุรี',
+  'สุโขทัย',
+  'สุพรรณบุรี',
+  'สุราษฎร์ธานี',
+  'สุรินทร์',
+  'หนองคาย',
+  'หนองบัวลำภู',
+  'อ่างทอง',
+  'อำนาจเจริญ',
+  'อุดรธานี',
+  'อุตรดิตถ์',
+  'อุทัยธานี',
+  'อุบลราชธานี',
+];
 
 // Supabase/Stripe ส่ง error มาเป็น object ธรรมดา ไม่ใช่ Error จึงต้องดึง message ออกมาเอง
 function getErrorMessage(error, fallback = 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ') {
@@ -327,7 +410,10 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
             <div className="sx-tech-panel">
               <label>
                 จังหวัดที่ติดตั้ง
-                <input required value={installProvince} placeholder="เช่น กรุงเทพมหานคร" onChange={(event) => setInstallProvince(event.target.value)} />
+                <select required value={installProvince} onChange={(event) => setInstallProvince(event.target.value)}>
+                  <option value="" disabled>เลือกจังหวัด</option>
+                  {THAI_PROVINCES.map((province) => <option key={province} value={province}>{province}</option>)}
+                </select>
               </label>
               <label>
                 <span><CalendarDays size={14} /> เลือกวันนัดช่าง</span>

@@ -89,13 +89,22 @@ const FALLBACK_IMG =
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#eef2f6"/><g fill="none" stroke="#9aa7b5" stroke-width="6"><rect x="110" y="95" width="180" height="110" rx="6"/><path d="M110 132h180M110 168h180M170 95v110M230 95v110"/></g></svg>`
   );
 
-const getImage = (item) =>
-  item.image || item.image_url || item.imageUrl || (item.images && item.images[0]) || FALLBACK_IMG;
+// รูปจริงวางไว้ที่ public/images/products/<ชื่อไฟล์>.jpg (ใช้ BASE_URL เผื่อเว็บอยู่ใน /SolarService/)
+const photo = (name) => `${import.meta.env.BASE_URL}images/products/${name}.jpg`;
 
-const onImgError = (e) => {
-  if (e.currentTarget.src !== FALLBACK_IMG) e.currentTarget.src = FALLBACK_IMG;
+const getImage = (item) => getSources(item)[0];
+
+// ถ้ารูปโหลดไม่ขึ้น ให้ลองรูปถัดไปในรายการ สุดท้ายเป็นภาพประกอบในตัว (ไม่มีรูปแตก)
+const onImgError = (e, sources = []) => {
+  const el = e.currentTarget;
+  const step = Number(el.dataset.step || 1);
+  if (step < sources.length) {
+    el.dataset.step = String(step + 1);
+    el.src = sources[step];
+  } else if (el.src !== FALLBACK_IMG) {
+    el.src = FALLBACK_IMG;
+  }
 };
-
 
 /* ---------- ภาพประกอบสินค้า (SVG ในตัว) ใช้ชั่วคราวจนกว่าจะใส่รูปจริง ---------- */
 const svgUri = (inner, bg = '#eaf0e8') =>
@@ -130,6 +139,36 @@ const illus = (kind) => {
   }
 };
 
+// URL รูปที่เป็นรูปจำลอง (placeholder) จะถูกข้าม เพื่อให้ไปใช้รูปจริงหรือภาพประกอบแทน
+const PLACEHOLDER_RE = /placehold|placeholder|dummyimage|fakeimg/i;
+
+// เดาชนิดสินค้าจากชื่อ/หมวดหมู่ (รองรับทั้งไทยและอังกฤษ) เพื่อหาไฟล์รูปในโฟลเดอร์ public/images/products/
+const guessKind = (item) => {
+  const t = `${item.name || ''} ${item.category || ''}`.toLowerCase();
+  if (/inverter|อินเวอร์เตอร์/.test(t)) return 'inverter';
+  if (/battery|แบตเตอรี่/.test(t)) return 'battery';
+  if (/rail|mount|accessor|ราง|โครง|อุปกรณ์เสริม/.test(t)) return 'mounting-kit';
+  if (/panel|แผง|solar/.test(t)) return 'panel';
+  return null;
+};
+const KIND_ILLUS = { inverter: 'inverter', battery: 'battery', 'mounting-kit': 'mount', panel: 'panel' };
+
+// ลำดับรูปที่จะลอง: ไฟล์ของเราเอง -> รูปจากฐานข้อมูล (ที่ไม่ใช่ placeholder) -> รูปสำรอง -> ภาพประกอบ
+const getSources = (item) => {
+  const kind = item.isSample ? null : guessKind(item);
+  const own = [item.image, item.image_url, item.imageUrl, ...(item.images || [])].filter((u) => u && !PLACEHOLDER_RE.test(u));
+  const list = [
+    ...(kind ? [photo(kind)] : []),
+    ...own,
+    ...(item.fallbacks || []),
+    illus(KIND_ILLUS[kind || guessKind(item)] || 'panel'),
+  ];
+  return [...new Set(list)];
+};
+
+// รูปถ่ายจริงสำหรับแพ็กเกจ: ช่างติดตั้งแผงโซลาร์บนหลังคา (Wikipedia, CC0 ใช้เชิงพาณิชย์ได้โดยไม่ต้องขออนุญาต)
+const INSTALLER_PHOTO = 'https://upload.wikimedia.org/wikipedia/en/thumb/6/6c/PV_solar_installers_on_sloped_roof.jpg/800px-PV_solar_installers_on_sloped_roof.jpg';
+
 /* ---------- ตัวอย่างแพ็กเกจ (ถ้าไม่ส่ง prop packages เข้ามา) ----------
    เปลี่ยน image เป็นรูปจริงของคุณได้เลย เช่น '/images/pkg-5kw.jpg' หรือ URL เต็ม */
 const DEFAULT_PACKAGES = [
@@ -138,7 +177,7 @@ const DEFAULT_PACKAGES = [
     id: 'pkg-3kw',
     name: 'แพ็กเกจ 3 kW สำหรับบ้านขนาดเล็ก',
     price: 89000,
-    image: illus('house'),
+    image: photo('package-3kw'), fallbacks: [INSTALLER_PHOTO, illus('house')],
     description: 'ชุดโซลาร์รูฟท็อปครบชุด เหมาะกับบ้านที่ใช้ไฟเดือนละ 1,500–2,500 บาท',
     includes: ['แผงโซลาร์ 6 แผ่น', 'อินเวอร์เตอร์ 3 kW', 'โครงสร้างยึดหลังคา', 'ค่าติดตั้งและเดินสาย', 'รับประกันงานติดตั้ง 5 ปี'],
   },
@@ -147,7 +186,7 @@ const DEFAULT_PACKAGES = [
     id: 'pkg-5kw',
     name: 'แพ็กเกจ 5 kW สำหรับบ้านทั่วไป',
     price: 139000,
-    image: illus('house'),
+    image: photo('package-5kw'), fallbacks: [INSTALLER_PHOTO, illus('house')],
     description: 'คุ้มค่าที่สุดสำหรับครอบครัวที่ใช้แอร์หลายเครื่อง ลดค่าไฟได้ต่อเนื่อง',
     includes: ['แผงโซลาร์ 10 แผ่น', 'อินเวอร์เตอร์ 5 kW', 'ระบบมอนิเตอร์ผ่านแอป', 'ค่าติดตั้งและเดินสาย', 'รับประกันงานติดตั้ง 5 ปี'],
     popular: true,
@@ -157,7 +196,7 @@ const DEFAULT_PACKAGES = [
     id: 'pkg-10kw',
     name: 'แพ็กเกจ 10 kW สำหรับร้านค้า/โรงงานเล็ก',
     price: 259000,
-    image: illus('house'),
+    image: photo('package-10kw'), fallbacks: [INSTALLER_PHOTO, illus('house')],
     description: 'รองรับการใช้ไฟช่วงกลางวันสูง ช่วยลดต้นทุนพลังงานของธุรกิจ',
     includes: ['แผงโซลาร์ 20 แผ่น', 'อินเวอร์เตอร์ 10 kW', 'ระบบมอนิเตอร์ผ่านแอป', 'ค่าติดตั้งและเดินสาย', 'รับประกันงานติดตั้ง 5 ปี'],
   },
@@ -167,22 +206,22 @@ const DEFAULT_PACKAGES = [
 /* ---------- ตัวอย่างสินค้า (แสดงเมื่อระบบยังไม่ส่งสินค้าเข้ามา) ----------
    ราคาและรายละเอียดเป็นข้อมูลสมมติ ให้แก้เป็นของจริง และเปลี่ยน image เป็น path รูปจริงได้ */
 const SAMPLE_PRODUCTS = [
-  { isSample: true, id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: illus('panel'),
+  { isSample: true, id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: photo('panel-550w'), fallbacks: [illus('panel')],
     description: 'แผงโมโนคริสตัลไลน์ประสิทธิภาพสูง ทนแดด ทนฝน เหมาะกับหลังคาบ้านและโรงงาน',
     specs: { 'กำลังไฟ': '550 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี', 'ประกันกำลังผลิต': '25 ปี' }, popular: true },
-  { isSample: true, id: 'sample-2', name: 'แผงโซลาร์ Mono 450W', price: 3490, category: 'แผงโซลาร์', image: illus('panel-small'),
+  { isSample: true, id: 'sample-2', name: 'แผงโซลาร์ Mono 450W', price: 3490, category: 'แผงโซลาร์', image: photo('panel-450w'), fallbacks: [illus('panel-small')],
     description: 'ขนาดกะทัดรัด ติดตั้งง่าย เหมาะกับพื้นที่หลังคาจำกัด',
     specs: { 'กำลังไฟ': '450 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี' } },
-  { isSample: true, id: 'sample-3', name: 'อินเวอร์เตอร์ On-Grid 5 kW', price: 32900, category: 'อินเวอร์เตอร์', image: illus('inverter'),
+  { isSample: true, id: 'sample-3', name: 'อินเวอร์เตอร์ On-Grid 5 kW', price: 32900, category: 'อินเวอร์เตอร์', image: photo('inverter-5kw'), fallbacks: [illus('inverter')],
     description: 'ต่อเข้าระบบไฟบ้านโดยตรง ดูผลผลิตไฟผ่านแอปบนมือถือได้ทุกเวลา',
     specs: { 'กำลังไฟ': '5 kW', 'ประสิทธิภาพ': '98%', 'การเชื่อมต่อ': 'Wi-Fi', 'ประกัน': '5 ปี' } },
-  { isSample: true, id: 'sample-4', name: 'อินเวอร์เตอร์ Hybrid 8 kW', price: 54900, category: 'อินเวอร์เตอร์', image: illus('hybrid'),
+  { isSample: true, id: 'sample-4', name: 'อินเวอร์เตอร์ Hybrid 8 kW', price: 54900, category: 'อินเวอร์เตอร์', image: photo('inverter-hybrid-8kw'), fallbacks: [illus('hybrid')],
     description: 'รองรับการต่อแบตเตอรี่ ใช้ไฟต่อเนื่องแม้ไฟดับ เหมาะกับบ้านที่ต้องการความมั่นคงทางไฟฟ้า',
     specs: { 'กำลังไฟ': '8 kW', 'รองรับแบตเตอรี่': 'ได้', 'ประกัน': '5 ปี' } },
-  { isSample: true, id: 'sample-5', name: 'แบตเตอรี่ลิเธียม 5 kWh', price: 59900, category: 'แบตเตอรี่', image: illus('battery'),
+  { isSample: true, id: 'sample-5', name: 'แบตเตอรี่ลิเธียม 5 kWh', price: 59900, category: 'แบตเตอรี่', image: photo('battery-5kwh'), fallbacks: [illus('battery')],
     description: 'เก็บไฟส่วนเกินตอนกลางวันไว้ใช้ตอนกลางคืน อายุการใช้งานยาวนาน',
     specs: { 'ความจุ': '5 kWh', 'เคมี': 'LiFePO4', 'รอบการชาร์จ': '6,000 รอบ', 'ประกัน': '10 ปี' } },
-  { isSample: true, id: 'sample-6', name: 'ชุดโครงยึดแผงบนหลังคา', price: 1890, category: 'อุปกรณ์เสริม', image: illus('mount'),
+  { isSample: true, id: 'sample-6', name: 'ชุดโครงยึดแผงบนหลังคา', price: 1890, category: 'อุปกรณ์เสริม', image: photo('mounting-kit'), fallbacks: [illus('mount')],
     description: 'โครงอะลูมิเนียมกันสนิม รองรับหลังคาเมทัลชีทและกระเบื้อง (ราคาต่อ 1 แผง)',
     specs: { 'วัสดุ': 'อะลูมิเนียม', 'รองรับลม': 'สูงสุด 180 กม./ชม.' } },
 ];
@@ -192,7 +231,7 @@ function ItemCard({ item, kind, onView, onAdd }) {
   return (
     <article className="sx-card">
       <div className="sx-card-media">
-        <img src={getImage(item)} alt={item.name} loading="lazy" onError={onImgError} />
+        <img src={getImage(item)} alt={item.name} loading="lazy" onError={(e) => onImgError(e, getSources(item))} />
         {item.popular && <span className="sx-badge">ขายดี</span>}
         {kind === 'package' && !item.popular && <span className="sx-badge sx-badge-soft">รวมติดตั้ง</span>}
       </div>
@@ -243,7 +282,7 @@ function DetailModal({ item, kind, onClose, onAdd }) {
           <X size={20} />
         </button>
         <div className="sx-modal-media">
-          <img src={active} alt={item.name} onError={onImgError} />
+          <img src={active} alt={item.name} onError={(e) => onImgError(e, getSources(item))} />
           {gallery && (
             <div className="sx-thumbs">
               {gallery.map((src) => (
@@ -254,7 +293,7 @@ function DetailModal({ item, kind, onClose, onAdd }) {
                   onClick={() => setActive(src)}
                   aria-label="ดูรูปนี้"
                 >
-                  <img src={src} alt="" onError={onImgError} />
+                  <img src={src} alt="" onError={(e) => onImgError(e, getSources(item))} />
                 </button>
               ))}
             </div>
