@@ -422,3 +422,12 @@ export async function expirePendingPayments(env = process.env) {
     }
   }
 }
+
+// สำหรับรันบน Render
+if (process.env.NODE_ENV !== 'production' || process.env.RENDER || process.env.PORT) {
+  const port = process.env.PORT || 3000;
+  const app = createApp(process.env);
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+}
