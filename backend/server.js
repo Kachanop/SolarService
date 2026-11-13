@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
@@ -340,19 +339,40 @@ app.get('/api/orders/:orderId/payment-status', async (req, res) => {
     const expiresAt = payment?.created_at
       ? new Date(new Date(payment.created_at).getTime() + PROMPTPAY_QR_TTL_MS).toISOString()
       : null;
-    const expired = Boolean(payment && payment.status === 'submitted' && new Date(expiresAt).getTime() <= Date.now());
-    if (expired) {
+    let paymentStatus = payment?.status || 'not_found';
+    let expired = Boolean(payment && paymentStatus === 'submitted' && new Date(expiresAt).getTime() <= Date.now());
+    if (payment && paymentStatus === 'submitted') {
       const intent = await stripe.paymentIntents.retrieve(payment.reference);
-      if (intent.status !== 'canceled' && intent.status !== 'succeeded') await stripe.paymentIntents.cancel(intent.id);
-      const { error: expireError } = await supabase.from('payments').update({ status: 'rejected' }).eq('id', payment.id).eq('status', 'submitted');
-      if (expireError) throw expireError;
+      const validIntent = intent.metadata?.order_id === authorized.order.id
+        && intent.metadata?.customer_id === authorized.order.customer_id
+        && intent.currency === 'thb'
+        && intent.amount === Math.round(Number(authorized.order.total) * 100);
+
+      if (intent.status === 'succeeded' && validIntent && intent.amount_received === intent.amount) {
+        const { error: orderError } = await supabase.from('orders')
+          .update({ status: 'confirmed' }).eq('id', orderId).eq('status', 'pending');
+        if (orderError) throw orderError;
+        const { error: paymentError } = await supabase.from('payments')
+          .update({ status: 'verified', paid_at: new Date().toISOString() }).eq('id', payment.id);
+        if (paymentError) throw paymentError;
+        paymentStatus = 'verified';
+        expired = false;
+      } else if (expired) {
+        if (intent.status !== 'canceled' && intent.status !== 'succeeded') {
+          await stripe.paymentIntents.cancel(intent.id);
+        }
+        const { error: expireError } = await supabase.from('payments')
+          .update({ status: 'rejected' }).eq('id', payment.id).eq('status', 'submitted');
+        if (expireError) throw expireError;
+        paymentStatus = intent.status === 'succeeded' ? 'submitted' : 'rejected';
+      }
     }
     return res.json({
       success: true,
-      paid: payment?.status === 'verified',
+      paid: paymentStatus === 'verified',
       expired,
       expiresAt,
-      status: expired ? 'expired' : (payment?.status || 'not_found'),
+      status: expired ? 'expired' : paymentStatus,
     });
   } catch (error) {
     console.error('Error checking PromptPay payment status:', error);
@@ -360,25 +380,29 @@ app.get('/api/orders/:orderId/payment-status', async (req, res) => {
   }
 });
 
-// Recover expirations after an API restart; the persisted deadline remains authoritative.
-setInterval(async () => {
-  try {
-    const cutoff = new Date(Date.now() - PROMPTPAY_QR_TTL_MS).toISOString();
-    const { data: pending, error } = await supabase.from('payments')
-      .select('id,reference,created_at')
-      .eq('method', 'gateway').eq('status', 'submitted').lt('created_at', cutoff).limit(100);
-    if (error) throw error;
-    for (const payment of pending || []) {
-      const expiresAt = new Date(new Date(payment.created_at).getTime() + PROMPTPAY_QR_TTL_MS).toISOString();
-      if (new Date(expiresAt).getTime() > Date.now()) continue;
-      const intent = await stripe.paymentIntents.retrieve(payment.reference);
-      if (intent.status !== 'canceled' && intent.status !== 'succeeded') await stripe.paymentIntents.cancel(intent.id);
-      await supabase.from('payments').update({ status: 'rejected' }).eq('id', payment.id).eq('status', 'submitted');
-    }
-  } catch (error) {
-    console.error('Error expiring PromptPay QR codes:', error);
-  }
-}, 15000).unref();
+export { app };
 
-const port = Number(process.env.PORT) || 3001;
-app.listen(port, () => console.log(`SolarService payment API listening on port ${port}`));
+export async function expirePendingPayments() {
+  const cutoff = new Date(Date.now() - PROMPTPAY_QR_TTL_MS).toISOString();
+  const { data: pending, error } = await supabase.from('payments')
+    .select('id,reference,created_at')
+    .eq('method', 'gateway')
+    .eq('status', 'submitted')
+    .lt('created_at', cutoff)
+    .limit(100);
+  if (error) throw error;
+
+  for (const payment of pending || []) {
+    const intent = await stripe.paymentIntents.retrieve(payment.reference);
+    if (intent.status !== 'canceled' && intent.status !== 'succeeded') {
+      await stripe.paymentIntents.cancel(intent.id);
+    }
+    if (intent.status !== 'succeeded') {
+      const { error: expireError } = await supabase.from('payments')
+        .update({ status: 'rejected' })
+        .eq('id', payment.id)
+        .eq('status', 'submitted');
+      if (expireError) throw expireError;
+    }
+  }
+}

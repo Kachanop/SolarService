@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch server.js",
-    "start": "node server.js"
+    "dev": "node --watch node-server.js",
+    "start": "node node-server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
