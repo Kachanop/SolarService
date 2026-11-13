@@ -18,8 +18,18 @@ async function apiRequest(path, options = {}) {
       Authorization: `Bearer ${accessToken}`,
     },
   });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'เชื่อมต่อระบบชำระเงินไม่สำเร็จ');
+  const responseText = await response.text();
+  let result = {};
+  if (responseText) {
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = { error: responseText.slice(0, 200) };
+    }
+  }
+  if (!response.ok) {
+    throw new Error(result.error || `เซิร์ฟเวอร์ชำระเงินตอบกลับ ${response.status}`);
+  }
   return result;
 }
 

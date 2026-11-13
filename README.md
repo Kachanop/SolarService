@@ -264,7 +264,9 @@ SolarService/
     └── supabase/
         └── migrations/
             ├── 20261031200000_initial_schema.sql
-            └── 20261101230000_admin_enhancements.sql
+            ├── 20261101230000_admin_enhancements.sql
+            ├── 20261113000000_promptpay_qr_expiry.sql
+            └── 20261113000001_test_product_1_baht.sql
 ```
 
 ---
@@ -310,6 +312,10 @@ VITE_API_BASE_URL=/api
 2. ไปที่เมนู **SQL Editor**
 3. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261031200000_initial_schema.sql` แล้วกด **Run**
 4. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261101230000_admin_enhancements.sql` แล้วกด **Run**
+5. หลังจากนั้น ให้รัน `backend/supabase/migrations/20261113000000_promptpay_qr_expiry.sql` เพื่อเพิ่มวันหมดอายุ QR PromptPay 5 นาที
+6. รัน `backend/supabase/migrations/20261113000001_test_product_1_baht.sql` เพื่อเพิ่มสินค้า “สินค้าเพื่อทดสอบการชำระเงิน 1 บาท” ในหน้าร้าน
+
+การ commit ไฟล์ migration เข้า Git จะยังไม่เปลี่ยนฐานข้อมูล Supabase โดยอัตโนมัติ ให้รัน SQL แต่ละไฟล์ตามลำดับใน **SQL Editor** ของโปรเจกต์ Supabase ก่อนใช้งาน
 
 ### 6. การกำหนดสิทธิ์ Admin เริ่มต้น
 หลังจากสมัครสมาชิกผ่านหน้าเว็บแล้ว ให้เปิด **SQL Editor** ใน Supabase และรันคำสั่งนี้เพื่อปรับบัญชีของคุณเป็น Admin:

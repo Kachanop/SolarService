@@ -140,6 +140,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   const [paymentMessage, setPaymentMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [paid, setPaid] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
 
   // ---- ตัวเลือกช่างติดตั้ง ----
   const [installMode, setInstallMode] = useState('none'); // 'none' = ไม่เอาช่าง | 'technician' = เอาช่าง
@@ -224,10 +225,22 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     if (!qrPayment || paid) return undefined;
     let active = true;
 
+    function updateCountdown() {
+      const remaining = Math.max(0, Math.ceil((new Date(qrPayment.expiresAt).getTime() - Date.now()) / 1000));
+      setSecondsRemaining(remaining);
+      if (remaining === 0) setPaymentMessage('QR หมดอายุแล้ว กรุณาสร้าง QR ใหม่เพื่อชำระเงิน');
+    }
+    updateCountdown();
+    const countdown = window.setInterval(updateCountdown, 1000);
+
     async function checkStatus() {
       try {
         const result = await getPromptPayPaymentStatus(qrPayment.orderId);
         if (active && result.paid) markPaidRef.current(qrPayment.orderId);
+        else if (active && result.expired) {
+          setSecondsRemaining(0);
+          setPaymentMessage('QR หมดอายุแล้ว กรุณาสร้าง QR ใหม่เพื่อชำระเงิน');
+        }
       } catch (error) {
         if (active) {
           setPaymentMessage(`ตรวจสอบสถานะไม่สำเร็จ: ${getErrorMessage(error, 'เกิดข้อผิดพลาด')}`);
@@ -239,6 +252,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     return () => {
       active = false;
       window.clearInterval(interval);
+      window.clearInterval(countdown);
     };
   }, [qrPayment, paid]);
 
@@ -250,6 +264,9 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       const result = await getPromptPayPaymentStatus(qrPayment.orderId);
       if (result.paid) {
         await markPaid(qrPayment.orderId);
+      } else if (result.expired) {
+        setSecondsRemaining(0);
+        setPaymentMessage('QR หมดอายุแล้ว กรุณาสร้าง QR ใหม่เพื่อชำระเงิน');
       } else {
         setPaymentMessage('ยังไม่พบการยืนยันจาก Stripe กรุณาสแกน QR แล้วลองตรวจสอบอีกครั้ง');
       }
@@ -261,7 +278,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   }
 
   async function submitCheckout(event) {
-    event.preventDefault();
+    event?.preventDefault();
     if (submitting || paid) return;
 
     if (!cart.length && !orderId) {
@@ -362,13 +379,19 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
         {wantsTechnician && selectedSlot && (
           <p className="sx-note"><Wrench size={14} /> นัดช่างติดตั้ง: {selectedSlot.label} วันที่ {installDate} (ระบบจะยืนยันนัดหลังชำระเงิน)</p>
         )}
-        {qrPayment.qrCodeUrl && <img className="promptpay-qr-image" src={qrPayment.qrCodeUrl} alt="QR Code สำหรับชำระเงินผ่าน PromptPay" />}
-        {qrPayment.hostedInstructionsUrl && <a className="button button-outline" href={qrPayment.hostedInstructionsUrl} target="_blank" rel="noreferrer">เปิดหน้าแสดง QR จาก Stripe</a>}
+        {secondsRemaining > 0 && qrPayment.qrCodeUrl && <img className="promptpay-qr-image" src={qrPayment.qrCodeUrl} alt="QR Code สำหรับชำระเงินผ่าน PromptPay" />}
+        {secondsRemaining > 0 && qrPayment.hostedInstructionsUrl && <a className="button button-outline" href={qrPayment.hostedInstructionsUrl} target="_blank" rel="noreferrer">เปิดหน้าแสดง QR จาก Stripe</a>}
+        <strong className={secondsRemaining ? 'promptpay-countdown' : 'promptpay-countdown expired'}>
+          {secondsRemaining ? `QR ใช้ได้อีก ${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, '0')} นาที` : 'QR หมดอายุแล้ว'}
+        </strong>
         <p>เลขที่คำสั่งซื้อ: {orderId}</p>
         <p>{paymentMessage}</p>
         <button className="button button-green" type="button" onClick={checkPaymentStatus} disabled={checkingPayment}>
           {checkingPayment ? 'กำลังตรวจสอบ…' : 'ตรวจสอบการชำระเงิน'}
         </button>
+        {secondsRemaining === 0 && <button className="button button-outline" type="button" onClick={submitCheckout} disabled={submitting}>
+          {submitting ? 'กำลังสร้าง QR…' : 'สร้าง QR ใหม่'} <ArrowRight size={16} />
+        </button>}
       </section>
     ) : (
       <form className="checkout-form" onSubmit={submitCheckout}>
