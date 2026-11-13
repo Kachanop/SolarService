@@ -266,7 +266,7 @@ SolarService/
             ├── 20261031200000_initial_schema.sql
             ├── 20261101230000_admin_enhancements.sql
             ├── 20261113000000_promptpay_qr_expiry.sql
-            └── 20261113000001_test_product_1_baht.sql
+            └── 20261113000001_test_product_10_baht.sql
 ```
 
 ---
@@ -313,7 +313,7 @@ VITE_API_BASE_URL=/api
 3. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261031200000_initial_schema.sql` แล้วกด **Run**
 4. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261101230000_admin_enhancements.sql` แล้วกด **Run**
 5. หลังจากนั้น ให้รัน `backend/supabase/migrations/20261113000000_promptpay_qr_expiry.sql` เพื่อเพิ่มวันหมดอายุ QR PromptPay 5 นาที
-6. รัน `backend/supabase/migrations/20261113000001_test_product_1_baht.sql` เพื่อเพิ่มสินค้า “สินค้าเพื่อทดสอบการชำระเงิน 1 บาท” ในหน้าร้าน
+6. รัน `backend/supabase/migrations/20261113000001_test_product_10_baht.sql` เพื่อเพิ่มสินค้า “สินค้าเพื่อทดสอบการชำระเงิน 10 บาท” ในหน้าร้าน เนื่องจาก Stripe กำหนดยอดชำระ THB ขั้นต่ำ 10 บาท
 
 การ commit ไฟล์ migration เข้า Git จะยังไม่เปลี่ยนฐานข้อมูล Supabase โดยอัตโนมัติ ให้รัน SQL แต่ละไฟล์ตามลำดับใน **SQL Editor** ของโปรเจกต์ Supabase ก่อนใช้งาน
 

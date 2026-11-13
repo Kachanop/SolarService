@@ -8,7 +8,6 @@ const requiredEnvironment = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
   'STRIPE_SECRET_KEY',
-  'STRIPE_WEBHOOK_SECRET',
 ];
 const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
 
@@ -24,6 +23,7 @@ const supabase = createClient(
 );
 const app = express();
 const PROMPTPAY_QR_TTL_MS = 5 * 60 * 1000;
+const MIN_PROMPTPAY_AMOUNT_SATANG = 1000;
 const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function getAuthorizedOrder(req, res, orderId) {
@@ -221,10 +221,13 @@ app.post('/api/create-promptpay-qr', async (req, res) => {
     if (!Number.isSafeInteger(amountInSatang) || amountInSatang < 1) {
       return res.status(400).json({ error: 'ยอดคำสั่งซื้อไม่ถูกต้อง' });
     }
+    if (amountInSatang < MIN_PROMPTPAY_AMOUNT_SATANG) {
+      return res.status(400).json({ error: 'ยอดชำระ PromptPay ขั้นต่ำ 10 บาท กรุณาเพิ่มสินค้าในคำสั่งซื้อ' });
+    }
 
     const { data: priorPayments, error: priorPaymentError } = await supabase
       .from('payments')
-      .select('id,reference,created_at,expires_at')
+      .select('id,reference,created_at')
       .eq('order_id', order.id)
       .eq('method', 'gateway')
       .eq('status', 'submitted')
@@ -234,9 +237,7 @@ app.post('/api/create-promptpay-qr', async (req, res) => {
     if (priorPaymentError) throw priorPaymentError;
     const priorPayment = priorPayments?.[0];
     if (priorPayment?.reference) {
-      const priorExpiry = priorPayment.expires_at
-        ? new Date(priorPayment.expires_at)
-        : new Date(new Date(priorPayment.created_at).getTime() + PROMPTPAY_QR_TTL_MS);
+      const priorExpiry = new Date(new Date(priorPayment.created_at).getTime() + PROMPTPAY_QR_TTL_MS);
       const priorIsExpired = priorExpiry.getTime() <= Date.now();
       const existingIntent = await stripe.paymentIntents.retrieve(priorPayment.reference);
       if (existingIntent.status === 'succeeded') {
@@ -292,7 +293,8 @@ app.post('/api/create-promptpay-qr', async (req, res) => {
       return res.status(502).json({ error: 'Stripe ไม่ได้ส่งลิงก์ QR PromptPay กลับมา' });
     }
 
-    const expiresAt = new Date(Date.now() + PROMPTPAY_QR_TTL_MS).toISOString();
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(new Date(createdAt).getTime() + PROMPTPAY_QR_TTL_MS).toISOString();
     const { error: insertPaymentError } = await supabase.from('payments').insert({
       order_id: order.id,
       customer_id: order.customer_id,
@@ -300,7 +302,7 @@ app.post('/api/create-promptpay-qr', async (req, res) => {
       method: 'gateway',
       status: 'submitted',
       reference: paymentIntent.id,
-      expires_at: expiresAt,
+      created_at: createdAt,
     });
 
     if (insertPaymentError) {
@@ -327,7 +329,7 @@ app.get('/api/orders/:orderId/payment-status', async (req, res) => {
 
     const { data: payments, error } = await supabase
       .from('payments')
-      .select('id,status,reference,created_at,expires_at')
+      .select('id,status,reference,created_at')
       .eq('order_id', orderId)
       .eq('method', 'gateway')
       .order('created_at', { ascending: false })
@@ -335,8 +337,9 @@ app.get('/api/orders/:orderId/payment-status', async (req, res) => {
     if (error) throw error;
 
     const payment = payments?.[0];
-    const expiresAt = payment?.expires_at
-      || (payment?.created_at ? new Date(new Date(payment.created_at).getTime() + PROMPTPAY_QR_TTL_MS).toISOString() : null);
+    const expiresAt = payment?.created_at
+      ? new Date(new Date(payment.created_at).getTime() + PROMPTPAY_QR_TTL_MS).toISOString()
+      : null;
     const expired = Boolean(payment && payment.status === 'submitted' && new Date(expiresAt).getTime() <= Date.now());
     if (expired) {
       const intent = await stripe.paymentIntents.retrieve(payment.reference);
@@ -362,11 +365,11 @@ setInterval(async () => {
   try {
     const cutoff = new Date(Date.now() - PROMPTPAY_QR_TTL_MS).toISOString();
     const { data: pending, error } = await supabase.from('payments')
-      .select('id,reference,created_at,expires_at')
+      .select('id,reference,created_at')
       .eq('method', 'gateway').eq('status', 'submitted').lt('created_at', cutoff).limit(100);
     if (error) throw error;
     for (const payment of pending || []) {
-      const expiresAt = payment.expires_at || new Date(new Date(payment.created_at).getTime() + PROMPTPAY_QR_TTL_MS).toISOString();
+      const expiresAt = new Date(new Date(payment.created_at).getTime() + PROMPTPAY_QR_TTL_MS).toISOString();
       if (new Date(expiresAt).getTime() > Date.now()) continue;
       const intent = await stripe.paymentIntents.retrieve(payment.reference);
       if (intent.status !== 'canceled' && intent.status !== 'succeeded') await stripe.paymentIntents.cancel(intent.id);

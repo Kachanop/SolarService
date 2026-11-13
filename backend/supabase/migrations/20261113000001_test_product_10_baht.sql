@@ -9,12 +9,12 @@ insert into public.products (
   is_active
 )
 values (
-  'สินค้าเพื่อทดสอบการชำระเงิน 1 บาท',
-  'payment-test-1-baht',
+  'สินค้าเพื่อทดสอบการชำระเงิน 10 บาท',
+  'payment-test-10-baht',
   'สินค้าเพื่อทดสอบ',
-  'สินค้าทดลองสำหรับตรวจสอบขั้นตอนสั่งซื้อและชำระเงิน PromptPay',
-  1.00,
-  'TEST-PAYMENT-1-BAHT',
+  'สินค้าทดลองสำหรับตรวจสอบขั้นตอนสั่งซื้อและชำระเงิน PromptPay ยอดขั้นต่ำตาม Stripe',
+  10.00,
+  'TEST-PAYMENT-10-BAHT',
   1000,
   true
 )
