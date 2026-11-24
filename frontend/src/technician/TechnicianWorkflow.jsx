@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Calendar, Check, ClipboardList, ImagePlus, MapPin, Phone, Save, Send, Wrench } from 'lucide-react';
+import { AlertCircle, Calendar, Check, ClipboardList, ImagePlus, MapPin, Phone, Save, Send, User, Wrench } from 'lucide-react';
 import { getInstallationImages, getInstallationTechnicians, getMyWorkflowAssignments, getSurveyImageUrl, saveInstallationProgress, saveSurveyDraft, submitSurvey, uploadInstallationImages, uploadSurveyImages, updateAssignment } from '../services/technicianWorkflowService.js';
 import './technicianJob.css';
 
@@ -105,26 +105,100 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
     <div className="workspace-heading"><div><div className="eyebrow">TECHNICIAN WORKSPACE</div><h1>{route === '/survey' ? 'รายงานสำรวจหน้างาน' : 'รายละเอียดและส่งต่องาน'}</h1><p>งานและรายงานจาก Supabase</p></div><button className="button button-outline small-button" onClick={() => navigate('/jobs')}>กลับรายการงาน</button></div>
     {error && <div className="technician-error" role="alert"><AlertCircle size={16}/>{error}</div>}
     {route === '/survey' && <>
-      {!surveyAssignments.length ? <div className="technician-empty"><ClipboardList/><strong>ไม่มีงานสำรวจที่ได้รับมอบหมาย</strong></div> : <form className="booking-form" onSubmit={handleSubmit}>
-        <label>เลือกงาน<select value={selected?.booking_id || ''} onChange={(e) => { setSelectedId(e.target.value); const item = surveyAssignments.find((a) => a.booking_id === e.target.value); setForm(emptyForm(item?.booking,item?.survey)); }}>
-          {surveyAssignments.map((a) => <option key={a.id} value={a.booking_id}>{a.booking?.booking_number} · {a.booking?.province} · {a.status}</option>)}</select></label>
-        {selected && <><div className="technician-job-card"><span><strong>{selected.booking?.customer?.full_name || 'ลูกค้า'}</strong></span><span><MapPin size={15}/>{selected.booking?.address}, {selected.booking?.province}</span><span><Phone size={15}/>{selected.booking?.phone}</span><span>นัดหมาย {selected.booking?.preferred_at ? new Date(selected.booking.preferred_at).toLocaleString('th-TH') : '—'}</span></div><div className="workflow-actions">{selected.status==='assigned'&&<button type="button" className="button button-outline" disabled={saving} onClick={()=>changeAssignment(selected,'accepted')}>ยืนยันรับงาน</button>}{selected.status==='accepted'&&<button type="button" className="button button-green" disabled={saving} onClick={()=>changeAssignment(selected,'in_progress')}>เริ่มสำรวจ</button>}<span>สถานะงาน: {selected.status}</span></div></>}
-        <div className="form-fields">
-          <Field label="ชื่อผู้ติดต่อ" name="contact_name" form={form} setForm={setForm} disabled={surveyLocked}/><Field label="เบอร์โทรศัพท์" name="contact_phone" form={form} setForm={setForm} type="tel" disabled={surveyLocked}/>
-          <Field label="ที่อยู่ติดตั้ง" name="installation_address" form={form} setForm={setForm} wide disabled={surveyLocked}/>
-          <label>ประเภทหลังคา<select required disabled={surveyLocked} value={form.roof_type} onChange={(e) => setForm({...form,roof_type:e.target.value})}><option value="">เลือกประเภท</option>{['กระเบื้อง','เมทัลชีท','คอนกรีต','อื่น ๆ'].map((x)=><option key={x}>{x}</option>)}</select></label>
-          <Field label="พื้นที่หลังคา (ตร.ม.)" name="roof_area_sqm" form={form} setForm={setForm} type="number" disabled={surveyLocked}/>
-          <label>ทิศทางหลังคา<select required disabled={surveyLocked} value={form.roof_direction} onChange={(e) => setForm({...form,roof_direction:e.target.value})}><option value="">เลือกทิศทาง</option>{['เหนือ','ใต้','ตะวันออก','ตะวันตก','หลายทิศ'].map((x)=><option key={x} value={x}>ทิศ{x}</option>)}</select></label>
-          <Field label="สภาพพื้นที่ติดตั้ง" name="site_conditions" form={form} setForm={setForm} disabled={surveyLocked}/><Field label="ระบบแนะนำ (kW)" name="recommended_system_kw" form={form} setForm={setForm} type="number" disabled={surveyLocked}/>
-          <Field label="ตำแหน่งติดตั้งแผง Solar" name="panel_location" form={form} setForm={setForm} disabled={surveyLocked}/><Field label="ตำแหน่งติดตั้ง Inverter" name="inverter_location" form={form} setForm={setForm} disabled={surveyLocked}/>
-          <Field label="รายละเอียดอุปกรณ์" name="equipment_details" form={form} setForm={setForm} wide disabled={surveyLocked}/><Field label="ปัญหาหรือข้อจำกัด" name="problems" form={form} setForm={setForm} wide disabled={surveyLocked}/><Field label="ข้อเสนอแนะ" name="recommendations" form={form} setForm={setForm} wide disabled={surveyLocked}/>
-          <label>วันที่สำรวจ<input required disabled={surveyLocked} type="date" value={form.survey_date} onChange={(e)=>setForm({...form,survey_date:e.target.value})}/></label>
-          <label className="full-width upload-field"><span><ImagePlus size={16}/> รูปภาพหน้างาน (JPG/PNG/WebP ไม่เกิน 10MB ต่อรูป)</span><input disabled={surveyLocked} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e)=>setFiles([...e.target.files])}/>{files.length>0&&<small>เลือกรูปใหม่ {files.length} รูป</small>}</label>
-          {photos.length>0&&<div className="survey-photo-grid">{photos.map((photo)=><a href={photo.url} target="_blank" rel="noreferrer" key={photo.id}><img src={photo.url} alt={photo.caption}/><small>{photo.caption}</small></a>)}</div>}
-          <Field label="หมายเหตุเพิ่มเติม" name="notes" form={form} setForm={setForm} wide disabled={surveyLocked}/>
-          {!surveyLocked&&<label className="full-width">มอบหมายช่างติดตั้งตอนนี้ (ไม่บังคับ)<select value={installationTechnicianId} onChange={(e)=>setInstallationTechnicianId(e.target.value)}><option value="">ให้ Admin มอบหมายภายหลัง</option>{installationTechnicians.map((technician)=><option key={technician.id} value={technician.id}>{technician.full_name}</option>)}</select></label>}
-          <div className="full-width" style={{display:'flex',gap:10,flexWrap:'wrap'}}>{!surveyLocked&&<><button type="button" className="button button-outline" disabled={saving} onClick={()=>saveDraft()}><Save size={15}/>บันทึกร่าง</button><button className="button button-green" disabled={saving||selected?.status!=='in_progress'}><Send size={15}/>{saving?'กำลังบันทึก…':'ส่งรายงานและส่งต่องาน'}</button>{selected?.status!=='in_progress'&&<small>รับงานและเริ่มสำรวจก่อนส่งรายงาน</small>}</>}{surveyLocked&&<p>ส่งรายงานแล้ว หากต้องแก้ไขกรุณาติดต่อ Admin</p>}</div>
+      {!surveyAssignments.length ? <div className="technician-empty"><ClipboardList/><strong>ไม่มีงานสำรวจที่ได้รับมอบหมาย</strong></div> : <form className="job-card survey-card" onSubmit={handleSubmit}>
+        <div className="field">
+          <label className="field-label" htmlFor="survey-job">เลือกงาน</label>
+          <select id="survey-job" value={selected?.booking_id || ''} onChange={(e) => { setSelectedId(e.target.value); const item = surveyAssignments.find((a) => a.booking_id === e.target.value); setForm(emptyForm(item?.booking, item?.survey)); }}>
+            {surveyAssignments.map((a) => <option key={a.id} value={a.booking_id}>{a.booking?.booking_number} · {a.booking?.province} · {statusLabel(a.status)}</option>)}
+          </select>
         </div>
+
+        {selected && <>
+          <header className="job-card-head">
+            <h2>{selected.booking?.booking_number} · สำรวจหน้างาน</h2>
+            <span className={`status-badge status-${selected.status}`}>{statusLabel(selected.status)}</span>
+          </header>
+          <ul className="job-meta">
+            <li><User size={16}/>{selected.booking?.customer?.full_name || 'ลูกค้า'}</li>
+            <li><MapPin size={16}/>{selected.booking?.address}, {selected.booking?.province}</li>
+            <li><Phone size={16}/>{selected.booking?.phone || '—'}</li>
+            <li><Calendar size={16}/>นัดหมาย {selected.booking?.preferred_at ? new Date(selected.booking.preferred_at).toLocaleString('th-TH') : '—'}</li>
+          </ul>
+          <div className="job-actions">
+            {selected.status === 'assigned' && <button type="button" className="button button-outline" disabled={saving} onClick={() => changeAssignment(selected, 'accepted')}><Check size={15}/>ยืนยันรับงาน</button>}
+            {selected.status === 'accepted' && <button type="button" className="button button-green" disabled={saving} onClick={() => changeAssignment(selected, 'in_progress')}>เริ่มสำรวจ</button>}
+          </div>
+        </>}
+
+        {surveyLocked && <div className="locked-note">ส่งรายงานแล้ว หากต้องแก้ไขกรุณาติดต่อ Admin</div>}
+
+        <section className="job-section">
+          <h3>ข้อมูลผู้ติดต่อ</h3>
+          <div className="field-grid">
+            <Field label="ชื่อผู้ติดต่อ" name="contact_name" form={form} setForm={setForm} disabled={surveyLocked}/>
+            <Field label="เบอร์โทรศัพท์" name="contact_phone" form={form} setForm={setForm} type="tel" disabled={surveyLocked}/>
+            <Field label="ที่อยู่ติดตั้ง" name="installation_address" form={form} setForm={setForm} wide disabled={surveyLocked}/>
+          </div>
+        </section>
+
+        <section className="job-section">
+          <h3>หลังคาและพื้นที่ติดตั้ง</h3>
+          <div className="field-grid">
+            <label className="field"><span className="field-label">ประเภทหลังคา<em aria-hidden="true"> *</em></span>
+              <select required disabled={surveyLocked} value={form.roof_type} onChange={(e) => setForm({ ...form, roof_type: e.target.value })}>
+                <option value="">เลือกประเภท</option>{['กระเบื้อง', 'เมทัลชีท', 'คอนกรีต', 'อื่น ๆ'].map((x) => <option key={x}>{x}</option>)}
+              </select></label>
+            <Field label="พื้นที่หลังคา (ตร.ม.)" name="roof_area_sqm" form={form} setForm={setForm} type="number" disabled={surveyLocked}/>
+            <label className="field"><span className="field-label">ทิศทางหลังคา<em aria-hidden="true"> *</em></span>
+              <select required disabled={surveyLocked} value={form.roof_direction} onChange={(e) => setForm({ ...form, roof_direction: e.target.value })}>
+                <option value="">เลือกทิศทาง</option>{['เหนือ', 'ใต้', 'ตะวันออก', 'ตะวันตก', 'หลายทิศ'].map((x) => <option key={x} value={x}>ทิศ{x}</option>)}
+              </select></label>
+            <Field label="สภาพพื้นที่ติดตั้ง" name="site_conditions" form={form} setForm={setForm} disabled={surveyLocked}/>
+            <Field label="ระบบแนะนำ (kW)" name="recommended_system_kw" form={form} setForm={setForm} type="number" disabled={surveyLocked}/>
+            <label className="field"><span className="field-label">วันที่สำรวจ<em aria-hidden="true"> *</em></span>
+              <input required disabled={surveyLocked} type="date" value={form.survey_date} onChange={(e) => setForm({ ...form, survey_date: e.target.value })}/></label>
+            <Field label="ตำแหน่งติดตั้งแผง Solar" name="panel_location" form={form} setForm={setForm} disabled={surveyLocked}/>
+            <Field label="ตำแหน่งติดตั้ง Inverter" name="inverter_location" form={form} setForm={setForm} disabled={surveyLocked}/>
+          </div>
+        </section>
+
+        <section className="job-section">
+          <h3>อุปกรณ์และข้อสังเกต</h3>
+          <div className="field-grid">
+            <Field label="รายละเอียดอุปกรณ์" name="equipment_details" form={form} setForm={setForm} wide multiline disabled={surveyLocked}/>
+            <Field label="ปัญหาหรือข้อจำกัด" name="problems" form={form} setForm={setForm} wide multiline disabled={surveyLocked}/>
+            <Field label="ข้อเสนอแนะ" name="recommendations" form={form} setForm={setForm} wide multiline disabled={surveyLocked}/>
+            <Field label="หมายเหตุเพิ่มเติม" name="notes" form={form} setForm={setForm} wide multiline disabled={surveyLocked}/>
+          </div>
+        </section>
+
+        <section className="job-section">
+          <h3>รูปภาพหน้างาน</h3>
+          <label className={`dropzone${surveyLocked ? ' is-disabled' : ''}`} htmlFor="survey-files">
+            <ImagePlus size={22}/>
+            <span className="dropzone-title">{files.length ? `เลือกรูปใหม่ ${files.length} รูป` : 'แตะเพื่อเลือกรูปภาพ'}</span>
+            <span className="dropzone-hint">JPG / PNG / WebP · ไม่เกิน 10MB ต่อรูป · เลือกได้หลายรูป</span>
+            <input id="survey-files" disabled={surveyLocked} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => setFiles([...e.target.files])}/>
+          </label>
+          {files.length > 0 && <ul className="file-list">{files.map((f) => <li key={f.name + f.size}>{f.name}</li>)}</ul>}
+          {photos.length > 0 && <div className="survey-photo-grid">{photos.map((photo) => <a href={photo.url} target="_blank" rel="noreferrer" key={photo.id}><img src={photo.url} alt={photo.caption}/><small>{photo.caption}</small></a>)}</div>}
+        </section>
+
+        {!surveyLocked && <section className="job-section">
+          <h3>ส่งรายงาน</h3>
+          <div className="field">
+            <label className="field-label" htmlFor="install-tech">มอบหมายช่างติดตั้งตอนนี้ (ไม่บังคับ)</label>
+            <select id="install-tech" value={installationTechnicianId} onChange={(e) => setInstallationTechnicianId(e.target.value)}>
+              <option value="">ให้ Admin มอบหมายภายหลัง</option>
+              {installationTechnicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.full_name}</option>)}
+            </select>
+          </div>
+          <div className="survey-actions">
+            <button type="button" className="button button-outline" disabled={saving} onClick={() => saveDraft()}><Save size={15}/>บันทึกร่าง</button>
+            <button className="button button-green" disabled={saving || selected?.status !== 'in_progress'}><Send size={15}/>{saving ? 'กำลังบันทึก…' : 'ส่งรายงานและส่งต่องาน'}</button>
+          </div>
+          {selected?.status !== 'in_progress' && <p className="hint">รับงานและเริ่มสำรวจก่อนส่งรายงาน</p>}
+        </section>}
       </form>}
     </>}
     {route !== '/survey' && (detail ? <JobDetail assignment={detail} authUser={authUser} onChange={changeAssignment} installNotes={installNotes} setInstallNotes={setInstallNotes} installStatus={installStatus} setInstallStatus={setInstallStatus} onSave={saveInstall} saving={saving}/> : <div className="technician-empty"><Wrench/><strong>ไม่พบงานนี้หรือไม่มีสิทธิ์เข้าถึง</strong></div>)}
@@ -132,7 +206,18 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
   </div>;
 }
 
-function Field({label,name,form,setForm,type='text',wide=false,disabled=false}) { return <label className={wide?'full-width':''}>{label}<input disabled={disabled} required={['contact_name','contact_phone','installation_address','roof_area_sqm','site_conditions','recommended_system_kw','panel_location','inverter_location','equipment_details'].includes(name)} type={type} min={type==='number'?'0':undefined} step={type==='number'?'0.1':undefined} value={form[name]} onChange={(e)=>setForm({...form,[name]:e.target.value})}/></label>; }
+const REQUIRED_FIELDS = ['contact_name', 'contact_phone', 'installation_address', 'roof_area_sqm', 'site_conditions', 'recommended_system_kw', 'panel_location', 'inverter_location', 'equipment_details'];
+
+function Field({ label, name, form, setForm, type = 'text', wide = false, multiline = false, disabled = false }) {
+  const required = REQUIRED_FIELDS.includes(name);
+  const common = { disabled, required, value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) };
+  return <label className={`field${wide ? ' wide' : ''}`}>
+    <span className="field-label">{label}{required && <em aria-hidden="true"> *</em>}</span>
+    {multiline
+      ? <textarea rows="3" {...common}/>
+      : <input type={type} min={type === 'number' ? '0' : undefined} step={type === 'number' ? '0.1' : undefined} {...common}/>}
+  </label>;
+}
 
 const STATUS_LABELS = {
   assigned: 'รอรับงาน',
