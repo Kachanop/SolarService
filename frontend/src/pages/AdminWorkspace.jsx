@@ -20,6 +20,16 @@ import AdminReviews from './admin/AdminReviews.jsx';
 import AdminCMS from './admin/AdminCMS.jsx';
 import AdminUsersCRM from './admin/AdminUsersCRM.jsx';
 
+function getAdminErrorMessage(error) {
+  if (typeof error === 'string' && error.trim()) return error;
+  if (error && typeof error === 'object') {
+    const parts = [error.message, error.details, error.hint, error.code]
+      .filter((part) => typeof part === 'string' && part.trim());
+    if (parts.length) return [...new Set(parts)].join(' — ');
+  }
+  return 'ไม่ทราบรายละเอียดข้อผิดพลาด';
+}
+
 export default function AdminWorkspace({ route, title, navigate, authUser, setToast }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -66,6 +76,34 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
       setErrorMessage('');
 
       try {
+        const loaders = [
+          ['Analytics', () => adminService.getAnalytics()],
+          ['Products', () => adminService.getProducts()],
+          ['Packages', () => adminService.getPackages()],
+          ['Orders', () => adminService.getOrders()],
+          ['Payments', () => adminService.getPayments()],
+          ['Bookings', () => adminService.getBookings()],
+          ['Quotes', () => adminService.getQuotes()],
+          ['Installations', () => adminService.getInstallations()],
+          ['Warranties', () => adminService.getWarranties()],
+          ['Maintenance', () => adminService.getMaintenanceReminders()],
+          ['Tickets', () => adminService.getTickets()],
+          ['Reviews', () => adminService.getReviews()],
+          ['Banners', () => adminService.getBanners()],
+          ['Articles', () => adminService.getArticles()],
+          ['Technicians', () => adminService.getTechnicians()],
+        ];
+        const results = await Promise.allSettled(loaders.map(([, load]) => load()));
+        const loaderErrors = [];
+        const values = results.map((result, index) => {
+          if (result.status === 'fulfilled') return result.value;
+          const reason = result.reason;
+          loaderErrors.push({
+            service: loaders[index][0],
+            message: getAdminErrorMessage(reason),
+          });
+          return null;
+        });
         const [
           anData,
           prods,
@@ -82,68 +120,65 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
           bans,
           arts,
           techs,
-        ] = await Promise.all([
-          adminService.getAnalytics(),
-          adminService.getProducts(),
-          adminService.getPackages(),
-          adminService.getOrders(),
-          adminService.getPayments(),
-          adminService.getBookings(),
-          adminService.getQuotes(),
-          adminService.getInstallations(),
-          adminService.getWarranties(),
-          adminService.getMaintenanceReminders(),
-          adminService.getTickets(),
-          adminService.getReviews(),
-          adminService.getBanners(),
-          adminService.getArticles(),
-          adminService.getTechnicians(),
-        ]);
+        ] = values;
 
         let users = [];
+        let profilesError = '';
         if (supabase) {
           try {
             const { data, error } = await supabase
               .from('profiles')
-              .select('id,full_name,phone,role,created_at,is_banned')
+              .select('id,full_name,phone,role,technician_type,created_at,is_banned')
               .order('created_at', { ascending: false });
-            if (!error && data && data.length > 0) users = data;
+            if (error) throw error;
+            users = data || [];
           } catch (e) {
-            console.warn('Profiles fetch error:', e);
+            profilesError = getAdminErrorMessage(e);
+            console.error('Profiles fetch error:', e);
           }
         }
-        if (!users.length) {
+        if (!supabase) {
           users = [
             { id: 'usr-1', full_name: 'คุณสมชาย ใจดี', phone: '081-234-5678', role: 'customer', created_at: '2026-08-10', is_banned: false },
             { id: 'usr-2', full_name: 'คุณนภา รุ่งอรุณ', phone: '089-876-5432', role: 'customer', created_at: '2026-08-15', is_banned: false },
             { id: 'usr-3', full_name: 'คุณวิชัย พัฒนกุล', phone: '084-555-4321', role: 'customer', created_at: '2026-09-01', is_banned: false },
-            { id: 'usr-4', full_name: 'ช่างเอกชัย ช่างใหญ่', phone: '081-111-2222', role: 'technician', created_at: '2026-07-20', is_banned: false },
-            { id: 'usr-5', full_name: 'ช่างสมศักดิ์ สายตรวจ', phone: '082-222-3333', role: 'technician', created_at: '2026-07-25', is_banned: false },
+            { id: 'usr-4', full_name: 'ช่างเอกชัย ช่างใหญ่', phone: '081-111-2222', role: 'technician', technician_type: 'survey', created_at: '2026-07-20', is_banned: false },
+            { id: 'usr-5', full_name: 'ช่างสมศักดิ์ สายตรวจ', phone: '082-222-3333', role: 'technician', technician_type: 'installation', created_at: '2026-07-25', is_banned: false },
             { id: 'usr-6', full_name: 'เจ้าหน้าที่แอดมิน', phone: '02-123-4567', role: 'admin', created_at: '2026-06-01', is_banned: false },
           ];
         }
 
+        if (profilesError) {
+          loaderErrors.push({ service: 'Profiles', message: profilesError });
+        }
+        if (loaderErrors.length) {
+          console.error('Admin loader errors:', loaderErrors);
+        }
+
         if (active) {
-          setAnalyticsData(anData);
-          setProductsData(prods);
-          setPackagesData(pkgs);
-          setOrdersData(ords);
-          setPaymentsData(pays);
-          setBookingsData(bks);
-          setQuotesData(qts);
-          setInstallationsData(insts);
-          setWarrantiesData(wars);
-          setMaintenanceData(maints);
-          setTicketsData(tks);
-          setReviewsData(revs);
-          setBannersData(bans);
-          setArticlesData(arts);
-          setTechnicians(techs);
+          setAnalyticsData(anData || null);
+          setProductsData(prods || []);
+          setPackagesData(pkgs || []);
+          setOrdersData(ords || []);
+          setPaymentsData(pays || []);
+          setBookingsData(bks || []);
+          setQuotesData(qts || []);
+          setInstallationsData(insts || []);
+          setWarrantiesData(wars || []);
+          setMaintenanceData(maints || []);
+          setTicketsData(tks || []);
+          setReviewsData(revs || []);
+          setBannersData(bans || []);
+          setArticlesData(arts || []);
+          setTechnicians(techs || []);
           setUsersData(users);
+          if (loaderErrors.length) {
+            setErrorMessage(`โหลดข้อมูล Admin บางส่วนไม่สำเร็จ: ${loaderErrors.map((item) => `${item.service}: ${item.message}`).join(' | ')}`);
+          }
         }
       } catch (err) {
         if (active) {
-          setErrorMessage(`โหลดข้อมูล Admin ไม่สำเร็จ: ${err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'}`);
+          setErrorMessage(`โหลดข้อมูล Admin ไม่สำเร็จ: ${getAdminErrorMessage(err)}`);
         }
       } finally {
         if (active) setLoading(false);
@@ -402,11 +437,23 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
           {route === '/manage-users' && (
             <AdminUsersCRM
               users={usersData}
-              onUpdateRole={async (user, role) => {
-                if (supabase) {
-                  await supabase.from('profiles').update({ role }).eq('id', user.id);
-                }
-                const updated = usersData.map((u) => (u.id === user.id ? { ...u, role } : u));
+              onUpdateRole={async (user, role, technicianType) => {
+                await adminService.updateUserProfile(
+                  user.id,
+                  role,
+                  role === 'technician'
+                    ? technicianType || user.technician_type || 'both'
+                    : user.technician_type || 'both',
+                );
+                const updated = usersData.map((u) => (u.id === user.id
+                  ? {
+                      ...u,
+                      role,
+                      technician_type: role === 'technician'
+                        ? technicianType || u.technician_type || 'both'
+                        : u.technician_type || 'both',
+                    }
+                  : u));
                 setUsersData(updated);
                 setNotice('เปลี่ยนระดับสิทธิ์เรียบร้อยแล้ว');
               }}

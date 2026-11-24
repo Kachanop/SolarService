@@ -713,6 +713,20 @@ function setLocalStore(key, value) {
 }
 
 export const adminService = {
+  async updateUserProfile(userId, role, technicianType) {
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อแก้ไขผู้ใช้');
+    const update = { role };
+    if (role === 'technician') {
+      const validTypes = ['survey', 'installation', 'both'];
+      if (!validTypes.includes(technicianType)) {
+        throw new Error('ประเภทช่างไม่ถูกต้อง');
+      }
+      update.technician_type = technicianType;
+    }
+    const { error } = await supabase.from('profiles').update(update).eq('id', userId);
+    if (error) throw error;
+    return true;
+  },
   // 1. Get analytics data combining Supabase + mock
   async getAnalytics(period = '6m') {
     let orders = [];
@@ -1206,7 +1220,9 @@ export const adminService = {
     const bookingIds = data.map((booking) => booking.id);
     const [assignmentResult, techResult, profileResult] = await Promise.all([
       supabase.from('technician_assignments').select('booking_id,technician_id,assignment_type,status').in('booking_id', bookingIds),
-      supabase.from('profiles').select('id,full_name,technician_type').eq('role', 'technician'),
+      // Booking rows only need technician names; technician_type is required by
+      // the technician-specific screens, not by this join.
+      supabase.from('profiles').select('id,full_name').eq('role', 'technician'),
       supabase.from('profiles').select('id,full_name').in('id', [...new Set(data.map((booking) => booking.customer_id).filter(Boolean))]),
     ]);
     for (const result of [assignmentResult, techResult, profileResult]) if (result.error) throw result.error;
@@ -1377,7 +1393,7 @@ export const adminService = {
   // 15. Technicians List
   async getTechnicians() {
     if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อดูรายชื่อช่าง');
-    const { data, error } = await supabase.from('profiles').select('id,full_name,phone,avatar_url,role,technician_type').eq('role', 'technician');
+    const { data, error } = await supabase.from('profiles').select('id,full_name,phone,role,technician_type').eq('role', 'technician');
     if (error) throw error;
     return data || [];
   },

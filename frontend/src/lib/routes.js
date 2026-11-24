@@ -1,6 +1,7 @@
 export const roleMenus = {
   Guest: [{ label: 'หน้าแรก', path: '/' }, { label: 'สินค้า', path: '/products' }, { label: 'แพ็กเกจติดตั้ง', path: '/packages' }, { label: 'บริการช่าง', path: '/services' }, { label: 'เกี่ยวกับเรา', path: '/about' }],
   Customer: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'การจองของฉัน', path: '/booking-history' }, { label: 'ใบเสนอราคา', path: '/quotes' }, { label: 'ติดตามงาน', path: '/tracking' }, { label: 'บัญชีของฉัน', path: '/account' }],
+  Staff: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'บัญชีของฉัน', path: '/account' }],
   Technician: [{ label: 'ภาพรวม', path: '/technician' }, { label: 'ตารางนัดหมาย', path: '/schedule' }, { label: 'งานของฉัน', path: '/jobs' }, { label: 'ประวัติงาน', path: '/work-history' }, { label: 'บัญชีของฉัน', path: '/account' }],
   Admin: [
     { label: 'Dashboard', path: '/admin' },

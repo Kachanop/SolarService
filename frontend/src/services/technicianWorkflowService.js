@@ -111,7 +111,7 @@ export async function getAdminTechnicianWorkflow() {
   const db = client();
   const [bookingResult, techResult, assignmentResult] = await Promise.all([
     db.from('service_bookings').select('id,booking_number,customer_id,preferred_at,address,province,phone,notes,status,created_at').order('preferred_at', { ascending: true }),
-    db.from('profiles').select('id,full_name,phone,avatar_url,role,technician_type').eq('role','technician').order('full_name'),
+    db.from('profiles').select('id,full_name,phone,role,technician_type').eq('role','technician').order('full_name'),
     db.from('technician_assignments').select('id,booking_id,technician_id,assignment_type,status,assigned_at,assigned_by'),
   ]);
   for (const result of [bookingResult, techResult, assignmentResult]) if (result.error) throw result.error;

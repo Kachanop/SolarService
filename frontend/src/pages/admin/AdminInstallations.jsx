@@ -487,7 +487,8 @@ export default function AdminInstallations({
                   onChange={(e) => setForm({ ...form, lead_technician: e.target.value })}
                 >
                   {(technicians || []).map((t) => (
-                    <option key={t.id} value={t.full_name}>{t.full_name}</option>
+                    ((t.technician_type || 'both') === 'installation' || t.technician_type === 'both')
+                    && <option key={t.id} value={t.full_name}>{t.full_name} · ช่างติดตั้ง</option>
                   ))}
                   <option value="ช่างเอกชัย ช่างใหญ่">ช่างเอกชัย ช่างใหญ่</option>
                   <option value="ช่างสมศักดิ์ สายตรวจ">ช่างสมศักดิ์ สายตรวจ</option>

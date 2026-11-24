@@ -122,7 +122,7 @@ function App() {
           setRole('Customer');
           setToast('ไม่พบโปรไฟล์ผู้ใช้ กรุณาตรวจสอบว่าได้ตั้งค่า migration ของ Supabase แล้ว');
         } else {
-          const roles = { customer: 'Customer', technician: 'Technician', admin: 'Admin' };
+          const roles = { customer: 'Customer', staff: 'Staff', technician: 'Technician', admin: 'Admin' };
           const userRole = roles[data.role];
           if (!userRole) {
             setRole('Customer');

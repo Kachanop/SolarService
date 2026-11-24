@@ -282,7 +282,8 @@ export default function AdminBookings({
                     {booking.technician_names?.length ? `ช่าง: ${booking.technician_names[0]}` : '+ มอบหมายช่าง…'}
                   </option>
                   {(technicians || []).map((t) => (
-                    <option key={t.id} value={t.id}>{t.full_name}</option>
+                    ((t.technician_type || 'both') === 'survey' || t.technician_type === 'both')
+                    && <option key={t.id} value={t.id}>{t.full_name} · ช่างสำรวจ</option>
                   ))}
                 </select>
               </div>

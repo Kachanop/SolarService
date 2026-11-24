@@ -15,6 +15,7 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
+  Pencil,
 } from 'lucide-react';
 import { Money } from '../../components/Shared.jsx';
 
@@ -37,6 +38,10 @@ export default function AdminUsersCRM({
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editRole, setEditRole] = useState('');
+  const [editTechnicianType, setEditTechnicianType] = useState('both');
+  const [savingEdit, setSavingEdit] = useState(false);
   const [crmTab, setCrmTab] = useState('orders');
 
   const filtered = useMemo(() => {
@@ -63,6 +68,39 @@ export default function AdminUsersCRM({
     if (confirm(`ต้องการ${actionName}ของผู้ใช้ "${user.full_name || user.id}" หรือไม่?`)) {
       onToggleBan(user.id, nextState);
       if (setToast) setToast(`${actionName}เรียบร้อยแล้ว`);
+    }
+  }
+
+  function technicianTypeLabel(type) {
+    return type === 'survey'
+      ? 'ช่างสำรวจ'
+      : type === 'installation'
+        ? 'ช่างติดตั้ง'
+        : 'สำรวจและติดตั้ง';
+  }
+
+  function openEditUser(user) {
+    setEditingUser(user);
+    setEditRole(user.role);
+    setEditTechnicianType(user.technician_type || 'both');
+  }
+
+  async function saveEditUser(event) {
+    event.preventDefault();
+    if (!editingUser) return;
+    setSavingEdit(true);
+    try {
+      await onUpdateRole(
+        editingUser,
+        editRole,
+        editRole === 'technician' ? editTechnicianType : editingUser.technician_type,
+      );
+      setEditingUser(null);
+      if (setToast) setToast('บันทึกข้อมูลผู้ใช้เรียบร้อยแล้ว');
+    } catch (error) {
+      if (setToast) setToast(`บันทึกผู้ใช้ไม่สำเร็จ: ${error?.message || 'เกิดข้อผิดพลาด'}`);
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -194,6 +232,11 @@ export default function AdminUsersCRM({
                   <span className={`status-pill ${roleInfo.tone}`}>
                     {roleInfo.label.split(' ')[0]}
                   </span>
+                  {user.role === 'technician' && (
+                    <small style={{ marginTop: '5px', color: '#687766' }}>
+                      ประเภท: {technicianTypeLabel(user.technician_type || 'both')}
+                    </small>
+                  )}
                 </div>
 
                 <div>
@@ -209,6 +252,20 @@ export default function AdminUsersCRM({
                     <option value="technician">ช่าง (Technician)</option>
                     <option value="admin">Admin สูงสุด</option>
                   </select>
+                  {user.role === 'technician' && (
+                    <select
+                      className="admin-select"
+                      aria-label={`ประเภทช่างของ ${user.full_name || user.id}`}
+                      value={user.technician_type || 'both'}
+                      disabled={isSelf || savingId === user.id}
+                      onChange={(e) => onUpdateRole(user, 'technician', e.target.value)}
+                      style={{ marginTop: '5px', fontSize: '9px', padding: '5px 7px' }}
+                    >
+                      <option value="survey">Survey Technician</option>
+                      <option value="installation">Installation Technician</option>
+                      <option value="both">Both</option>
+                    </select>
+                  )}
                 </div>
 
                 <div>
@@ -218,6 +275,17 @@ export default function AdminUsersCRM({
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  {!isSelf && (
+                    <button
+                      type="button"
+                      className="button button-outline small-button"
+                      style={{ padding: '5px 8px', fontSize: '9px' }}
+                      onClick={() => openEditUser(user)}
+                      disabled={savingId === user.id}
+                    >
+                      <Pencil size={12} /> แก้ไข
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="button button-outline small-button"
@@ -255,6 +323,66 @@ export default function AdminUsersCRM({
           <p className="admin-empty">ไม่พบข้อมูลผู้ใช้ที่ตรงกับเงื่อนไข</p>
         )}
       </div>
+
+      {editingUser && (
+        <div
+          className="admin-form-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !savingEdit) setEditingUser(null);
+          }}
+        >
+          <form className="admin-modal-card" onSubmit={saveEditUser} style={{ maxWidth: '480px' }}>
+            <div className="admin-modal-header">
+              <div>
+                <h2>แก้ไขข้อมูลผู้ใช้</h2>
+                <p>{editingUser.full_name || editingUser.id}</p>
+              </div>
+              <button type="button" className="icon-action" onClick={() => setEditingUser(null)} disabled={savingEdit}>×</button>
+            </div>
+            <div className="form-fields" style={{ marginTop: '16px' }}>
+              <label>
+                สิทธิ์หลัก (Role)
+                <select
+                  className="admin-filter-select"
+                  value={editRole}
+                  onChange={(event) => setEditRole(event.target.value)}
+                  disabled={savingEdit}
+                >
+                  <option value="customer">Customer</option>
+                  <option value="staff">Staff</option>
+                  <option value="technician">Technician</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              {editRole === 'technician' ? (
+                <label>
+                  Technician Type
+                  <select
+                    className="admin-filter-select"
+                    value={editTechnicianType}
+                    onChange={(event) => setEditTechnicianType(event.target.value)}
+                    disabled={savingEdit}
+                  >
+                    <option value="survey">Survey Technician</option>
+                    <option value="installation">Installation Technician</option>
+                    <option value="both">Both</option>
+                  </select>
+                </label>
+              ) : (
+                <div className="admin-empty" style={{ alignSelf: 'end' }}>
+                  ไม่ใช้บัญชีช่าง จึงไม่ต้องระบุ Technician Type
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '18px' }}>
+              <button type="button" className="button button-outline" onClick={() => setEditingUser(null)} disabled={savingEdit}>ยกเลิก</button>
+              <button type="submit" className="button button-green" disabled={savingEdit}>
+                {savingEdit ? 'กำลังบันทึก…' : 'บันทึก'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* CRM 360 Customer Profile Modal */}
       {selectedCustomer && (
