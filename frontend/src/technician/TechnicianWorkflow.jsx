@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, ClipboardList, ImagePlus, MapPin, Phone, Save, Send, Wrench } from 'lucide-react';
+import { AlertCircle, Calendar, Check, ClipboardList, ImagePlus, MapPin, Phone, Save, Send, Wrench } from 'lucide-react';
 import { getInstallationImages, getInstallationTechnicians, getMyWorkflowAssignments, getSurveyImageUrl, saveInstallationProgress, saveSurveyDraft, submitSurvey, uploadInstallationImages, uploadSurveyImages, updateAssignment } from '../services/technicianWorkflowService.js';
+import './technicianJob.css';
 
 const emptyForm = (booking, survey) => ({
   contact_name: survey?.contact_name || '', contact_phone: survey?.contact_phone || booking?.phone || '', installation_address: survey?.installation_address || booking?.address || '',
@@ -133,19 +134,88 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
 
 function Field({label,name,form,setForm,type='text',wide=false,disabled=false}) { return <label className={wide?'full-width':''}>{label}<input disabled={disabled} required={['contact_name','contact_phone','installation_address','roof_area_sqm','site_conditions','recommended_system_kw','panel_location','inverter_location','equipment_details'].includes(name)} type={type} min={type==='number'?'0':undefined} step={type==='number'?'0.1':undefined} value={form[name]} onChange={(e)=>setForm({...form,[name]:e.target.value})}/></label>; }
 
-function JobDetail({assignment,authUser,onChange,installNotes,setInstallNotes,installStatus,setInstallStatus,onSave,saving}) {
-  const b=assignment.booking, s=assignment.survey;
-  const [installationPhotos,setInstallationPhotos]=useState([]);
-  const [surveyPhotos,setSurveyPhotos]=useState([]);
-  const [newFiles,setNewFiles]=useState([]);
-  useEffect(()=>{let active=true;if(assignment.assignment_type!=='installation')return undefined;getInstallationImages(assignment.booking_id).then((data)=>{if(active)setInstallationPhotos(data);}).catch(()=>{});return()=>{active=false;};},[assignment.booking_id,assignment.assignment_type]);
-  useEffect(()=>{let active=true;const images=s?.survey_images||[];Promise.all(images.map(async(image)=>({...image,url:await getSurveyImageUrl(image.storage_path)}))).then((data)=>{if(active)setSurveyPhotos(data);}).catch(()=>{});return()=>{active=false;};},[s?.id]);
-  return <article className="workspace-content"><h2>{b?.booking_number} · {assignment.assignment_type==='survey'?'สำรวจหน้างาน':'งานติดตั้ง'}</h2><p>{b?.address}, {b?.province} · {b?.phone}</p><p>นัดหมาย: {b?.preferred_at ? new Date(b.preferred_at).toLocaleString('th-TH'):'—'} · สถานะ {assignment.status}</p>
-    {assignment.status==='assigned'&&<button className="button button-green" disabled={saving} onClick={()=>onChange(assignment,'accepted')}><Check size={15}/>ยืนยันรับงาน</button>}
-    {assignment.assignment_type==='survey'&&assignment.status==='accepted'&&<button className="button button-green" disabled={saving} onClick={()=>onChange(assignment,'in_progress')}>เริ่มสำรวจ</button>}
-    {assignment.assignment_type==='installation'&&assignment.status==='accepted'&&<button className="button button-green" disabled={saving} onClick={()=>{setInstallStatus('in_progress');onSave(assignment,[]);}}>เริ่มติดตั้ง</button>}
-    {assignment.assignment_type==='survey'&&<a className="button button-outline" href="#/survey">เปิดแบบฟอร์มสำรวจ</a>}
-    {s&&<section><h3>รายงานสำรวจ</h3><div className="form-fields">{[['ผู้ติดต่อ',s.contact_name],['เบอร์โทร',s.contact_phone],['ที่อยู่',s.installation_address],['หลังคา',`${s.roof_type||'—'} · ${s.roof_area_sqm||'—'} ตร.ม. · ${s.roof_direction||'—'}`],['ระบบแนะนำ',`${s.recommended_system_kw||'—'} kW`],['สภาพพื้นที่',s.site_conditions],['ตำแหน่งแผง',s.panel_location],['ตำแหน่ง Inverter',s.inverter_location],['อุปกรณ์',s.equipment_details],['ข้อจำกัด',s.problems],['ข้อเสนอแนะ',s.recommendations]].map(([label,value])=><div key={label}><small>{label}</small><p>{value||'—'}</p></div>)}</div><div className="survey-photo-grid">{surveyPhotos.map((photo)=><a key={photo.id} href={photo.url} target="_blank" rel="noreferrer"><img src={photo.url} alt={photo.caption}/></a>)}</div></section>}
-    {assignment.assignment_type==='installation'&&<div className="form-fields"><label className="full-width">บันทึกความคืบหน้า<textarea rows="4" value={installNotes||assignment.installation?.installation_notes||''} onChange={(e)=>setInstallNotes(e.target.value)}/></label><label>สถานะติดตั้ง<select value={installStatus} onChange={(e)=>setInstallStatus(e.target.value)}>{['accepted','in_progress','completed','cancelled'].map((x)=><option key={x} value={x}>{x}</option>)}</select></label><label className="full-width upload-field"><span><ImagePlus size={16}/> รูปภาพงานติดตั้ง</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e)=>setNewFiles([...e.target.files])}/></label><button className="button button-green" disabled={saving} onClick={()=>onSave(assignment,newFiles)}><Wrench size={15}/>บันทึกสถานะ ความคืบหน้า และรูปภาพ</button>{installationPhotos.length>0&&<div className="survey-photo-grid">{installationPhotos.map((photo)=><a key={photo.id} href={photo.url} target="_blank" rel="noreferrer"><img src={photo.url} alt="ภาพงานติดตั้ง"/></a>)}</div>}</div>}
-  </article>;
+const STATUS_LABELS = {
+  assigned: 'รอรับงาน',
+  accepted: 'รับงานแล้ว',
+  in_progress: 'กำลังดำเนินการ',
+  completed: 'เสร็จสิ้น',
+  cancelled: 'ยกเลิก',
+};
+const statusLabel = (s) => STATUS_LABELS[s] || s;
+
+function JobDetail({ assignment, authUser, onChange, installNotes, setInstallNotes, installStatus, setInstallStatus, onSave, saving }) {
+  const b = assignment.booking, s = assignment.survey;
+  const [installationPhotos, setInstallationPhotos] = useState([]);
+  const [surveyPhotos, setSurveyPhotos] = useState([]);
+  const [newFiles, setNewFiles] = useState([]);
+
+  useEffect(() => { let active = true; if (assignment.assignment_type !== 'installation') return undefined; getInstallationImages(assignment.booking_id).then((data) => { if (active) setInstallationPhotos(data); }).catch(() => {}); return () => { active = false; }; }, [assignment.booking_id, assignment.assignment_type]);
+  useEffect(() => { let active = true; const images = s?.survey_images || []; Promise.all(images.map(async (image) => ({ ...image, url: await getSurveyImageUrl(image.storage_path) }))).then((data) => { if (active) setSurveyPhotos(data); }).catch(() => {}); return () => { active = false; }; }, [s?.id]);
+
+  const isInstall = assignment.assignment_type === 'installation';
+  const appointment = b?.preferred_at ? new Date(b.preferred_at).toLocaleString('th-TH') : '—';
+
+  return (
+    <article className="job-card">
+      <header className="job-card-head">
+        <h2>{b?.booking_number} · {isInstall ? 'งานติดตั้ง' : 'สำรวจหน้างาน'}</h2>
+        <span className={`status-badge status-${assignment.status}`}>{statusLabel(assignment.status)}</span>
+      </header>
+
+      <ul className="job-meta">
+        <li><MapPin size={16} />{b?.address}, {b?.province}</li>
+        <li><Phone size={16} />{b?.phone || '—'}</li>
+        <li><Calendar size={16} />นัดหมาย {appointment}</li>
+      </ul>
+
+      <div className="job-actions">
+        {assignment.status === 'assigned' && <button className="button button-green" disabled={saving} onClick={() => onChange(assignment, 'accepted')}><Check size={15} />ยืนยันรับงาน</button>}
+        {assignment.assignment_type === 'survey' && assignment.status === 'accepted' && <button className="button button-green" disabled={saving} onClick={() => onChange(assignment, 'in_progress')}>เริ่มสำรวจ</button>}
+        {isInstall && assignment.status === 'accepted' && <button className="button button-green" disabled={saving} onClick={() => { setInstallStatus('in_progress'); onSave(assignment, []); }}>เริ่มติดตั้ง</button>}
+        {assignment.assignment_type === 'survey' && <a className="button button-outline" href="#/survey">เปิดแบบฟอร์มสำรวจ</a>}
+      </div>
+
+      {s && <section className="job-section">
+        <h3>รายงานสำรวจ</h3>
+        <div className="info-grid">
+          {[['ผู้ติดต่อ', s.contact_name], ['เบอร์โทร', s.contact_phone], ['ที่อยู่', s.installation_address], ['หลังคา', `${s.roof_type || '—'} · ${s.roof_area_sqm || '—'} ตร.ม. · ${s.roof_direction || '—'}`], ['ระบบแนะนำ', `${s.recommended_system_kw || '—'} kW`], ['สภาพพื้นที่', s.site_conditions], ['ตำแหน่งแผง', s.panel_location], ['ตำแหน่ง Inverter', s.inverter_location], ['อุปกรณ์', s.equipment_details], ['ข้อจำกัด', s.problems], ['ข้อเสนอแนะ', s.recommendations]].map(([label, value]) => <div className="info-item" key={label}><small>{label}</small><p>{value || '—'}</p></div>)}
+        </div>
+        {surveyPhotos.length > 0 && <div className="survey-photo-grid">{surveyPhotos.map((photo) => <a key={photo.id} href={photo.url} target="_blank" rel="noreferrer"><img src={photo.url} alt={photo.caption} /></a>)}</div>}
+      </section>}
+
+      {isInstall && <section className="job-section">
+        <h3>อัปเดตงานติดตั้ง</h3>
+        <div className="job-form">
+          <div className="field">
+            <label htmlFor="install-notes">บันทึกความคืบหน้า</label>
+            <textarea id="install-notes" rows="4" placeholder="เช่น ติดตั้งแผงเสร็จแล้ว 8 จาก 12 แผง" value={installNotes || assignment.installation?.installation_notes || ''} onChange={(e) => setInstallNotes(e.target.value)} />
+          </div>
+
+          <div className="field">
+            <label htmlFor="install-status">สถานะติดตั้ง</label>
+            <select id="install-status" value={installStatus} onChange={(e) => setInstallStatus(e.target.value)}>
+              {['accepted', 'in_progress', 'completed', 'cancelled'].map((x) => <option key={x} value={x}>{statusLabel(x)}</option>)}
+            </select>
+          </div>
+
+          <div className="field">
+            <span className="field-label">รูปภาพงานติดตั้ง</span>
+            <label className="dropzone" htmlFor="install-files">
+              <ImagePlus size={22} />
+              <span className="dropzone-title">{newFiles.length ? `เลือกแล้ว ${newFiles.length} รูป` : 'แตะเพื่อเลือกรูปภาพ'}</span>
+              <span className="dropzone-hint">JPG / PNG / WebP · เลือกได้หลายรูป</span>
+              <input id="install-files" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => setNewFiles([...e.target.files])} />
+            </label>
+            {newFiles.length > 0 && <ul className="file-list">{newFiles.map((f) => <li key={f.name + f.size}>{f.name}</li>)}</ul>}
+          </div>
+
+          <button className="button button-green job-submit" disabled={saving} onClick={() => onSave(assignment, newFiles)}>
+            <Wrench size={15} />{saving ? 'กำลังบันทึก…' : 'บันทึกสถานะ ความคืบหน้า และรูปภาพ'}
+          </button>
+        </div>
+
+        {installationPhotos.length > 0 && <div className="survey-photo-grid">{installationPhotos.map((photo) => <a key={photo.id} href={photo.url} target="_blank" rel="noreferrer"><img src={photo.url} alt="ภาพงานติดตั้ง" /></a>)}</div>}
+      </section>}
+    </article>
+  );
 }
