@@ -1261,24 +1261,88 @@ export const adminService = {
   },
 
   async saveBooking(item) {
-    const current = getLocalStore('bookings', defaultMockData.bookings);
-    let updated;
-    if (item.id) {
-      updated = current.map((b) => (b.id === item.id ? { ...b, ...item } : b));
-    } else {
-      const newItem = {
-        ...item,
-        id: `bk-${Date.now()}`,
-        booking_number: `BK-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`,
-        status: item.status || 'pending',
-        technician_ids: item.technician_ids || [],
-        technician_names: item.technician_names || [],
-        created_at: new Date().toISOString(),
-      };
-      updated = [newItem, ...current];
+    if (!supabase) throw new Error('ต้องเชื่อมต่อ Supabase เพื่อเปิดคิวจอง');
+
+    const customerName = item.customer_name?.trim();
+    const phone = item.phone?.trim();
+    if (!customerName || !phone || !item.address?.trim() || !item.preferred_at) {
+      throw new Error('กรุณากรอกชื่อลูกค้า เบอร์โทร ที่อยู่ และวันเวลานัดหมายให้ครบ');
     }
-    setLocalStore('bookings', updated);
-    return item;
+    if (!item.request_id) throw new Error('ไม่พบรหัสคำขอสำหรับป้องกันการสร้างคิวซ้ำ กรุณาปิดแล้วเปิดฟอร์มใหม่');
+    if (item.service_type && item.service_type !== 'survey') {
+      throw new Error('ฟอร์มนี้ใช้เปิดคิวสำรวจหน้างานเท่านั้น');
+    }
+
+    // service_bookings.customer_id references an existing auth-backed profile;
+    // never create a detached profile or pretend a local-only record is saved.
+    const { data: customers, error: customerError } = await supabase
+      .from('profiles')
+      .select('id,full_name,phone')
+      .eq('role', 'customer')
+      .eq('full_name', customerName)
+      .eq('phone', phone)
+      .limit(2);
+    if (customerError) throw customerError;
+    if (!customers?.length) {
+      throw new Error('ไม่พบลูกค้าในระบบที่ชื่อตรงกับเบอร์โทรนี้ กรุณาสมัคร/สร้างบัญชีลูกค้าก่อนเปิดคิว');
+    }
+    if (customers.length > 1) {
+      throw new Error('พบลูกค้าหลายบัญชีที่ใช้ชื่อและเบอร์โทรนี้ กรุณาแก้ข้อมูลบัญชีให้ระบุลูกค้าได้ชัดเจนก่อน');
+    }
+
+    const preferredAt = new Date(item.preferred_at);
+    if (Number.isNaN(preferredAt.getTime())) throw new Error('วันเวลานัดหมายไม่ถูกต้อง');
+    const rawNotes = item.notes?.trim() || '';
+    const notes = `[service_type:survey]${rawNotes ? ` ${rawNotes}` : ''}`;
+    const payload = {
+      id: item.request_id,
+      customer_id: customers[0].id,
+      preferred_at: preferredAt.toISOString(),
+      address: item.address.trim(),
+      province: item.province,
+      phone,
+      notes,
+      status: 'pending',
+    };
+    const columns = 'id,booking_number,customer_id,preferred_at,address,province,phone,notes,status,created_at';
+    const { data: insertData, error: insertError } = await supabase
+      .from('service_bookings')
+      .insert(payload)
+      .select(columns)
+      .single();
+    let inserted = insertData;
+    if (insertError) {
+      if (insertError.code !== '23505') throw insertError;
+      // If an earlier request committed but its response/readback was lost,
+      // reuse that same request id instead of creating a second booking.
+      const { data: existing, error: existingError } = await supabase
+        .from('service_bookings')
+        .select(columns)
+        .eq('id', item.request_id)
+        .maybeSingle();
+      if (existingError) throw existingError;
+      const sameRequest = existing
+        && existing.customer_id === payload.customer_id
+        && new Date(existing.preferred_at).getTime() === preferredAt.getTime()
+        && existing.address === payload.address
+        && existing.province === payload.province
+        && existing.phone === payload.phone
+        && existing.notes === payload.notes
+        && existing.status === payload.status;
+      if (!sameRequest) throw insertError;
+      inserted = existing;
+    }
+    if (!inserted?.id) throw new Error('Supabase ไม่ยืนยันผลการสร้างคิว กรุณาตรวจสอบรายการก่อนลองอีกครั้ง');
+
+    // Verify the persisted row is readable before reporting success to the UI.
+    const { data: saved, error: readbackError } = await supabase
+      .from('service_bookings')
+      .select(columns)
+      .eq('id', inserted.id)
+      .single();
+    if (readbackError) throw readbackError;
+    if (!saved?.id) throw new Error('สร้างคิวแล้วแต่ตรวจสอบข้อมูลกลับจาก Supabase ไม่สำเร็จ กรุณารีเฟรชรายการก่อนลองซ้ำ');
+    return { ...saved, customer_name: customers[0].full_name, technician_ids: [], technician_names: [] };
   },
 
   // 13. Quotations CRUD

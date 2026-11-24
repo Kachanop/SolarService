@@ -320,8 +320,12 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
                 setRefreshKey((k) => k + 1);
               }}
               onSaveBooking={async (item) => {
-                await adminService.saveBooking(item);
-                setRefreshKey((k) => k + 1);
+                const savedBooking = await adminService.saveBooking(item);
+                setBookingsData((current) => [
+                  savedBooking,
+                  ...current.filter((booking) => booking.id !== savedBooking.id),
+                ]);
+                return savedBooking;
               }}
               navigate={navigate}
               setToast={setToast}

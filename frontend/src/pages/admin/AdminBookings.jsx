@@ -46,6 +46,9 @@ export default function AdminBookings({
   const [filterProvince, setFilterProvince] = useState('');
   const [detailModal, setDetailModal] = useState(null);
   const [createModal, setCreateModal] = useState(false);
+  const [isSavingBooking, setIsSavingBooking] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [bookingRequestId, setBookingRequestId] = useState(() => globalThis.crypto.randomUUID());
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -75,24 +78,31 @@ export default function AdminBookings({
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  function handleCreateSubmit(e) {
+  async function handleCreateSubmit(e) {
     e.preventDefault();
+    if (isSavingBooking) return;
     if (!form.customer_name || !form.phone || !form.address) {
       alert('กรุณากรอกข้อมูลชื่อลูกค้า เบอร์โทร และที่อยู่');
       return;
     }
-    onSaveBooking(form);
-    setCreateModal(false);
-    setForm({
-      customer_name: '',
-      phone: '',
-      province: 'กรุงเทพมหานคร',
-      address: '',
-      preferred_at: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString().slice(0, 16),
-      service_type: 'survey',
-      notes: '',
-    });
-    if (setToast) setToast('เปิดคิวจองช่างสำรวจใหม่เรียบร้อยแล้ว');
+    setIsSavingBooking(true);
+    setCreateError('');
+    try {
+      await onSaveBooking({ ...form, request_id: bookingRequestId });
+      setSearch('');
+      setFilterStatus('');
+      setFilterProvince('');
+      setPage(1);
+      setCreateModal(false);
+      setForm((current) => ({ ...current, customer_name: '', phone: '', address: '', notes: '' }));
+      if (setToast) setToast('เปิดคิวจองช่างสำรวจใหม่เรียบร้อยแล้ว');
+    } catch (error) {
+      const parts = [error?.message, error?.details, error?.hint, error?.code]
+        .filter((part) => typeof part === 'string' && part.trim());
+      setCreateError(parts.length ? [...new Set(parts)].join(' — ') : 'ไม่สามารถยืนยันการบันทึกคิวใน Supabase ได้');
+    } finally {
+      setIsSavingBooking(false);
+    }
   }
 
   function exportCSV() {
@@ -206,7 +216,7 @@ export default function AdminBookings({
           <button
             type="button"
             className="button button-dark small-button"
-            onClick={() => setCreateModal(true)}
+            onClick={() => { setCreateError(''); setBookingRequestId(globalThis.crypto.randomUUID()); setCreateModal(true); }}
           >
             <Plus size={14} /> เปิดคิวจองใหม่ (โทรศัพท์/หน้าร้าน)
           </button>
@@ -435,19 +445,20 @@ export default function AdminBookings({
         <div
           className="admin-form-backdrop"
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setCreateModal(false);
+            if (e.target === e.currentTarget && !isSavingBooking) setCreateModal(false);
           }}
         >
           <form className="admin-product-form" onSubmit={handleCreateSubmit} style={{ maxWidth: '580px' }}>
             <div className="workspace-section-heading">
               <div>
                 <h2>เปิดคิวจองช่างสำรวจหน้างานใหม่</h2>
-                <p>สำหรับรับโทรศัพท์ลูกค้าหรือบริการ Walk-in</p>
+                <p>สำหรับลูกค้าที่มีบัญชีในระบบ โดยชื่อและเบอร์โทรต้องตรงกับโปรไฟล์</p>
               </div>
               <button
                 type="button"
                 className="icon-action"
-                onClick={() => setCreateModal(false)}
+                onClick={() => !isSavingBooking && setCreateModal(false)}
+                disabled={isSavingBooking}
               >
                 ×
               </button>
@@ -521,16 +532,19 @@ export default function AdminBookings({
               </label>
             </div>
 
+            {createError && <div className="admin-message error" role="alert">สร้างคิวไม่สำเร็จ: {createError}</div>}
+
             <div className="admin-form-actions">
               <button
                 type="button"
                 className="button button-outline"
-                onClick={() => setCreateModal(false)}
+                onClick={() => !isSavingBooking && setCreateModal(false)}
+                disabled={isSavingBooking}
               >
                 ยกเลิก
               </button>
-              <button type="submit" className="button button-green">
-                สร้างคิวจอง
+              <button type="submit" className="button button-green" disabled={isSavingBooking}>
+                {isSavingBooking ? 'กำลังบันทึกและตรวจสอบ…' : 'สร้างคิวจอง'}
               </button>
             </div>
           </form>
