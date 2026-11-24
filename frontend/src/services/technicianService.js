@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { getMyWorkflowAssignments } from './technicianWorkflowService.js';
 
 export async function getMyAssignments() {
   if (!supabase) {
@@ -9,51 +10,24 @@ export async function getMyAssignments() {
   if (userError) throw userError;
   if (!user) return [];
 
-  const { data, error } = await supabase
-    .from('technician_assignments')
-    .select(`
-      id,
-      assigned_at,
-      service_bookings!inner(
-        id,
-        booking_number,
-        status,
-        preferred_at,
-        address,
-        province,
-        phone,
-        notes,
-        customer_id,
-        created_at
-      )
-    `)
-    .eq('technician_id', user.id)
-    .order('assigned_at', { ascending: false });
-
-  if (error) throw error;
-
-  return (data || [])
-    .map((assignment) => {
-      const booking = Array.isArray(assignment.service_bookings)
-        ? assignment.service_bookings[0]
-        : assignment.service_bookings;
-
-      if (!booking) return null;
-
-      return {
-        assignmentId: assignment.id,
-        id: booking.id,
-        booking_number: booking.booking_number,
-        status: booking.status,
-        preferred_at: booking.preferred_at,
-        address: booking.address,
-        province: booking.province,
-        phone: booking.phone,
-        notes: booking.notes || '',
-        customer_id: booking.customer_id,
-        created_at: booking.created_at,
-        assigned_at: assignment.assigned_at,
-      };
-    })
-    .filter(Boolean);
+  const rows = await getMyWorkflowAssignments();
+  return rows.map((assignment) => ({
+    assignmentId: assignment.id,
+    assignment_type: assignment.assignment_type,
+    assignment_status: assignment.status,
+    id: assignment.booking?.id,
+    booking_number: assignment.booking?.booking_number,
+    status: assignment.booking?.status,
+    preferred_at: assignment.booking?.preferred_at,
+    address: assignment.booking?.address,
+    province: assignment.booking?.province,
+    phone: assignment.booking?.phone,
+    customer_name: assignment.booking?.customer?.full_name || '',
+    notes: assignment.booking?.notes || '',
+    customer_id: assignment.booking?.customer_id,
+    created_at: assignment.booking?.created_at,
+    assigned_at: assignment.assigned_at,
+    survey: assignment.survey,
+    installation: assignment.installation,
+  }));
 }

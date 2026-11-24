@@ -3,10 +3,13 @@ import { AlertCircle, CalendarDays, Check, Clock3, MapPin, Phone, RefreshCw, Wre
 import { getMyAssignments } from '../services/technicianService.js';
 
 const statusLabels = {
-  pending: 'รอดำเนินการ',
   assigned: 'มอบหมายแล้ว',
+  accepted: 'รับงานแล้ว',
+  in_progress: 'กำลังดำเนินการ',
+  pending: 'รอดำเนินการ',
   confirmed: 'ยืนยันแล้ว',
   surveying: 'กำลังสำรวจ',
+  survey_completed: 'สำรวจเสร็จแล้ว',
   quoted: 'เสนอราคาแล้ว',
   approved: 'อนุมัติแล้ว',
   installing: 'กำลังติดตั้ง',
@@ -15,8 +18,10 @@ const statusLabels = {
 };
 
 const statusTones = {
+  assigned: 'yellow',
+  accepted: 'green',
+  in_progress: 'blue',
   pending: 'yellow',
-  assigned: 'blue',
   confirmed: 'green',
   surveying: 'blue',
   quoted: 'yellow',
@@ -93,8 +98,8 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
   const bookings = useMemo(() => [...assignments].sort((a, b) => new Date(a.preferred_at) - new Date(b.preferred_at)), [assignments]);
 
   const dashboardBookings = [...bookings].sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at));
-  const activeBookings = bookings.filter((booking) => !['completed', 'cancelled'].includes(booking.status));
-  const historyBookings = bookings.filter((booking) => ['completed', 'cancelled'].includes(booking.status)).reverse();
+  const activeBookings = bookings.filter((booking) => !['completed', 'cancelled'].includes(booking.assignment_status));
+  const historyBookings = bookings.filter((booking) => ['completed', 'cancelled'].includes(booking.assignment_status)).reverse();
   const today = new Date();
   const todayCount = activeBookings.filter((booking) => {
     const date = new Date(booking.preferred_at);
@@ -102,7 +107,7 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
       && date.getMonth() === today.getMonth()
       && date.getDate() === today.getDate();
   }).length;
-  const inProgressCount = bookings.filter((booking) => ['surveying', 'installing'].includes(booking.status)).length;
+  const inProgressCount = bookings.filter((booking) => ['in_progress'].includes(booking.assignment_status)).length;
   const page = pageCopy[route] || pageCopy['/technician'];
   const visibleBookings = route === '/jobs'
     ? activeBookings
@@ -189,15 +194,16 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
                   <div className="technician-job-icon"><Wrench size={18} /></div>
                   <div className="technician-job-main">
                     <div className="technician-job-title">
-                      <strong>งาน {booking.booking_number}</strong>
-                      <span className={`status-pill ${statusTones[booking.status] || 'gray'}`}>{statusLabels[booking.status] || booking.status}</span>
+                      <strong>{booking.assignment_type === 'survey' ? 'งานสำรวจ' : 'งานติดตั้ง'} {booking.booking_number}</strong>
+                      <span className={`status-pill ${statusTones[booking.assignment_status] || statusTones[booking.status] || 'gray'}`}>{booking.assignment_status || statusLabels[booking.status] || booking.status}</span>
                     </div>
                     <span className="technician-job-detail"><Clock3 size={14} /> {formatDate(booking.preferred_at)}</span>
+                    <span className="technician-job-detail"><Phone size={14} /> {booking.customer_name || 'ลูกค้า'} · {booking.phone || 'ไม่มีเบอร์ติดต่อ'}</span>
                     <span className="technician-job-detail"><MapPin size={14} /> {booking.address} {booking.province}</span>
-                    <span className="technician-job-detail"><Phone size={14} /> {booking.phone || 'ไม่มีเบอร์ติดต่อ'}</span>
                     <span className="technician-job-detail"><CalendarDays size={14} /> มอบหมายเมื่อ {formatDate(booking.assigned_at)}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+                    {booking.assignment_type === 'survey' && <button type="button" className="button button-green small-button" onClick={() => navigate(`/survey?bookingId=${encodeURIComponent(booking.id)}`)}>เปิดแบบสำรวจ</button>}
                     <button type="button" className="button button-outline small-button" onClick={() => navigate(`/job-detail?bookingId=${encodeURIComponent(booking.id)}`)}>
                       ดูรายละเอียดงาน
                     </button>

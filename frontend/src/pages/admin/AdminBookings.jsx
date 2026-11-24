@@ -21,6 +21,7 @@ const statusLabels = {
   assigned: { label: 'มอบหมายช่างแล้ว', tone: 'blue' },
   confirmed: { label: 'ยืนยันวันนัดแล้ว', tone: 'green' },
   surveying: { label: 'กำลังสำรวจหน้างาน', tone: 'blue' },
+  survey_completed: { label: 'สำรวจเสร็จแล้ว', tone: 'green' },
   quoted: { label: 'เสนอราคาแล้ว', tone: 'yellow' },
   approved: { label: 'อนุมัติงานติดตั้ง', tone: 'green' },
   installing: { label: 'กำลังติดตั้ง', tone: 'blue' },
@@ -28,7 +29,7 @@ const statusLabels = {
   cancelled: { label: 'ยกเลิกการจอง', tone: 'gray' },
 };
 
-const statusOptions = ['pending', 'assigned', 'confirmed', 'surveying', 'quoted', 'approved', 'installing', 'completed', 'cancelled'];
+const statusOptions = ['pending', 'assigned', 'confirmed', 'surveying', 'survey_completed', 'quoted', 'approved', 'installing', 'completed', 'cancelled'];
 const provinces = ['กรุงเทพมหานคร', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'ชลบุรี', 'เชียงใหม่', 'ขอนแก่น', 'ภูเก็ต'];
 
 export default function AdminBookings({

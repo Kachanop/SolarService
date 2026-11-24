@@ -1197,89 +1197,51 @@ export const adminService = {
 
   // 12. Bookings CRUD
   async getBookings() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('service_bookings')
-          .select('id,booking_number,customer_id,status,preferred_at,address,province,phone,notes,created_at')
-          .order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          const bookingIds = data.map((b) => b.id);
-          const [assignmentResult, techResult, profileResult] = await Promise.all([
-            supabase.from('technician_assignments').select('booking_id,technician_id').in('booking_id', bookingIds),
-            supabase.from('profiles').select('id,full_name').eq('role', 'technician'),
-            supabase.from('profiles').select('id,full_name').in('id', [...new Set(data.map((b) => b.customer_id).filter(Boolean))]),
-          ]);
-          const techNames = new Map((techResult.data || []).map((t) => [t.id, t.full_name]));
-          const customerNames = new Map((profileResult.data || []).map((p) => [p.id, p.full_name]));
-          const assignMap = new Map();
-          (assignmentResult.data || []).forEach((a) => {
-            const arr = assignMap.get(a.booking_id) || [];
-            arr.push(a.technician_id);
-            assignMap.set(a.booking_id, arr);
-          });
-          return data.map((b) => {
-            const tIds = assignMap.get(b.id) || [];
-            return {
-              ...b,
-              customer_name: customerNames.get(b.customer_id) || b.customer_name || 'ลูกค้าทั่วไป',
-              technician_ids: tIds,
-              technician_names: tIds.map((tid) => techNames.get(tid) || 'ช่าง'),
-            };
-          });
-        }
-      } catch (e) {
-        console.warn('Supabase bookings error:', e);
-      }
-    }
-    return getLocalStore('bookings', defaultMockData.bookings);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อดูการจอง');
+    const { data, error } = await supabase.from('service_bookings')
+      .select('id,booking_number,customer_id,status,preferred_at,address,province,phone,notes,created_at')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!data?.length) return [];
+    const bookingIds = data.map((booking) => booking.id);
+    const [assignmentResult, techResult, profileResult] = await Promise.all([
+      supabase.from('technician_assignments').select('booking_id,technician_id,assignment_type,status').in('booking_id', bookingIds),
+      supabase.from('profiles').select('id,full_name,technician_type').eq('role', 'technician'),
+      supabase.from('profiles').select('id,full_name').in('id', [...new Set(data.map((booking) => booking.customer_id).filter(Boolean))]),
+    ]);
+    for (const result of [assignmentResult, techResult, profileResult]) if (result.error) throw result.error;
+    const techNames = new Map((techResult.data || []).map((technician) => [technician.id, technician.full_name]));
+    const customerNames = new Map((profileResult.data || []).map((profile) => [profile.id, profile.full_name]));
+    const assignMap = new Map();
+    (assignmentResult.data || []).filter((assignment) => assignment.status !== 'cancelled').forEach((assignment) => {
+      const assigned = assignMap.get(assignment.booking_id) || [];
+      assigned.push(assignment.technician_id);
+      assignMap.set(assignment.booking_id, assigned);
+    });
+    return data.map((booking) => {
+      const technicianIds = assignMap.get(booking.id) || [];
+      return { ...booking, customer_name: customerNames.get(booking.customer_id) || '', technician_ids: technicianIds, technician_names: technicianIds.map((id) => techNames.get(id) || '') };
+    });
   },
 
   async updateBookingStatus(id, status) {
-    if (supabase && !String(id).startsWith('bk-')) {
-      try {
-        await supabase.from('service_bookings').update({ status }).eq('id', id);
-      } catch (e) {
-        console.warn('Supabase updateBookingStatus error:', e);
-      }
-    }
-    const current = getLocalStore('bookings', defaultMockData.bookings);
-    const updated = current.map((b) => (b.id === id ? { ...b, status, updated_at: new Date().toISOString() } : b));
-    setLocalStore('bookings', updated);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อเปลี่ยนสถานะการจอง');
+    const { error } = await supabase.from('service_bookings').update({ status }).eq('id', id);
+    if (error) throw error;
     return true;
   },
 
-  async assignTechnician(bookingId, technicianId, technicianName = '') {
+  async assignTechnician(bookingId, technicianId, technicianName = '', assignmentType = 'survey') {
     if (supabase && !String(bookingId).startsWith('bk-')) {
-      const { error: assignmentError } = await supabase.from('technician_assignments').insert({
-        booking_id: bookingId,
-        technician_id: technicianId,
+      const { error: assignmentError } = await supabase.rpc('assign_booking_technician', {
+        p_booking_id: bookingId,
+        p_technician_id: technicianId,
+        p_assignment_type: assignmentType,
       });
       if (assignmentError) throw assignmentError;
-
-      const { error: bookingError } = await supabase
-        .from('service_bookings')
-        .update({ status: 'assigned' })
-        .eq('id', bookingId)
-        .eq('status', 'pending');
-      if (bookingError) throw bookingError;
+      return true;
     }
-    const current = getLocalStore('bookings', defaultMockData.bookings);
-    const updated = current.map((b) => {
-      if (b.id === bookingId) {
-        const nextIds = [...new Set([...(b.technician_ids || []), technicianId])];
-        const nextNames = [...new Set([...(b.technician_names || []), technicianName || 'ช่างผู้รับผิดชอบ'])];
-        return {
-          ...b,
-          status: b.status === 'pending' ? 'assigned' : b.status,
-          technician_ids: nextIds,
-          technician_names: nextNames,
-        };
-      }
-      return b;
-    });
-    setLocalStore('bookings', updated);
-    return true;
+    throw new Error('ไม่สามารถมอบหมายงานโดยไม่มี Supabase จริงได้');
   },
 
   async saveBooking(item) {
@@ -1351,24 +1313,40 @@ export const adminService = {
 
   // 14. Installations CRUD
   async getInstallations() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('installations').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) return data;
-      } catch (e) {
-        console.warn('Supabase installations error:', e);
-      }
-    }
-    return getLocalStore('installations', defaultMockData.installations);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อดูงานติดตั้ง');
+    const { data, error } = await supabase.from('installations').select(`
+      *,service_bookings!inner(id,booking_number,address,province,phone,preferred_at,customer_id,customer:profiles!service_bookings_customer_id_fkey(full_name),site_surveys(recommended_system_kw))
+    `).order('created_at', { ascending: false });
+    if (error) throw error;
+    const rows = data || [];
+    if (!rows.length) return [];
+    const bookingIds = rows.map((row) => row.booking_id);
+    const { data: assignments, error: assignmentError } = await supabase.from('technician_assignments')
+      .select('booking_id,technician_id,profiles:profiles!technician_assignments_technician_id_fkey(full_name)')
+      .in('booking_id', bookingIds).eq('assignment_type', 'installation').neq('status', 'cancelled');
+    if (assignmentError) throw assignmentError;
+    const technicianByBooking = new Map((assignments || []).map((assignment) => [assignment.booking_id, assignment.profiles?.full_name || '']));
+    return rows.map((row) => {
+      const booking = Array.isArray(row.service_bookings) ? row.service_bookings[0] : row.service_bookings;
+      const survey = Array.isArray(booking?.site_surveys) ? booking.site_surveys[0] : booking?.site_surveys;
+      return {
+        ...row,
+        booking_number: booking?.booking_number || '',
+        customer_name: booking?.customer?.full_name || '',
+        phone: booking?.phone || '',
+        address: booking?.address || '',
+        scheduled_at: row.scheduled_at || booking?.preferred_at || null,
+        system_size_kw: survey?.recommended_system_kw || 0,
+        lead_technician: technicianByBooking.get(row.booking_id) || '',
+      };
+    });
   },
 
   async updateInstallationStatus(id, status, extra = {}) {
     if (supabase && !String(id).startsWith('inst-')) {
-      try {
-        await supabase.from('installations').update({ status, ...extra }).eq('id', id);
-      } catch (e) {
-        console.warn('Supabase updateInstallationStatus error:', e);
-      }
+      const { error } = await supabase.from('installations').update({ status, ...extra }).eq('id', id);
+      if (error) throw error;
+      return true;
     }
     const current = getLocalStore('installations', defaultMockData.installations);
     const updated = current.map((i) => (i.id === id ? { ...i, status, ...extra, updated_at: new Date().toISOString() } : i));
@@ -1398,14 +1376,9 @@ export const adminService = {
 
   // 15. Technicians List
   async getTechnicians() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('profiles').select('id,full_name,phone,role').eq('role', 'technician');
-        if (!error && data && data.length > 0) return data;
-      } catch (e) {
-        console.warn('Supabase technicians fetch error:', e);
-      }
-    }
-    return getLocalStore('technicians', defaultMockData.technicians);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อดูรายชื่อช่าง');
+    const { data, error } = await supabase.from('profiles').select('id,full_name,phone,avatar_url,role,technician_type').eq('role', 'technician');
+    if (error) throw error;
+    return data || [];
   },
 };

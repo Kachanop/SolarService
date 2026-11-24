@@ -295,6 +295,7 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
 
           {route === '/manage-technicians' && (
             <AdminTechnicianManagement
+              authUser={authUser}
               technicians={technicians}
               bookings={bookingsData}
               onAssignTechnician={async (bookingId, technicianId) => {

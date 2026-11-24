@@ -192,9 +192,9 @@ export default function AdminInstallations({
           <button
             type="button"
             className="button button-dark small-button"
-            onClick={() => setCreateModal(true)}
+            onClick={() => navigate('/manage-technicians')}
           >
-            <Plus size={14} /> สร้างนัดหมายงานติดตั้งใหม่
+            <Plus size={14} /> มอบหมายงานติดตั้งจากรายการจอง
           </button>
         </div>
       </div>

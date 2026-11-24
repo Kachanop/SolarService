@@ -7,6 +7,7 @@ import Booking from '../technician/Booking.jsx';
 import BookingHistory from './BookingHistory.jsx';
 import TechnicianDashboard from '../technician/TechnicianDashboard.jsx';
 import AccountPage from './AccountPage.jsx';
+import TechnicianWorkflow from '../technician/TechnicianWorkflow.jsx';
 
 export default function WorkspacePage({ route, title, navigate, setToast, authUser }) {
   const isTechnician = ['/technician', '/schedule', '/jobs', '/survey', '/work-history', '/job-detail'].includes(route);
@@ -20,6 +21,9 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
   }
   if (route === '/booking-history') {
     return <BookingHistory authUser={authUser} setToast={setToast} />;
+  }
+  if (route === '/survey' || route === '/job-detail') {
+    return <TechnicianWorkflow authUser={authUser} route={route} setToast={setToast} navigate={navigate} />;
   }
   if (isTechnician && !isSurvey) {
     return <TechnicianDashboard route={route} title={title} authUser={authUser} navigate={navigate} />;

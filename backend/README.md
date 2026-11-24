@@ -8,6 +8,15 @@ Database schema and policy migrations are in `supabase/migrations/`. Apply them
 to the Supabase project using the SQL Editor as described in the root
 [`README.md`](../README.md).
 
+The technician survey and handoff workflow is added by
+`20261115000000_technician_workflows.sql`. Apply it after the existing
+migrations. It extends `technician_assignments`, `site_surveys`,
+`service_bookings`, and the existing `installations` table, which remains the
+canonical installation record. It adds installation image and notification
+tables, creates private Storage buckets, and installs the RLS policies and checked RPCs
+used by the frontend. Do not treat the workflow as live until Supabase confirms
+this migration ran successfully.
+
 Copy `.env.example` to `.env` and set the Supabase URL, Supabase service-role
 key, Stripe secret key, and webhook signing secret. Never expose these server
 secrets in frontend environment variables. The API confirms PromptPay intents

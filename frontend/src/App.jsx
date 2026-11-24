@@ -11,6 +11,7 @@ import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
+import NotificationInbox from './components/NotificationInbox.jsx';
 import { Cart, Checkout } from './pages/CartPages.jsx';
 import WorkspacePage from './pages/WorkspacePage.jsx';
 import { NotFound, Footer } from './components/SiteLayout.jsx';
@@ -260,6 +261,7 @@ function App() {
             <a className="login-link" href="#/login"><LogIn size={16} /> เข้าสู่ระบบ</a>
           ) : (
             <>
+              <NotificationInbox user={authUser} navigate={navigate} />
               <a
                 className={`account-nav-link ${['/account', '/profile'].includes(route) ? 'active' : ''}`}
                 href="#/account"
