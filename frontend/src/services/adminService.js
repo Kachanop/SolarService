@@ -920,6 +920,15 @@ export const adminService = {
   },
 
   async updateMaintenanceStatus(id, status, extra = {}) {
+    if (supabase && !String(id).startsWith('maint-')) {
+      const payload = {
+        status,
+        ...extra,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('maintenance_reminders').update(payload).eq('id', id);
+      if (error) throw error;
+    }
     const current = getLocalStore('maintenance', defaultMockData.maintenance_reminders);
     const updated = current.map((m) => (m.id === id ? { ...m, status, ...extra, updated_at: new Date().toISOString() } : m));
     setLocalStore('maintenance', updated);
@@ -961,8 +970,26 @@ export const adminService = {
   async getPayments() {
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('payments').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) return data;
+        const { data, error } = await supabase
+          .from('payments')
+          .select('*,profiles:customer_id(full_name)')
+          .order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          return Promise.all(data.map(async (payment) => {
+            let slipUrl = payment.slip_url || '';
+            if (slipUrl && !/^https?:\/\//i.test(slipUrl)) {
+              const { data: signed, error: signedError } = await supabase.storage
+                .from('payment-slips')
+                .createSignedUrl(slipUrl, 3600);
+              if (!signedError && signed?.signedUrl) slipUrl = signed.signedUrl;
+            }
+            return {
+              ...payment,
+              customer_name: payment.profiles?.full_name || '',
+              slip_url: slipUrl,
+            };
+          }));
+        }
       } catch (e) {
         console.warn('Supabase payments error:', e);
       }
@@ -973,10 +1000,13 @@ export const adminService = {
   async verifyPayment(id, isApproved, rejectReason = '', verifiedBy = 'Admin') {
     if (supabase && !id.startsWith('pay-')) {
       try {
-        await supabase.from('payments').update({
+        const { error } = await supabase.from('payments').update({
           status: isApproved ? 'verified' : 'rejected',
-          notes: rejectReason || 'ยืนยันการชำระเงินเรียบร้อย',
+          verified_at: new Date().toISOString(),
+          verified_by: (await supabase.auth.getUser()).data.user?.id || null,
+          reference: rejectReason ? `REJECT:${rejectReason}` : 'ADMIN_VERIFIED',
         }).eq('id', id);
+        if (error) throw error;
       } catch (e) {
         console.warn('Supabase verifyPayment error:', e);
       }
