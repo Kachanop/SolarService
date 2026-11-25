@@ -242,11 +242,12 @@ function App() {
 
   const isWorkspace = Boolean(authUser);
   const isAdminRoute = adminRoutes.has(route) || (role === 'Admin' && ['/account', '/profile'].includes(route));
+  const isTechnicianRoute = role === 'Technician' || technicianRoutes.has(route);
   const activeMenu = roleMenus[role] || roleMenus.Guest;
 
   return (
     <div className="app-shell">
-      {!isAdminRoute && <div className="announcement"><Sun size={14} /> เปลี่ยนพลังงานแสงอาทิตย์ให้เป็นค่าไฟที่เบาลง <a href="#/packages">ดูแพ็กเกจที่ใช่ <ArrowRight size={13} /></a></div>}
+      {!isAdminRoute && !isTechnicianRoute && <div className="announcement"><Sun size={14} /> เปลี่ยนพลังงานแสงอาทิตย์ให้เป็นค่าไฟที่เบาลง <a href="#/packages">ดูแพ็กเกจที่ใช่ <ArrowRight size={13} /></a></div>}
       <header className={`site-header ${isAdminRoute ? 'admin-site-header' : ''}`}>
         <a className="brand" href="#/" aria-label="SolarService หน้าแรก">
           <span className="brand-mark"><Sun size={21} strokeWidth={2.2} /></span>
@@ -272,7 +273,7 @@ function App() {
                   {authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'บัญชีของฉัน'}
                 </span>
               </a>}
-              {!isAdminRoute && <a className="cart-button" href="#/cart" aria-label={`ตะกร้า ${cartCount} รายการ`}>
+              {!isAdminRoute && !isTechnicianRoute && <a className="cart-button" href="#/cart" aria-label={`ตะกร้า ${cartCount} รายการ`}>
                 <ShoppingCart size={18} /><span>ตะกร้า</span>{cartCount > 0 && <b>{cartCount}</b>}
               </a>}
               <button className="signout-button" onClick={signOut} title={authUser.email || 'ออกจากระบบ'}>ออกจากระบบ</button>
