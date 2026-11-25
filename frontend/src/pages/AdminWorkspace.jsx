@@ -192,7 +192,13 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
   }, [refreshKey]);
 
   return (
-    <div className="workspace-wrap" style={{ maxWidth: '1220px' }}>
+    <div className="admin-workspace-shell">
+      <AdminSubNav
+        currentRoute={route}
+        navigate={navigate}
+        badgeCounts={badgeCounts}
+      />
+      <div className="workspace-wrap admin-workspace-main" style={{ maxWidth: '1220px' }}>
       {/* Header */}
       <div className="workspace-heading">
         <div>
@@ -207,13 +213,6 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
           </span>
         </div>
       </div>
-
-      {/* Sub Navigation Bar for all 16 Admin Tools */}
-      <AdminSubNav
-        currentRoute={route}
-        navigate={navigate}
-        badgeCounts={badgeCounts}
-      />
 
       {/* Notice & Error Messages */}
       {errorMessage && <div className="admin-message error" role="alert">{errorMessage}</div>}
@@ -514,6 +513,7 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

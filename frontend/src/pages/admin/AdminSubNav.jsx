@@ -1,4 +1,5 @@
 import React from 'react';
+import { Sun } from 'lucide-react';
 import {
   BarChart3,
   Package,
@@ -38,8 +39,13 @@ export const adminNavItems = [
 
 export default function AdminSubNav({ currentRoute, navigate, badgeCounts = {} }) {
   return (
-    <div className="admin-nav-scroll-wrap">
-      <nav className="admin-nav-bar" aria-label="Admin Navigation">
+    <aside className="admin-sidebar">
+      <div className="admin-sidebar-brand">
+        <span className="admin-sidebar-logo"><Sun size={20} /></span>
+        <span><strong>SolarService</strong><small>ADMIN WORKSPACE</small></span>
+      </div>
+      <div className="admin-sidebar-label">เมนูจัดการระบบ</div>
+      <nav className="admin-nav-bar" aria-label="เมนูผู้ดูแลระบบ">
         {adminNavItems.map((item) => {
           const isActive = currentRoute === item.path;
           const count = item.badgeKey ? badgeCounts[item.badgeKey] : null;
@@ -61,6 +67,7 @@ export default function AdminSubNav({ currentRoute, navigate, badgeCounts = {} }
           );
         })}
       </nav>
-    </div>
+      <div className="admin-sidebar-footer"><span className="admin-status-dot" /> ระบบจัดการ SolarService</div>
+    </aside>
   );
 }
