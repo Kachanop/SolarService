@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun } from 'lucide-react';
+import { UserRound } from 'lucide-react';
 import {
   BarChart3,
   Package,
@@ -37,12 +37,15 @@ export const adminNavItems = [
   { path: '/manage-cms', label: 'เนื้อหา CMS', icon: <FileCode2 size={15} /> },
 ];
 
-export default function AdminSubNav({ currentRoute, navigate, badgeCounts = {} }) {
+export default function AdminSubNav({ currentRoute, navigate, badgeCounts = {}, authUser, notificationInbox }) {
   return (
     <aside className="admin-sidebar">
-      <div className="admin-sidebar-brand">
-        <span className="admin-sidebar-logo"><Sun size={20} /></span>
-        <span><strong>SolarService</strong><small>ADMIN WORKSPACE</small></span>
+      <div className="admin-sidebar-tools">
+        <a className="admin-sidebar-account" href="#/account">
+          <span className="admin-sidebar-account-icon"><UserRound size={17} /></span>
+          <span><small>บัญชีผู้ใช้งาน</small><strong>{authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'บัญชีของฉัน'}</strong></span>
+        </a>
+        {notificationInbox}
       </div>
       <div className="admin-sidebar-label">เมนูจัดการระบบ</div>
       <nav className="admin-nav-bar" aria-label="เมนูผู้ดูแลระบบ">

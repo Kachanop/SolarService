@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { CalendarDays } from 'lucide-react';
+import NotificationInbox from '../components/NotificationInbox.jsx';
 import { supabase } from '../lib/supabase.js';
 import { adminService } from '../services/adminService.js';
 import AdminSubNav from './admin/AdminSubNav.jsx';
@@ -197,6 +198,8 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
         currentRoute={route}
         navigate={navigate}
         badgeCounts={badgeCounts}
+        authUser={authUser}
+        notificationInbox={<NotificationInbox user={authUser} navigate={navigate} />}
       />
       <div className="workspace-wrap admin-workspace-main" style={{ maxWidth: '1220px' }}>
       {/* Header */}
