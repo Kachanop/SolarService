@@ -11,9 +11,9 @@ import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
-import NotificationInbox from './components/NotificationInbox.jsx';
 import { Cart, Checkout } from './pages/CartPages.jsx';
 import WorkspacePage from './pages/WorkspacePage.jsx';
+import AdminAccountWorkspace from './pages/AdminAccountWorkspace.jsx';
 import { NotFound, Footer } from './components/SiteLayout.jsx';
 
 
@@ -241,28 +241,28 @@ function App() {
   }
 
   const isWorkspace = Boolean(authUser);
+  const isAdminRoute = adminRoutes.has(route) || (role === 'Admin' && ['/account', '/profile'].includes(route));
   const activeMenu = roleMenus[role] || roleMenus.Guest;
 
   return (
     <div className="app-shell">
-      {!adminRoutes.has(route) && <div className="announcement"><Sun size={14} /> เปลี่ยนพลังงานแสงอาทิตย์ให้เป็นค่าไฟที่เบาลง <a href="#/packages">ดูแพ็กเกจที่ใช่ <ArrowRight size={13} /></a></div>}
-      <header className="site-header">
+      {!isAdminRoute && <div className="announcement"><Sun size={14} /> เปลี่ยนพลังงานแสงอาทิตย์ให้เป็นค่าไฟที่เบาลง <a href="#/packages">ดูแพ็กเกจที่ใช่ <ArrowRight size={13} /></a></div>}
+      <header className={`site-header ${isAdminRoute ? 'admin-site-header' : ''}`}>
         <a className="brand" href="#/" aria-label="SolarService หน้าแรก">
           <span className="brand-mark"><Sun size={21} strokeWidth={2.2} /></span>
           <span>solar<span className="brand-light">service</span><small>POWER YOUR EVERYDAY</small></span>
         </a>
-        <button className="mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="เปิดเมนู">{mobileMenu ? <X /> : <Menu />}</button>
-        <nav className={`main-nav ${mobileMenu ? 'open' : ''}`} aria-label="เมนูหลัก">
+        {!isAdminRoute && <button className="mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="เปิดเมนู">{mobileMenu ? <X /> : <Menu />}</button>}
+        {!isAdminRoute && <nav className={`main-nav ${mobileMenu ? 'open' : ''}`} aria-label="เมนูหลัก">
           {activeMenu.map((item) => <a key={item.path} className={route === item.path ? 'active' : ''} href={`#${item.path}`}>{item.label}</a>)}
           {!isWorkspace && <a href="#/contact">ติดต่อเรา</a>}
-        </nav>
+        </nav>}
         <div className="header-actions">
           {!isWorkspace ? (
             <a className="login-link" href="#/login"><LogIn size={16} /> เข้าสู่ระบบ</a>
           ) : (
             <>
-              <NotificationInbox user={authUser} navigate={navigate} />
-              <a
+              {!isAdminRoute && <a
                 className={`account-nav-link ${['/account', '/profile'].includes(route) ? 'active' : ''}`}
                 href="#/account"
                 title="จัดการบัญชีของฉัน"
@@ -271,10 +271,10 @@ function App() {
                 <span className="account-nav-name">
                   {authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'บัญชีของฉัน'}
                 </span>
-              </a>
-              <a className="cart-button" href="#/cart" aria-label={`ตะกร้า ${cartCount} รายการ`}>
+              </a>}
+              {!isAdminRoute && <a className="cart-button" href="#/cart" aria-label={`ตะกร้า ${cartCount} รายการ`}>
                 <ShoppingCart size={18} /><span>ตะกร้า</span>{cartCount > 0 && <b>{cartCount}</b>}
-              </a>
+              </a>}
               <button className="signout-button" onClick={signOut} title={authUser.email || 'ออกจากระบบ'}>ออกจากระบบ</button>
             </>
           )}
@@ -292,7 +292,9 @@ function App() {
         {!authLoading && screen === '/about' && <About navigate={navigate} />}
         {!authLoading && screen === '/contact' && <Contact setToast={setToast} />}
         {!authLoading && ['/login', '/register', '/forgot-password', '/reset-password'].includes(screen) && !(screen === '/login' && route !== '/login') && <AuthPage route={screen} navigate={navigate} onAuthenticated={onAuthenticated} setToast={setToast} />}
-        {!authLoading && (screen === '/account' || screen === '/profile') && <AccountPage authUser={authUser} role={role} navigate={navigate} setToast={setToast} signOut={signOut} />}
+        {!authLoading && (screen === '/account' || screen === '/profile') && (role === 'Admin'
+          ? <AdminAccountWorkspace route={screen} authUser={authUser} role={role} navigate={navigate} setToast={setToast} signOut={signOut} />
+          : <AccountPage authUser={authUser} role={role} navigate={navigate} setToast={setToast} signOut={signOut} />)}
         {!authLoading && screen === '/cart' && <Cart cart={cart} setCart={setCart} navigate={navigate} />}
         {!authLoading && screen === '/checkout' && <Checkout cart={cart} setCart={setCart} authUser={authUser} setToast={setToast} navigate={navigate} />}
         {!authLoading && pageTitles[screen] && screen !== '/cart' && screen !== '/checkout' && screen !== '/account' && screen !== '/profile' && <WorkspacePage route={screen} title={pageTitles[screen]} navigate={navigate} setToast={setToast} authUser={authUser} />}

@@ -389,7 +389,7 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
       </div>
 
       {/* Quick Action Hub */}
-      <div style={{ marginTop: '20px' }}>
+      <div className="admin-quick-hub">
         <div className="workspace-section-heading">
           <div>
             <h2>ศูนย์สั่งการและจัดการระบบ (Quick Management Hub)</h2>
