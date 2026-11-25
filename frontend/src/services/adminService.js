@@ -857,52 +857,48 @@ export const adminService = {
 
   // 3. Warranties Registry
   async getWarranties() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('warranties').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) return data;
-      } catch (e) {
-        console.warn('Supabase warranties error:', e);
-      }
-    }
-    return getLocalStore('warranties', defaultMockData.warranties);
+    if (!supabase) throw new Error('ไม่สามารถเชื่อมต่อ Supabase เพื่ออ่านทะเบียนรับประกันได้');
+    const { data, error } = await supabase.from('warranties').select(`
+      *, customer:profiles!warranties_customer_id_fkey(full_name,phone),
+      installation:installations!warranties_installation_id_fkey(installation_number)
+    `).order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((item) => ({
+      ...item,
+      customer_name: item.customer?.full_name || '',
+      customer_phone: item.customer?.phone || '',
+      installation_number: item.installation?.installation_number || '',
+    }));
   },
 
   async saveWarranty(item) {
-    if (supabase) {
-      try {
-        const payload = { ...item };
-        delete payload.customer_name;
-        delete payload.customer_phone;
-        const res = item.id && !item.id.startsWith('war-')
-          ? await supabase.from('warranties').update(payload).eq('id', item.id).select()
-          : await supabase.from('warranties').insert(payload).select();
-        if (!res.error && res.data) return res.data[0];
-      } catch (e) {
-        console.warn('Supabase saveWarranty error:', e);
-      }
+    if (!supabase) throw new Error('ไม่สามารถเชื่อมต่อ Supabase เพื่อบันทึกทะเบียนรับประกันได้');
+    if (!item.customer_id) throw new Error('ไม่พบ Customer ID ของลูกค้า');
+    if (!item.serial_number?.trim()) throw new Error('กรุณากรอก Serial Number จริงจากอุปกรณ์');
+    if (item.installation_id && !item.id) {
+      const { data: existing, error: duplicateError } = await supabase.from('warranties')
+        .select('id').eq('installation_id', item.installation_id).eq('equipment_type', item.equipment_type).limit(1);
+      if (duplicateError) throw duplicateError;
+      if (existing?.length) throw new Error('งานติดตั้งนี้มีทะเบียนรับประกันอุปกรณ์ประเภทนี้แล้ว');
     }
-    const current = getLocalStore('warranties', defaultMockData.warranties);
-    let updated;
-    if (item.id) {
-      updated = current.map((w) => (w.id === item.id ? { ...w, ...item } : w));
-    } else {
-      const newItem = {
-        ...item,
-        id: `war-${Date.now()}`,
-        warranty_number: `WR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-        created_at: new Date().toISOString(),
-      };
-      updated = [newItem, ...current];
-    }
-    setLocalStore('warranties', updated);
-    return item;
+    const payload = { ...item };
+    delete payload.customer_name;
+    delete payload.customer_phone;
+    delete payload.installation_number;
+    delete payload.customer;
+    delete payload.installation;
+    const query = item.id
+      ? supabase.from('warranties').update(payload).eq('id', item.id)
+      : supabase.from('warranties').insert(payload);
+    const { data, error } = await query.select().single();
+    if (error) throw error;
+    return data;
   },
 
   async deleteWarranty(id) {
-    const current = getLocalStore('warranties', defaultMockData.warranties);
-    const updated = current.filter((w) => w.id !== id);
-    setLocalStore('warranties', updated);
+    if (!supabase) throw new Error('ไม่สามารถเชื่อมต่อ Supabase เพื่อลบทะเบียนรับประกันได้');
+    const { error } = await supabase.from('warranties').delete().eq('id', id);
+    if (error) throw error;
     return true;
   },
 
