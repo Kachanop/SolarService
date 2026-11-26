@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, ShoppingCart, Eye, X, Check, Zap } from 'lucide-react';
 import { PageIntro } from '../components/Shared.jsx';
+import { getPublishedProductReviews } from '../services/reviewService.js';
 
 /* ---------- สไตล์ (อยู่ในไฟล์นี้เลย ไม่ต้องมีไฟล์ CSS แยก) ---------- */
 const CSS = `
@@ -52,15 +53,15 @@ const CSS = `
 
 /* หน้าต่างรายละเอียด */
 .sx-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(39, 57, 44, .6); }
-.sx-modal { position: relative; display: grid; grid-template-columns: 1fr 1fr; width: min(940px, 100%); max-height: 90vh; overflow: auto; background: #fff; border-radius: 22px; }
+.sx-modal { position: relative; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); width: min(1120px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; background: #fff; border-radius: 22px; }
 .sx-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--sx-line); border-radius: 50%; background: #fff; color: var(--sx-green-dark); cursor: pointer; }
-.sx-modal-media { background: var(--sx-green-soft); }
-.sx-modal-media > img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.sx-modal-media { display: flex; min-width: 0; flex-direction: column; justify-content: center; background: var(--sx-green-soft); }
+.sx-modal-media > img { width: 100%; height: min(72vh, 720px); min-height: 340px; object-fit: contain; display: block; }
 .sx-thumbs { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
 .sx-thumb { flex: 0 0 64px; height: 64px; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: none; cursor: pointer; }
 .sx-thumb.on { border-color: var(--sx-green); }
 .sx-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sx-modal-body { padding: 30px 28px; }
+.sx-modal-body { min-width: 0; padding: 30px 28px; }
 .sx-modal-body h2 { margin: 0; font-size: 24px; line-height: 1.35; color: var(--sx-green-dark); }
 .sx-modal-body h4 { margin: 22px 0 10px; font-size: 15px; color: var(--sx-green-dark); }
 .sx-modal-desc { margin: 0; color: var(--sx-muted); line-height: 1.75; }
@@ -72,9 +73,26 @@ const CSS = `
 .sx-specs div:nth-child(odd) { background: var(--sx-green-soft); border-radius: 8px; }
 .sx-specs dt { color: var(--sx-muted); }
 .sx-specs dd { margin: 0; font-weight: 600; color: var(--sx-green-dark); text-align: right; }
+.sx-reviews { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--sx-line); }
+.sx-reviews h4 { margin: 0 0 10px; font-size: 15px; color: var(--sx-green-dark); }
+.sx-review-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--sx-muted); }
+.sx-review-summary strong { color: var(--sx-green-dark); font-size: 21px; }
+.sx-review-summary span { color: #d2a848; letter-spacing: 1px; }
+.sx-review-summary small { font-size: 12px; }
+.sx-review-list { display: grid; gap: 10px; max-height: 270px; overflow: auto; margin-top: 12px; }
+.sx-review-card { padding: 12px; background: #f8faf6; border: 1px solid var(--sx-line); border-radius: 10px; }
+.sx-review-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.sx-review-meta strong { color: var(--sx-green-dark); font-size: 13px; }
+.sx-review-meta time { color: var(--sx-muted); font-size: 11px; }
+.sx-review-stars { margin-top: 5px; color: #d2a848; letter-spacing: 1px; }
+.sx-review-card p { margin: 7px 0 0; color: var(--sx-ink); font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sx-reviews-message { margin: 0; color: var(--sx-muted); font-size: 13px; line-height: 1.6; }
 
 @media (max-width: 720px) {
-  .sx-modal { grid-template-columns: 1fr; }
+  .sx-overlay { padding: 10px; }
+  .sx-modal { width: 100%; max-height: calc(100vh - 20px); grid-template-columns: minmax(0, 1fr); border-radius: 16px; }
+  .sx-modal-media > img { height: min(48vh, 420px); min-height: 220px; }
+  .sx-modal-body { padding: 24px 20px; }
   .sx-grid { grid-template-columns: 1fr; }
 }
 `;
@@ -274,6 +292,32 @@ function DetailModal({ item, kind, onClose, onAdd }) {
   const gallery = item.images && item.images.length > 1 ? item.images : null;
   const [active, setActive] = useState(getImage(item));
   const specs = item.specs && typeof item.specs === 'object' ? Object.entries(item.specs) : [];
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState('');
+  const isDatabaseProduct = kind === 'product' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(item.id));
+
+  useEffect(() => {
+    if (!isDatabaseProduct) return undefined;
+    let activeRequest = true;
+    setReviewsLoading(true);
+    setReviewsError('');
+    getPublishedProductReviews(item.id)
+      .then((data) => { if (activeRequest) setReviews(data); })
+      .catch((error) => {
+        if (!activeRequest) return;
+        const message = [error?.message, error?.details, error?.hint].filter(Boolean).join(' — ');
+        setReviewsError(/get_public_product_reviews|PGRST202|schema cache/i.test(message)
+          ? 'กรุณารัน migration 20261127000000_product_reviews.sql ก่อน แล้วจึงรัน 20261127010000_public_product_reviews.sql'
+          : message || 'โหลดรีวิวสินค้าไม่สำเร็จ');
+      })
+      .finally(() => { if (activeRequest) setReviewsLoading(false); });
+    return () => { activeRequest = false; };
+  }, [isDatabaseProduct, item.id]);
+
+  const averageRating = reviews.length
+    ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length
+    : 0;
 
   return (
     <div className="sx-overlay" onClick={onClose} role="presentation">
@@ -326,6 +370,39 @@ function DetailModal({ item, kind, onClose, onAdd }) {
               </dl>
             </>
           )}
+
+          {kind === 'product' && !isDatabaseProduct && <section className="sx-reviews" aria-label="รีวิวสินค้า">
+            <h4>รีวิวจากผู้ซื้อ</h4>
+            <p className="sx-reviews-message">ไม่สามารถโหลดรีวิวสำหรับสินค้าตัวอย่างนี้ได้</p>
+          </section>}
+
+          {isDatabaseProduct && <section className="sx-reviews" aria-label="รีวิวสินค้า">
+            <h4>รีวิวจากผู้ซื้อ</h4>
+            {reviewsLoading && <p className="sx-reviews-message" role="status">กำลังโหลดรีวิว…</p>}
+            {!reviewsLoading && reviewsError && <p className="sx-reviews-message" role="alert">{reviewsError}</p>}
+            {!reviewsLoading && !reviewsError && reviews.length > 0 && <>
+              <div className="sx-review-summary">
+                <strong>{averageRating.toFixed(1)}</strong>
+                <span aria-label={`${averageRating.toFixed(1)} จาก 5 ดาว`}>{'★'.repeat(Math.round(averageRating))}{'☆'.repeat(5 - Math.round(averageRating))}</span>
+                <small>{reviews.length} รีวิวจากผู้ซื้อ</small>
+              </div>
+              <div className="sx-review-list">
+                {reviews.map((review) => (
+                  <article className="sx-review-card" key={review.id}>
+                    <div className="sx-review-meta">
+                      <strong>{review.customer_name || 'ผู้ซื้อสินค้า'}</strong>
+                      <time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString('th-TH')}</time>
+                    </div>
+                    <div className="sx-review-stars" aria-label={`${review.rating} จาก 5 ดาว`}>
+                      {'★'.repeat(Number(review.rating))}{'☆'.repeat(5 - Number(review.rating))}
+                    </div>
+                    <p>{review.comment}</p>
+                  </article>
+                ))}
+              </div>
+            </>}
+            {!reviewsLoading && !reviewsError && reviews.length === 0 && <p className="sx-reviews-message">ยังไม่มีรีวิวจากผู้ซื้อสินค้านี้</p>}
+          </section>}
 
           <button
             type="button"

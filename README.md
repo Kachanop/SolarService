@@ -197,6 +197,8 @@
    - `cms_banners`: แบนเนอร์โปรโมชั่นหน้าแรก
    - `cms_articles`: บทความและสาระน่ารู้
    - อัปเดตคอลัมน์ `is_banned` และสิทธิ์ `staff` บนตาราง `profiles`
+3. [`backend/supabase/migrations/20261127000000_product_reviews.sql`](backend/supabase/migrations/20261127000000_product_reviews.sql) และ [`backend/supabase/migrations/20261127010000_public_product_reviews.sql`](backend/supabase/migrations/20261127010000_public_product_reviews.sql):
+   - รองรับรีวิวสินค้าที่ซื้อ และเปิดเผยเฉพาะรีวิวสินค้าที่เผยแพร่แล้วในหน้ารายละเอียดสินค้า
 
 ---
 
@@ -266,7 +268,9 @@ SolarService/
             ├── 20261031200000_initial_schema.sql
             ├── 20261101230000_admin_enhancements.sql
             ├── 20261113000000_promptpay_qr_expiry.sql
-            └── 20261113000001_test_product_10_baht.sql
+            ├── 20261113000001_test_product_10_baht.sql
+            ├── 20261127000000_product_reviews.sql
+            └── 20261127010000_public_product_reviews.sql
 ```
 
 ---
@@ -314,7 +318,8 @@ VITE_API_BASE_URL=/api
 4. คัดลอกโค้ดจากไฟล์ `backend/supabase/migrations/20261101230000_admin_enhancements.sql` แล้วกด **Run**
 5. หลังจากนั้น ให้รัน `backend/supabase/migrations/20261113000000_promptpay_qr_expiry.sql` เพื่อเพิ่มวันหมดอายุ QR PromptPay 5 นาที
 6. รัน `backend/supabase/migrations/20261113000001_test_product_10_baht.sql` เพื่อเพิ่มสินค้า “สินค้าเพื่อทดสอบการชำระเงิน 10 บาท” ในหน้าร้าน เนื่องจาก Stripe กำหนดยอดชำระ THB ขั้นต่ำ 10 บาท
-7. หากต้องการใช้รีวิวสินค้า ให้รัน `backend/supabase/migrations/20261127000000_product_reviews.sql` ด้วย เพื่อเพิ่มการเชื่อมรีวิวกับรายการสินค้าที่ซื้อ
+7. หากต้องการใช้รีวิวสินค้า ให้รัน `backend/supabase/migrations/20261127000000_product_reviews.sql` เพื่อเพิ่มการเชื่อมรีวิวกับรายการสินค้าที่ซื้อ
+8. จากนั้นรัน `backend/supabase/migrations/20261127010000_public_product_reviews.sql` เพื่อให้หน้ารายละเอียดสินค้าอ่านรีวิวที่เผยแพร่แล้วได้อย่างปลอดภัย
 
 การ commit ไฟล์ migration เข้า Git จะยังไม่เปลี่ยนฐานข้อมูล Supabase โดยอัตโนมัติ ให้รัน SQL แต่ละไฟล์ตามลำดับใน **SQL Editor** ของโปรเจกต์ Supabase ก่อนใช้งาน
 
