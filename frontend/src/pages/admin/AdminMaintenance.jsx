@@ -24,31 +24,42 @@ const statusLabels = {
   notified: 'ส่งแจ้งเตือนแล้ว',
   scheduled: 'นัดหมายช่างแล้ว',
   completed: 'เสร็จสิ้นเรียบร้อย',
+  skipped: 'ข้ามรอบ',
 };
 
-export default function AdminMaintenance({ reminders, onUpdateStatus, onAddReminder, setToast }) {
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [scheduleModal, setScheduleModal] = useState(null);
-
-  const [form, setForm] = useState({
-    customer_name: '',
-    customer_phone: '',
-    address: '',
+function createInitialForm() {
+  return {
+    customer_id: '',
+    warranty_id: '',
     title: 'รอบล้างแผงโซลาร์เซลล์ประจำ 6 เดือน',
     reminder_type: 'panel_cleaning',
     due_date: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().slice(0, 10),
     frequency_months: 6,
     notes: '',
-  });
+  };
+}
+
+export default function AdminMaintenance({
+  reminders,
+  customers = [],
+  warranties = [],
+  onUpdateStatus,
+  onAddReminder,
+  setToast,
+}) {
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [scheduleModal, setScheduleModal] = useState(null);
+  const [form, setForm] = useState(createInitialForm);
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     return (reminders || []).filter((item) => {
       const matchSearch =
         !search ||
-        `${item.customer_name} ${item.customer_phone} ${item.title} ${item.address}`
+        `${item.customer_name} ${item.customer_phone} ${item.title} ${item.address || ''}`
           .toLowerCase()
           .includes(search.toLowerCase());
       const matchStatus = !filterStatus || item.status === filterStatus;
@@ -57,27 +68,52 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
     });
   }, [reminders, search, filterStatus, filterType]);
 
-  function handleSendNotification(item) {
-    onUpdateStatus(item.id, 'notified', { last_notified_at: new Date().toISOString() });
-    if (setToast) {
-      setToast(`ส่งข้อความแจ้งเตือนรอบบำรุงรักษาไปยังคุณ ${item.customer_name} เรียบร้อยแล้ว`);
+  async function handleSendNotification(item) {
+    try {
+      await onUpdateStatus(item.id, 'notified', { last_notified_at: new Date().toISOString() });
+      if (setToast) setToast('บันทึกสถานะแจ้งเตือนแล้ว');
+    } catch (error) {
+      if (setToast) setToast(`อัปเดตสถานะแจ้งเตือนไม่สำเร็จ: ${error?.message || 'กรุณาลองอีกครั้ง'}`);
     }
   }
 
-  function handleScheduleJob(item) {
-    onUpdateStatus(item.id, 'scheduled', { notes: `นัดหมายช่างวันที่ ${scheduleModal.date} เวลา ${scheduleModal.time}` });
-    setScheduleModal(null);
-    if (setToast) {
-      setToast(`สร้างนัดหมายคิวช่างสำหรับคุณ ${item.customer_name} เรียบร้อยแล้ว`);
+  async function handleScheduleJob(item) {
+    try {
+      await onUpdateStatus(item.id, 'scheduled', {
+        notes: `นัดหมายช่างวันที่ ${scheduleModal.date} เวลา ${scheduleModal.time}`,
+      });
+      setScheduleModal(null);
+      if (setToast) setToast('บันทึกกำหนดนัดหมายแล้ว');
+    } catch (error) {
+      if (setToast) setToast(`บันทึกกำหนดนัดหมายไม่สำเร็จ: ${error?.message || 'กรุณาลองอีกครั้ง'}`);
     }
   }
 
-  function handleMarkComplete(item) {
-    onUpdateStatus(item.id, 'completed');
-    if (setToast) {
-      setToast(`บันทึกงานบริการบำรุงรักษาเรียบร้อยแล้ว`);
+  async function handleMarkComplete(item) {
+    try {
+      await onUpdateStatus(item.id, 'completed');
+      if (setToast) setToast('บันทึกสถานะงานบำรุงรักษาแล้ว');
+    } catch (error) {
+      if (setToast) setToast(`บันทึกสถานะงานไม่สำเร็จ: ${error?.message || 'กรุณาลองอีกครั้ง'}`);
     }
   }
+
+  async function handleAddReminder(event) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await onAddReminder(form);
+      setModalOpen(false);
+      setForm(createInitialForm());
+      if (setToast) setToast('เพิ่มรอบบำรุงรักษาแล้ว');
+    } catch (error) {
+      if (setToast) setToast(`เพิ่มรอบบำรุงรักษาไม่สำเร็จ: ${error?.message || 'กรุณาลองอีกครั้ง'}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const customerWarranties = warranties.filter((item) => item.customer_id === form.customer_id);
 
   return (
     <div className="admin-maintenance-view">
@@ -125,6 +161,7 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
             <option value="notified">ส่งแจ้งเตือนแล้ว</option>
             <option value="scheduled">นัดหมายช่างแล้ว</option>
             <option value="completed">เสร็จสิ้นเรียบร้อย</option>
+            <option value="skipped">ข้ามรอบ</option>
           </select>
 
           <select
@@ -136,6 +173,7 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
             <option value="panel_cleaning">รอบล้างแผงโซลาร์เซลล์</option>
             <option value="inverter_check">ตรวจเช็คอินเวอร์เตอร์ประจำปี</option>
             <option value="battery_health">ตรวจสุขภาพแบตเตอรี่</option>
+            <option value="annual_inspection">ตรวจระบบความปลอดภัยประจำปี</option>
           </select>
         </div>
 
@@ -143,7 +181,10 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
           <button
             type="button"
             className="button button-dark small-button"
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setForm(createInitialForm());
+              setModalOpen(true);
+            }}
           >
             <Plus size={14} /> เพิ่มรอบบำรุงรักษาใหม่
           </button>
@@ -200,6 +241,8 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
                       ? 'blue'
                       : item.status === 'notified'
                       ? 'purple'
+                      : item.status === 'skipped'
+                      ? 'gray'
                       : 'yellow'
                   }`}
                 >
@@ -214,7 +257,7 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
                     className="button button-outline small-button"
                     style={{ padding: '5px 8px', fontSize: '9px' }}
                     onClick={() => handleSendNotification(item)}
-                    title="ส่งอีเมลหรือ SMS แจ้งเตือนลูกค้า"
+                    title="บันทึกสถานะการแจ้งเตือน"
                   >
                     <Send size={12} /> แจ้งเตือน
                   </button>
@@ -251,7 +294,9 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
             </div>
           ))
         ) : (
-          <p className="admin-empty">ไม่พบรายการรอบบำรุงรักษา</p>
+          <p className="admin-empty">
+            {reminders?.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ยังไม่มีรายการแจ้งเตือนบำรุงรักษาในระบบ'}
+          </p>
         )}
       </div>
 
@@ -278,45 +323,38 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
               </button>
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                onAddReminder(form);
-                setModalOpen(false);
-                if (setToast) setToast('เพิ่มรอบบำรุงรักษาเรียบร้อยแล้ว');
-              }}
-            >
+            <form onSubmit={handleAddReminder}>
               <div className="admin-form-grid">
                 <label>
-                  ชื่อลูกค้า *
-                  <input
-                    type="text"
+                  ลูกค้าในระบบ *
+                  <select
                     required
-                    value={form.customer_name}
-                    onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
-                    placeholder="เช่น คุณสมชาย ใจดี"
-                  />
+                    value={form.customer_id}
+                    onChange={(e) => setForm({ ...form, customer_id: e.target.value, warranty_id: '' })}
+                  >
+                    <option value="">เลือกลูกค้า</option>
+                    {customers.filter((customer) => customer.role === 'customer').map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.full_name || 'ไม่ระบุชื่อ'}{customer.phone ? ` · ${customer.phone}` : ''}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label>
-                  เบอร์โทรศัพท์ลูกค้า *
-                  <input
-                    type="text"
-                    required
-                    value={form.customer_phone}
-                    onChange={(e) => setForm({ ...form, customer_phone: e.target.value })}
-                    placeholder="เช่น 081-234-5678"
-                  />
-                </label>
-
-                <label className="full-width">
-                  สถานที่ติดตั้ง / ที่อยู่
-                  <input
-                    type="text"
-                    value={form.address}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    placeholder="ที่อยู่บ้านลูกค้า"
-                  />
+                  ระบบ/ทะเบียนรับประกัน
+                  <select
+                    value={form.warranty_id}
+                    onChange={(e) => setForm({ ...form, warranty_id: e.target.value })}
+                    disabled={!form.customer_id || customerWarranties.length === 0}
+                  >
+                    <option value="">ไม่ระบุระบบ</option>
+                    {customerWarranties.map((warranty) => (
+                      <option key={warranty.id} value={warranty.id}>
+                        {warranty.warranty_number || warranty.equipment_model || warranty.serial_number || warranty.id}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label>
@@ -343,12 +381,32 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
                   />
                 </label>
 
+                <label>
+                  ความถี่ (เดือน)
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={form.frequency_months}
+                    onChange={(e) => setForm({ ...form, frequency_months: e.target.value })}
+                  />
+                </label>
+
                 <label className="full-width">
                   หัวข้อการแจ้งเตือน
                   <input
                     type="text"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  />
+                </label>
+
+                <label className="full-width">
+                  หมายเหตุ
+                  <textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    rows="3"
                   />
                 </label>
               </div>
@@ -361,8 +419,8 @@ export default function AdminMaintenance({ reminders, onUpdateStatus, onAddRemin
                 >
                   ยกเลิก
                 </button>
-                <button type="submit" className="button button-green">
-                  บันทึกรอบบำรุงรักษา
+                <button type="submit" className="button button-green" disabled={saving || customers.length === 0}>
+                  {saving ? 'กำลังบันทึก...' : 'บันทึกรอบบำรุงรักษา'}
                 </button>
               </div>
             </form>

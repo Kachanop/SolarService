@@ -30,18 +30,26 @@ export default function AdminReviews({ reviews, onTogglePublish, onDeleteReview,
     });
   }, [reviews, search, filterRating, filterStatus]);
 
-  function handleToggle(item) {
+  async function handleToggle(item) {
     const nextState = !item.is_published;
-    onTogglePublish(item.id, nextState);
-    if (setToast) {
-      setToast(nextState ? 'เผยแพร่รีวิวขึ้นหน้าเว็บเรียบร้อยแล้ว' : 'ซ่อนรีวิวจากหน้าเว็บเรียบร้อยแล้ว');
+    try {
+      await onTogglePublish(item.id, nextState);
+      if (setToast) {
+        setToast(nextState ? 'เผยแพร่รีวิวขึ้นหน้าเว็บเรียบร้อยแล้ว' : 'ซ่อนรีวิวจากหน้าเว็บเรียบร้อยแล้ว');
+      }
+    } catch (error) {
+      if (setToast) setToast(`เปลี่ยนสถานะรีวิวไม่สำเร็จ: ${error?.message || 'กรุณาลองใหม่'}`);
     }
   }
 
-  function handleDelete(item) {
+  async function handleDelete(item) {
     if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรีวิวนี้?')) {
-      onDeleteReview(item.id);
-      if (setToast) setToast('ลบรีวิวเรียบร้อยแล้ว');
+      try {
+        await onDeleteReview(item.id);
+        if (setToast) setToast('ลบรีวิวเรียบร้อยแล้ว');
+      } catch (error) {
+        if (setToast) setToast(`ลบรีวิวไม่สำเร็จ: ${error?.message || 'กรุณาลองใหม่'}`);
+      }
     }
   }
 
@@ -162,7 +170,9 @@ export default function AdminReviews({ reviews, onTogglePublish, onDeleteReview,
             </div>
           ))
         ) : (
-          <p className="admin-empty">ไม่พบรีวิวที่ตรงกับเงื่อนไข</p>
+          <p className="admin-empty">
+            {reviews?.length ? 'ไม่พบรีวิวที่ตรงกับเงื่อนไข' : 'ยังไม่มีรีวิวในระบบ'}
+          </p>
         )}
       </div>
     </div>

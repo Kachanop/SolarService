@@ -23,6 +23,7 @@ const priorityLabels = {
 const statusLabels = {
   open: { label: 'เปิดเคสใหม่', tone: 'yellow' },
   in_progress: { label: 'กำลังดำเนินการ', tone: 'blue' },
+  waiting_customer: { label: 'รอข้อมูลจากลูกค้า', tone: 'purple' },
   resolved: { label: 'แก้ไขแล้ว', tone: 'green' },
   closed: { label: 'ปิดเคสเสร็จสิ้น', tone: 'gray' },
 };
@@ -32,21 +33,29 @@ const categoryLabels = {
   repair: 'แจ้งซ่อมแซมอุปกรณ์',
   billing: 'สอบถามค่าไฟ / การเงิน',
   inquiry: 'สอบถามการใช้งาน / ขนานไฟ',
+  maintenance: 'แจ้งเตือน/บำรุงรักษา',
   other: 'อื่น ๆ',
 };
 
-export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
+export default function AdminTickets({
+  tickets,
+  customers = [],
+  assignees = [],
+  onSaveTicket,
+  setToast,
+}) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [formModal, setFormModal] = useState(null);
   const [detailModal, setDetailModal] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     return (tickets || []).filter((t) => {
       const matchSearch =
         !search ||
-        `${t.ticket_number} ${t.customer_name} ${t.title} ${t.description}`
+        `${t.ticket_number} ${t.customer_name} ${t.title} ${t.description || ''}`
           .toLowerCase()
           .includes(search.toLowerCase());
       const matchStatus = !filterStatus || t.status === filterStatus;
@@ -55,18 +64,32 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
     });
   }, [tickets, search, filterStatus, filterPriority]);
 
-  function handleSaveNew(e) {
+  async function handleSaveNew(e) {
     e.preventDefault();
-    onSaveTicket(formModal);
-    setFormModal(null);
-    if (setToast) setToast('เปิดเคสแจ้งซ่อมเรียบร้อยแล้ว');
+    setSaving(true);
+    try {
+      await onSaveTicket(formModal);
+      setFormModal(null);
+      if (setToast) setToast('เปิดเคสแจ้งซ่อมแล้ว');
+    } catch (error) {
+      if (setToast) setToast(`เปิดเคสแจ้งซ่อมไม่สำเร็จ: ${error?.message || 'กรุณาลองอีกครั้ง'}`);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleUpdateCase(e) {
+  async function handleUpdateCase(e) {
     e.preventDefault();
-    onSaveTicket(detailModal);
-    setDetailModal(null);
-    if (setToast) setToast('อัปเดตสถานะเคสเรียบร้อยแล้ว');
+    setSaving(true);
+    try {
+      await onSaveTicket(detailModal);
+      setDetailModal(null);
+      if (setToast) setToast('อัปเดตสถานะเคสแล้ว');
+    } catch (error) {
+      if (setToast) setToast(`อัปเดตเคสไม่สำเร็จ: ${error?.message || 'กรุณาลองอีกครั้ง'}`);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -91,6 +114,7 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
             <option value="">ทุกสถานะเคส</option>
             <option value="open">เปิดเคสใหม่</option>
             <option value="in_progress">กำลังดำเนินการ</option>
+            <option value="waiting_customer">รอข้อมูลจากลูกค้า</option>
             <option value="resolved">แก้ไขแล้ว</option>
             <option value="closed">ปิดเคส</option>
           </select>
@@ -114,13 +138,12 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
             className="button button-dark small-button"
             onClick={() =>
               setFormModal({
-                customer_name: '',
-                customer_phone: '',
+                customer_id: '',
                 title: '',
-                category: 'inverter_error',
+                category: 'repair',
                 priority: 'medium',
                 status: 'open',
-                assigned_to_name: 'ช่างเทคนิค SolarService',
+                assigned_to: '',
                 description: '',
                 resolution_notes: '',
               })
@@ -229,28 +252,21 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
             <form onSubmit={handleSaveNew}>
               <div className="admin-form-grid">
                 <label>
-                  ชื่อลูกค้า *
-                  <input
-                    type="text"
+                  ลูกค้าในระบบ *
+                  <select
                     required
-                    value={formModal.customer_name}
+                    value={formModal.customer_id}
                     onChange={(e) =>
-                      setFormModal({ ...formModal, customer_name: e.target.value })
+                      setFormModal({ ...formModal, customer_id: e.target.value })
                     }
-                    placeholder="เช่น คุณสมชาย ใจดี"
-                  />
-                </label>
-
-                <label>
-                  เบอร์โทรติดต่อ
-                  <input
-                    type="text"
-                    value={formModal.customer_phone}
-                    onChange={(e) =>
-                      setFormModal({ ...formModal, customer_phone: e.target.value })
-                    }
-                    placeholder="เช่น 081-234-5678"
-                  />
+                  >
+                    <option value="">เลือกลูกค้า</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.full_name || 'ไม่ระบุชื่อ'}{customer.phone ? ` · ${customer.phone}` : ''}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label>
@@ -264,6 +280,7 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
                   >
                     <option value="inverter_error">อินเวอร์เตอร์แจ้งเตือน Error</option>
                     <option value="repair">แจ้งซ่อมแซมอุปกรณ์</option>
+                    <option value="maintenance">แจ้งเตือน/บำรุงรักษา</option>
                     <option value="billing">สอบถามค่าไฟ / การเงิน</option>
                     <option value="inquiry">สอบถามการใช้งาน / ขนานไฟ</option>
                     <option value="other">อื่น ๆ</option>
@@ -283,6 +300,21 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
                     <option value="medium">ปานกลาง (Medium)</option>
                     <option value="high">สูง (High)</option>
                     <option value="urgent">ด่วนที่สุด (Urgent)</option>
+                  </select>
+                </label>
+
+                <label>
+                  มอบหมายเจ้าหน้าที่ / ช่าง
+                  <select
+                    value={formModal.assigned_to}
+                    onChange={(e) => setFormModal({ ...formModal, assigned_to: e.target.value })}
+                  >
+                    <option value="">ยังไม่มอบหมาย</option>
+                    {assignees.map((assignee) => (
+                      <option key={assignee.id} value={assignee.id}>
+                        {assignee.full_name || 'ไม่ระบุชื่อ'}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
@@ -320,8 +352,8 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
                 >
                   ยกเลิก
                 </button>
-                <button type="submit" className="button button-green">
-                  เปิดเคสแจ้งซ่อม
+                <button type="submit" className="button button-green" disabled={saving || customers.length === 0}>
+                  {saving ? 'กำลังบันทึก...' : 'เปิดเคสแจ้งซ่อม'}
                 </button>
               </div>
             </form>
@@ -372,6 +404,7 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
                   >
                     <option value="open">เปิดเคสใหม่ (Open)</option>
                     <option value="in_progress">กำลังดำเนินการ (In Progress)</option>
+                    <option value="waiting_customer">รอข้อมูลจากลูกค้า</option>
                     <option value="resolved">แก้ไขแล้ว (Resolved)</option>
                     <option value="closed">ปิดเคสเสร็จสิ้น (Closed)</option>
                   </select>
@@ -379,14 +412,19 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
 
                 <label>
                   มอบหมายเจ้าหน้าที่ / ช่าง
-                  <input
-                    type="text"
-                    value={detailModal.assigned_to_name || ''}
+                  <select
+                    value={detailModal.assigned_to || ''}
                     onChange={(e) =>
-                      setDetailModal({ ...detailModal, assigned_to_name: e.target.value })
+                      setDetailModal({ ...detailModal, assigned_to: e.target.value })
                     }
-                    placeholder="เช่น ช่างเอกชัย / แอดมินสมศรี"
-                  />
+                  >
+                    <option value="">ยังไม่มอบหมาย</option>
+                    {assignees.map((assignee) => (
+                      <option key={assignee.id} value={assignee.id}>
+                        {assignee.full_name || 'ไม่ระบุชื่อ'}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="full-width">
@@ -410,8 +448,8 @@ export default function AdminTickets({ tickets, onSaveTicket, setToast }) {
                 >
                   ปิด
                 </button>
-                <button type="submit" className="button button-green">
-                  บันทึกการอัปเดตเคส
+                <button type="submit" className="button button-green" disabled={saving}>
+                  {saving ? 'กำลังบันทึก...' : 'บันทึกการอัปเดตเคส'}
                 </button>
               </div>
             </form>

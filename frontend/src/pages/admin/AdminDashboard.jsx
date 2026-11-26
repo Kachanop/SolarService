@@ -19,7 +19,7 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
   const [hoveredMonth, setHoveredMonth] = useState(null);
 
   if (!analyticsData) {
-    return <div className="admin-loading">กำลังประมวลผลข้อมูลสถิติ...</div>;
+    return <div className="admin-empty">ไม่สามารถโหลดสถิติได้ โปรดตรวจสอบการเชื่อมต่อฐานข้อมูล</div>;
   }
 
   const { monthlySales, breakdown, topSellingItems, kpis } = analyticsData;
@@ -32,11 +32,13 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
   const plotWidth = chartWidth - paddingX * 2;
   const plotHeight = chartHeight - paddingY * 2;
 
-  const maxTotal = Math.max(...monthlySales.map((m) => m.total), 1500000);
+  const maxTotal = Math.max(...monthlySales.map((m) => m.total), 1);
 
   // Compute points for SVG curve
   const points = monthlySales.map((item, idx) => {
-    const x = paddingX + (idx / (monthlySales.length - 1)) * plotWidth;
+    const x = monthlySales.length === 1
+      ? paddingX + plotWidth / 2
+      : paddingX + (idx / (monthlySales.length - 1)) * plotWidth;
     const y = chartHeight - paddingY - (item.total / maxTotal) * plotHeight;
     return { ...item, x, y };
   });
@@ -55,6 +57,9 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
   const circumference = 2 * Math.PI * donutRadius;
   const packageStroke = (breakdown.packagePct / 100) * circumference;
   const productStroke = (breakdown.productPct / 100) * circumference;
+  const revenueChange = kpis.monthlyRevenueChangePct;
+  const maxJobs = Math.max(...monthlySales.map((item) => item.installations), 1);
+  const maxTopItemRevenue = Math.max(...topSellingItems.map((item) => item.revenue), 1);
 
   return (
     <div className="admin-dashboard-view">
@@ -64,10 +69,12 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
           <span style={{ background: '#eaf4e6', color: '#447233' }}>
             <TrendingUp size={16} />
           </span>
-          <small>ยอดขายรวมเดือนนี้</small>
+          <small>ยอดชำระที่ตรวจสอบแล้วเดือนนี้</small>
           <strong>฿ {kpis.monthlyRevenue.toLocaleString('th-TH')}</strong>
           <span style={{ fontSize: '9px', color: '#527c42', marginTop: '3px' }}>
-            ▲ +18.4% จากเดือนก่อน
+            {revenueChange === null
+              ? 'ไม่มีข้อมูลเดือนก่อนสำหรับเปรียบเทียบ'
+              : `${revenueChange >= 0 ? '▲' : '▼'} ${Math.abs(revenueChange)}% จากเดือนก่อน`}
           </span>
         </div>
 
@@ -78,7 +85,9 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
           <small>งานติดตั้งสำเร็จเดือนนี้</small>
           <strong>{kpis.completedJobsMonth} ไซต์งาน</strong>
           <span style={{ fontSize: '9px', color: '#687766', marginTop: '3px' }}>
-            ครบ 100% ตามกำหนด
+            {kpis.onTimeCompletionPct === null
+              ? 'ยังไม่มีข้อมูลกำหนดการสำหรับเปรียบเทียบ'
+              : `${kpis.onTimeCompletionPct}% เสร็จตามกำหนด`}
           </span>
         </div>
 
@@ -117,8 +126,8 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
         <div className="admin-chart-card">
           <div className="admin-chart-header">
             <div>
-              <h3>📈 กราฟแสดงยอดขายและการเติบโต (Sales Revenue Trend)</h3>
-              <p>ยอดขายอุปกรณ์และแพ็กเกจติดตั้งย้อนหลัง 6 เดือน</p>
+              <h3>📈 กราฟแสดงยอดรับชำระ (Sales Revenue Trend)</h3>
+              <p>ยอดชำระที่ตรวจสอบแล้ว {analyticsData.periodLabel}</p>
             </div>
             <div className="chart-legend">
               <span>
@@ -229,7 +238,7 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
         <div className="admin-chart-card">
           <div className="admin-chart-header">
             <div>
-              <h3>สัดส่วนลูกค้า (Product vs Package)</h3>
+              <h3>สัดส่วนรายได้ (สินค้า vs แพ็กเกจ)</h3>
               <p>ยอดขายอุปกรณ์ vs แพ็กเกจติดตั้ง</p>
             </div>
           </div>
@@ -309,13 +318,12 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
           <div className="admin-chart-header">
             <div>
               <h3>🔨 จำนวนงานติดตั้งที่สำเร็จในแต่ละเดือน</h3>
-              <p>ประสิทธิภาพทีมช่าง SolarService ย้อนหลัง 6 เดือน</p>
+              <p>จำนวนงานที่เสร็จสมบูรณ์ {analyticsData.periodLabel}</p>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '18px', height: '140px', padding: '10px 10px 0' }}>
             {monthlySales.map((item) => {
-              const maxJobs = 10;
               const barHeightPct = Math.round((item.installations / maxJobs) * 100);
               return (
                 <div
@@ -355,12 +363,12 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
           <div className="admin-chart-header">
             <div>
               <h3>⭐ สินค้าและแพ็กเกจที่ขายดีที่สุด (Top Sellers)</h3>
-              <p>เรียงตามมูลค่ายอดขายสะสม</p>
+              <p>เรียงตามยอดชำระ {analyticsData.periodLabel}</p>
             </div>
           </div>
 
           <div className="admin-leaderboard">
-            {topSellingItems.map((item, index) => (
+            {topSellingItems.length ? topSellingItems.map((item, index) => (
               <div className="leaderboard-item" key={item.name}>
                 <div className="leaderboard-top">
                   <div className="leaderboard-name">
@@ -375,7 +383,7 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
                 <div className="leaderboard-progress-bg">
                   <div
                     className="leaderboard-progress-fill"
-                    style={{ width: `${item.pct * 2}%` }}
+                    style={{ width: `${(item.revenue / maxTopItemRevenue) * 100}%` }}
                   />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#798777' }}>
@@ -383,7 +391,7 @@ export default function AdminDashboard({ analyticsData, navigate, onExport }) {
                   <span>{item.pct}% ของยอดขาย</span>
                 </div>
               </div>
-            ))}
+            )) : <p className="admin-empty">ยังไม่มีรายการชำระเงินในช่วงเวลานี้</p>}
           </div>
         </div>
       </div>

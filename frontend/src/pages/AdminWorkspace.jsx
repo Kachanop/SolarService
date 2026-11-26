@@ -263,6 +263,10 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
                 await adminService.deleteProduct(id);
                 setRefreshKey((k) => k + 1);
               }}
+              onTogglePublish={async (id, isActive) => {
+                await adminService.setProductPublished(id, isActive);
+                setRefreshKey((k) => k + 1);
+              }}
               setToast={setToast}
             />
           )}
@@ -415,22 +419,14 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
           {route === '/maintenance' && (
             <AdminMaintenance
               reminders={maintenanceData}
+              customers={usersData.filter((user) => user.role === 'customer')}
+              warranties={warrantiesData}
               onUpdateStatus={async (id, status, extra) => {
                 await adminService.updateMaintenanceStatus(id, status, extra);
                 setRefreshKey((k) => k + 1);
               }}
               onAddReminder={async (item) => {
-                const current = maintenanceData;
-                const newItem = {
-                  ...item,
-                  id: `maint-${Date.now()}`,
-                  status: 'pending',
-                  last_notified_at: null,
-                };
-                localStorage.setItem(
-                  'solarservice_admin_maintenance',
-                  JSON.stringify([newItem, ...current])
-                );
+                await adminService.addMaintenanceReminder(item);
                 setRefreshKey((k) => k + 1);
               }}
               setToast={setToast}
@@ -441,6 +437,8 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
           {route === '/tickets' && (
             <AdminTickets
               tickets={ticketsData}
+              customers={usersData.filter((user) => user.role === 'customer')}
+              assignees={usersData.filter((user) => user.role !== 'customer')}
               onSaveTicket={async (item) => {
                 await adminService.saveTicket(item);
                 setRefreshKey((k) => k + 1);

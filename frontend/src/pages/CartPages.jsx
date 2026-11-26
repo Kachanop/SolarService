@@ -3,6 +3,7 @@ import { ArrowRight, CalendarDays, Check, Printer, ShieldCheck, ShoppingBag, Wre
 import { Money, PageIntro } from '../components/Shared.jsx';
 import { supabase } from '../lib/supabase.js';
 import { createPromptPayQr, getPromptPayPaymentStatus } from '../services/paymentService.js';
+import { searchAddressByProvince } from 'thai-address-database';
 // ใช้แบบ namespace เพื่อไม่ให้แอปพังถ้าชื่อฟังก์ชันใน bookingService ไม่ตรง (ดูหมายเหตุใน createInstallBooking)
 import * as bookingService from '../services/bookingService.js';
 
@@ -22,7 +23,12 @@ const CSS = `
 .sx-tech-panel select:invalid { color: #8b948a; }
 .sx-note { margin: 0; padding: 10px 12px; border-radius: 10px; background: #e6edba; color: #27392c; font-size: 14px; }
 .sx-note-warn { background: #fdeaea; color: #8a2a2a; }
+.sx-address-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sx-address-grid label { display: grid; gap: 6px; color: #586656; font-size: 12px; }
+.sx-address-grid input, .sx-address-grid select, .sx-address-grid textarea { width: 100%; min-width: 0; padding: 12px 14px; border: 1px solid #e0e6db; border-radius: 10px; background: #faf9f5; color: #29382c; font: inherit; }
+.sx-address-hint { grid-column: 1 / -1; margin: 0; color: #788274; font-size: 11px; }
 @media (max-width: 640px) { .sx-choice-group { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .sx-address-grid { grid-template-columns: 1fr; } }
 `;
 
 // จังหวัดทั้งหมด 77 จังหวัด (กรุงเทพมหานครอยู่บนสุด ที่เหลือเรียงตามตัวอักษร)
@@ -105,6 +111,23 @@ const THAI_PROVINCES = [
   'อุทัยธานี',
   'อุบลราชธานี',
 ];
+const ADDRESS_ROWS = searchAddressByProvince('.', 10000);
+
+function getAmphoes(province) {
+  return [...new Set(ADDRESS_ROWS.filter((row) => row.province === province).map((row) => row.amphoe))]
+    .sort((a, b) => a.localeCompare(b, 'th'));
+}
+
+function getDistricts(province, amphoe) {
+  return [...new Set(ADDRESS_ROWS
+    .filter((row) => row.province === province && row.amphoe === amphoe)
+    .map((row) => row.district))]
+    .sort((a, b) => a.localeCompare(b, 'th'));
+}
+
+function getZipcode(province, amphoe, district) {
+  return ADDRESS_ROWS.find((row) => row.province === province && row.amphoe === amphoe && row.district === district)?.zipcode || '';
+}
 
 // Supabase/Stripe ส่ง error มาเป็น object ธรรมดา ไม่ใช่ Error จึงต้องดึง message ออกมาเอง
 function getErrorMessage(error, fallback = 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ') {
@@ -131,7 +154,11 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   const [shipping, setShipping] = useState({
     name: authUser?.user_metadata?.full_name || '',
     phone: '',
-    address: '',
+    addressLine: '',
+    province: '',
+    amphoe: '',
+    district: '',
+    zipcode: '',
     notes: '',
   });
   const [orderId, setOrderId] = useState('');
@@ -157,6 +184,13 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   const wantsTechnician = installMode === 'technician';
   const unorderableItems = cart.filter((item) => !isOrderableItem(item));
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  const shippingAddress = [
+    shipping.addressLine.trim(),
+    `${shipping.province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}${shipping.district}`,
+    `${shipping.province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}${shipping.amphoe}`,
+    `จังหวัด${shipping.province}`,
+    shipping.zipcode,
+  ].filter((part) => part.trim()).join(', ');
 
   // โหลดเวลาว่างของช่างเมื่อเลือกวัน
   useEffect(() => {
@@ -196,7 +230,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       preferred_at: selectedSlot.start,
       name: shipping.name,
       phone: shipping.phone,
-      address: shipping.address,
+      address: shippingAddress,
       province: installProvince,
       service_type: 'installation',
       notes: `ติดตั้งอุปกรณ์จากคำสั่งซื้อ ${id}`,
@@ -293,6 +327,16 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       setToast('ในตะกร้ามีสินค้าตัวอย่างที่ยังสั่งซื้อไม่ได้ กรุณาลบออกก่อน');
       return;
     }
+    if (
+      !shipping.addressLine.trim()
+      || !shipping.province
+      || !shipping.amphoe
+      || !shipping.district
+      || !/^\d{5}$/.test(shipping.zipcode)
+    ) {
+      setToast('กรุณากรอกที่อยู่และเลือกจังหวัด อำเภอ/เขต ตำบล/แขวง พร้อมรหัสไปรษณีย์ให้ครบ');
+      return;
+    }
     if (wantsTechnician && (!installDate || !selectedSlot || !installProvince.trim())) {
       setToast('กรุณาเลือกวัน เวลา และระบุจังหวัดสำหรับนัดช่างติดตั้ง');
       return;
@@ -308,7 +352,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
         const { data, error } = await supabase.rpc('create_order', {
           p_shipping_name: shipping.name,
           p_shipping_phone: shipping.phone,
-          p_shipping_address: shipping.address,
+          p_shipping_address: shippingAddress,
           p_items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
           p_notes: `${shipping.notes || ''}${installNote}`.trim(),
         });
@@ -393,7 +437,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
             <strong>ข้อมูลผู้สั่งซื้อ</strong>
             <span>{shipping.name}</span>
             <span>{shipping.phone}</span>
-            <span>{shipping.address}</span>
+            <span>{shippingAddress}</span>
           </div>
 
           <div className="payment-quotation-table-wrap">
@@ -453,9 +497,48 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
         <label>เบอร์โทรศัพท์
           <input type="tel" required disabled={locked} value={shipping.phone} placeholder="08X-XXX-XXXX" onChange={(event) => setShipping({ ...shipping, phone: event.target.value })} />
         </label>
-        <label className="full-width">ที่อยู่จัดส่ง
-          <textarea rows="3" required disabled={locked} value={shipping.address} placeholder="บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์" onChange={(event) => setShipping({ ...shipping, address: event.target.value })} />
-        </label>
+        <div className="sx-address-grid full-width">
+          <label className="full-width">บ้านเลขที่ / หมู่บ้าน / ถนน
+            <textarea rows="2" required disabled={locked} value={shipping.addressLine} placeholder="บ้านเลขที่ ซอย หมู่บ้าน ถนน" onChange={(event) => setShipping({ ...shipping, addressLine: event.target.value })} />
+          </label>
+          <label>จังหวัด
+            <select required disabled={locked} value={shipping.province} onChange={(event) => setShipping({
+              ...shipping,
+              province: event.target.value,
+              amphoe: '',
+              district: '',
+              zipcode: '',
+            })}>
+              <option value="">เลือกจังหวัด</option>
+              {THAI_PROVINCES.map((province) => <option key={province} value={province}>{province}</option>)}
+            </select>
+          </label>
+          <label>{shipping.province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}
+            <select required disabled={locked || !shipping.province} value={shipping.amphoe} onChange={(event) => setShipping({
+              ...shipping,
+              amphoe: event.target.value,
+              district: '',
+              zipcode: '',
+            })}>
+              <option value="">เลือก{shipping.province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}</option>
+              {getAmphoes(shipping.province).map((amphoe) => <option key={amphoe} value={amphoe}>{amphoe}</option>)}
+            </select>
+          </label>
+          <label>{shipping.province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}
+            <select required disabled={locked || !shipping.amphoe} value={shipping.district} onChange={(event) => setShipping({
+              ...shipping,
+              district: event.target.value,
+              zipcode: getZipcode(shipping.province, shipping.amphoe, event.target.value),
+            })}>
+              <option value="">เลือก{shipping.province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}</option>
+              {getDistricts(shipping.province, shipping.amphoe).map((district) => <option key={district} value={district}>{district}</option>)}
+            </select>
+          </label>
+          <label>รหัสไปรษณีย์
+            <input required disabled={locked} inputMode="numeric" autoComplete="postal-code" maxLength={5} pattern="[0-9]{5}" title="กรุณากรอกรหัสไปรษณีย์ 5 หลัก" value={shipping.zipcode} placeholder="เช่น 23110" onChange={(event) => setShipping({ ...shipping, zipcode: event.target.value.replace(/\D/g, '').slice(0, 5) })} />
+          </label>
+          <p className="sx-address-hint">เลือกพื้นที่ตามลำดับ จังหวัด → อำเภอ/เขต → ตำบล/แขวง ระบบเติมรหัสไปรษณีย์ให้อัตโนมัติ</p>
+        </div>
         <label className="full-width">หมายเหตุเพิ่มเติม
           <textarea rows="2" disabled={locked} value={shipping.notes} placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" onChange={(event) => setShipping({ ...shipping, notes: event.target.value })} />
         </label>

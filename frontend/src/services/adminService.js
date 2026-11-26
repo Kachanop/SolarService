@@ -712,6 +712,26 @@ function setLocalStore(key, value) {
   }
 }
 
+async function fetchAllAnalyticsRows(table, columns) {
+  const pageSize = 1000;
+  const rows = [];
+  let start = 0;
+
+  while (true) {
+    const { data, error } = await supabase.from(table)
+      .select(columns)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(start, start + pageSize - 1);
+    if (error) throw error;
+
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+    start += pageSize;
+  }
+}
+
 export const adminService = {
   async updateUserProfile(userId, role, technicianType) {
     if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อแก้ไขผู้ใช้');
@@ -727,69 +747,202 @@ export const adminService = {
     if (error) throw error;
     return true;
   },
-  // 1. Get analytics data combining Supabase + mock
+  // 1. Build analytics from verified payments and current operational records
   async getAnalytics(period = '6m') {
-    let orders = [];
-    let bookings = [];
-    let installations = [];
-    let products = [];
-    let packages = getLocalStore('packages', defaultMockData.packages);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อโหลดข้อมูลสถิติจริง');
 
-    if (supabase) {
-      try {
-        const [ordRes, bookRes, instRes, prodRes] = await Promise.all([
-          supabase.from('orders').select('id,total,status,created_at'),
-          supabase.from('service_bookings').select('id,status,created_at'),
-          supabase.from('installations').select('id,status,scheduled_at,completed_at,created_at'),
-          supabase.from('products').select('id,name,price,stock_quantity,category,is_active'),
-        ]);
-        if (!ordRes.error && ordRes.data) orders = ordRes.data;
-        if (!bookRes.error && bookRes.data) bookings = bookRes.data;
-        if (!instRes.error && instRes.data) installations = instRes.data;
-        if (!prodRes.error && prodRes.data?.length) products = prodRes.data;
-      } catch (err) {
-        console.warn('Supabase analytics fetch error, using fallback:', err);
+    const periodMonths = { '1m': 1, '3m': 3, '6m': 6, '1y': 12 };
+    const monthCount = periodMonths[period] || periodMonths['6m'];
+    const now = new Date();
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstMonth = new Date(now.getFullYear(), now.getMonth() - monthCount + 1, 1);
+    const getMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const toValidDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const monthStarts = Array.from({ length: monthCount }, (_, index) => (
+      new Date(firstMonth.getFullYear(), firstMonth.getMonth() + index, 1)
+    ));
+    const monthlySales = monthStarts.map((date) => ({
+      monthKey: getMonthKey(date),
+      month: date.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }),
+      productSales: 0,
+      packageSales: 0,
+      installations: 0,
+      total: 0,
+    }));
+    const monthlyByKey = new Map(monthlySales.map((item) => [item.monthKey, item]));
+
+    const [
+      payments,
+      orderItems,
+      quotations,
+      bookings,
+      packages,
+      installations,
+      warranties,
+      maintenanceReminders,
+      supportTickets,
+    ] = await Promise.all([
+      fetchAllAnalyticsRows('payments', 'id,order_id,quotation_id,amount,status,paid_at,created_at'),
+      fetchAllAnalyticsRows('order_items', 'id,order_id,product_name,quantity,line_total,created_at'),
+      fetchAllAnalyticsRows('quotations', 'id,booking_id,created_at'),
+      fetchAllAnalyticsRows('service_bookings', 'id,package_id,created_at'),
+      fetchAllAnalyticsRows('packages', 'id,name,created_at'),
+      fetchAllAnalyticsRows('installations', 'id,status,scheduled_at,completed_at,updated_at,created_at'),
+      fetchAllAnalyticsRows('warranties', 'id,status,warranty_end,created_at'),
+      fetchAllAnalyticsRows('maintenance_reminders', 'id,status,created_at'),
+      fetchAllAnalyticsRows('support_tickets', 'id,status,created_at'),
+    ]);
+
+    const verifiedPayments = payments.filter((payment) => payment.status === 'verified');
+    const periodPayments = verifiedPayments.filter((payment) => {
+      const paymentDate = toValidDate(payment.paid_at || payment.created_at);
+      return paymentDate && monthlyByKey.has(getMonthKey(paymentDate));
+    });
+    const productPaymentsByOrder = new Map();
+    const packagePaymentsByQuote = new Map();
+    periodPayments.forEach((payment) => {
+      const paymentDate = toValidDate(payment.paid_at || payment.created_at);
+      const month = monthlyByKey.get(getMonthKey(paymentDate));
+      const amount = Number(payment.amount) || 0;
+      if (payment.order_id) {
+        month.productSales += amount;
+        productPaymentsByOrder.set(payment.order_id, (productPaymentsByOrder.get(payment.order_id) || 0) + amount);
+      } else if (payment.quotation_id) {
+        month.packageSales += amount;
+        packagePaymentsByQuote.set(payment.quotation_id, (packagePaymentsByQuote.get(payment.quotation_id) || 0) + amount);
       }
-    }
+      month.total += amount;
+    });
 
-    // Fallback if empty in fresh test database
-    const mockMonthlySales = [
-      { month: 'มิ.ย.', productSales: 85000, packageSales: 298000, installations: 2, total: 383000 },
-      { month: 'ก.ค.', productSales: 120000, packageSales: 447000, installations: 3, total: 567000 },
-      { month: 'ส.ค.', productSales: 165000, packageSales: 596000, installations: 4, total: 761000 },
-      { month: 'ก.ย.', productSales: 195000, packageSales: 745000, installations: 5, total: 940000 },
-      { month: 'ต.ค.', productSales: 240000, packageSales: 894000, installations: 6, total: 1134000 },
-      { month: 'พ.ย.', productSales: 285000, packageSales: 1043000, installations: 7, total: 1328000 },
-    ];
+    installations.forEach((installation) => {
+      if (installation.status !== 'completed') return;
+      const completedDate = toValidDate(installation.completed_at || installation.updated_at);
+      const month = completedDate && monthlyByKey.get(getMonthKey(completedDate));
+      if (month) month.installations += 1;
+    });
 
-    const totalProductSales = mockMonthlySales.reduce((acc, cur) => acc + cur.productSales, 0);
-    const totalPackageSales = mockMonthlySales.reduce((acc, cur) => acc + cur.packageSales, 0);
+    const totalProductSales = monthlySales.reduce((total, item) => total + item.productSales, 0);
+    const totalPackageSales = monthlySales.reduce((total, item) => total + item.packageSales, 0);
     const grandTotal = totalProductSales + totalPackageSales;
+    const currentMonthKey = getMonthKey(currentMonth);
+    const currentMonthSales = monthlyByKey.get(currentMonthKey);
+    const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    const previousMonthKey = getMonthKey(previousMonth);
+    const previousMonthRevenue = verifiedPayments.reduce((total, payment) => {
+      const paymentDate = toValidDate(payment.paid_at || payment.created_at);
+      return paymentDate && getMonthKey(paymentDate) === previousMonthKey
+        ? total + (Number(payment.amount) || 0)
+        : total;
+    }, 0);
+    const currentMonthRevenue = currentMonthSales?.total || 0;
+    const monthlyRevenueChangePct = previousMonthRevenue > 0
+      ? Math.round(((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100)
+      : null;
 
-    const topSellingItems = [
-      { name: 'แพ็กเกจยอดนิยม 5 kW', type: 'แพ็กเกจ', units: 14, revenue: 2086000, pct: 45 },
-      { name: 'แพ็กเกจครอบครัวใหญ่ 10 kW', type: 'แพ็กเกจ', units: 6, revenue: 1614000, pct: 35 },
-      { name: 'แผงโซลาร์เซลล์ LONGi 580W', type: 'สินค้า', units: 82, revenue: 351780, pct: 12 },
-      { name: 'อินเวอร์เตอร์ Huawei 5kW', type: 'สินค้า', units: 8, revenue: 260000, pct: 8 },
-    ];
+    const completedThisMonth = installations.filter((installation) => {
+      if (installation.status !== 'completed') return false;
+      const completedDate = toValidDate(installation.completed_at || installation.updated_at);
+      return completedDate && getMonthKey(completedDate) === currentMonthKey;
+    });
+    const scheduledCompleted = completedThisMonth.filter((installation) => (
+      installation.scheduled_at && installation.completed_at
+    ));
+    const onTimeCompletionPct = scheduledCompleted.length
+      ? Math.round((scheduledCompleted.filter((installation) => (
+        new Date(installation.completed_at) <= new Date(installation.scheduled_at)
+      )).length / scheduledCompleted.length) * 100)
+      : null;
+
+    const quotationsById = new Map(quotations.map((quote) => [quote.id, quote]));
+    const bookingsById = new Map(bookings.map((booking) => [booking.id, booking]));
+    const packagesById = new Map(packages.map((item) => [item.id, item]));
+    const productItemsByOrder = new Map();
+    orderItems.forEach((item) => {
+      if (!productPaymentsByOrder.has(item.order_id)) return;
+      const items = productItemsByOrder.get(item.order_id) || [];
+      items.push(item);
+      productItemsByOrder.set(item.order_id, items);
+    });
+
+    const topItemsByKey = new Map();
+    productItemsByOrder.forEach((items, orderId) => {
+      const lineTotal = items.reduce((total, item) => total + (Number(item.line_total) || 0), 0);
+      if (lineTotal <= 0) return;
+      const paidAmount = productPaymentsByOrder.get(orderId) || 0;
+      items.forEach((item) => {
+        const name = item.product_name || 'สินค้าไม่ระบุชื่อ';
+        const key = `product:${name}`;
+        const topItem = topItemsByKey.get(key) || { name, type: 'สินค้า', units: 0, revenue: 0 };
+        topItem.units += Number(item.quantity) || 0;
+        topItem.revenue += paidAmount * ((Number(item.line_total) || 0) / lineTotal);
+        topItemsByKey.set(key, topItem);
+      });
+    });
+    packagePaymentsByQuote.forEach((paidAmount, quoteId) => {
+      const quote = quotationsById.get(quoteId);
+      const booking = quote && bookingsById.get(quote.booking_id);
+      const packageItem = booking?.package_id && packagesById.get(booking.package_id);
+      const name = packageItem?.name || 'งานติดตั้งแบบกำหนดเอง';
+      const key = `package:${name}`;
+      const topItem = topItemsByKey.get(key) || { name, type: 'แพ็กเกจ', units: 0, revenue: 0 };
+      topItem.units += 1;
+      topItem.revenue += paidAmount;
+      topItemsByKey.set(key, topItem);
+    });
+    const topSellingItems = [...topItemsByKey.values()]
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map((item) => ({
+        ...item,
+        pct: grandTotal > 0 ? Math.round((item.revenue / grandTotal) * 100) : 0,
+      }));
+
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const activeWarranties = warranties.filter((warranty) => (
+      ['active', 'expiring_soon'].includes(warranty.status)
+      && warranty.warranty_end >= todayKey
+    )).length;
+    const pendingMaintenance = maintenanceReminders.filter((reminder) => (
+      ['pending', 'notified'].includes(reminder.status)
+    )).length;
+    const openTickets = supportTickets.filter((ticket) => (
+      !['resolved', 'closed'].includes(ticket.status)
+    )).length;
+    const pendingPayments = payments.filter((payment) => (
+      ['pending', 'submitted'].includes(payment.status)
+    )).length;
+    const periodLabel = {
+      '1m': 'เดือนนี้',
+      '3m': '3 เดือนล่าสุด',
+      '6m': '6 เดือนล่าสุด',
+      '1y': '12 เดือนล่าสุด',
+    }[period] || '6 เดือนล่าสุด';
 
     return {
-      monthlySales: mockMonthlySales,
+      period,
+      periodLabel,
+      monthlySales,
       breakdown: {
         productSales: totalProductSales,
         packageSales: totalPackageSales,
-        productPct: Math.round((totalProductSales / grandTotal) * 100),
-        packagePct: Math.round((totalPackageSales / grandTotal) * 100),
+        productPct: grandTotal ? Math.round((totalProductSales / grandTotal) * 100) : 0,
+        packagePct: grandTotal ? Math.round((totalPackageSales / grandTotal) * 100) : 0,
         grandTotal,
       },
       topSellingItems,
       kpis: {
-        monthlyRevenue: 1328000,
-        activeWarranties: 18,
-        pendingMaintenance: 3,
-        openTickets: 2,
-        pendingPayments: 1,
-        completedJobsMonth: 7,
+        monthlyRevenue: currentMonthRevenue,
+        monthlyRevenueChangePct,
+        activeWarranties,
+        pendingMaintenance,
+        openTickets,
+        pendingPayments,
+        completedJobsMonth: currentMonthSales?.installations || 0,
+        onTimeCompletionPct,
       },
     };
   },
@@ -904,62 +1057,150 @@ export const adminService = {
 
   // 4. Maintenance Reminders
   async getMaintenanceReminders() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('maintenance_reminders').select('*').order('due_date', { ascending: true });
-        if (!error && data && data.length > 0) return data;
-      } catch (e) {
-        console.warn('Supabase maintenance error:', e);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อโหลดข้อมูลบำรุงรักษาจริง');
+
+    const { data, error } = await supabase.from('maintenance_reminders')
+      .select('id,customer_id,warranty_id,title,reminder_type,frequency_months,due_date,status,last_notified_at,notes,created_at,updated_at')
+      .order('due_date', { ascending: true });
+    if (error) throw error;
+
+    const reminders = data || [];
+    if (!reminders.length) return [];
+
+    const customerIds = [...new Set(reminders.map((item) => item.customer_id).filter(Boolean))];
+    const warrantyIds = [...new Set(reminders.map((item) => item.warranty_id).filter(Boolean))];
+    const [profilesResult, warrantiesResult, installationsResult] = await Promise.all([
+      supabase.from('profiles').select('id,full_name,phone').in('id', customerIds),
+      warrantyIds.length
+        ? supabase.from('warranties').select('id,customer_id,installation_id').in('id', warrantyIds)
+        : Promise.resolve({ data: [], error: null }),
+      supabase.from('installations')
+        .select('id,customer_id,booking_id,created_at')
+        .in('customer_id', customerIds)
+        .order('created_at', { ascending: false }),
+    ]);
+    if (profilesResult.error) throw profilesResult.error;
+    if (warrantiesResult.error) throw warrantiesResult.error;
+    if (installationsResult.error) throw installationsResult.error;
+
+    const warrantiesById = new Map((warrantiesResult.data || []).map((item) => [item.id, item]));
+    const installations = installationsResult.data || [];
+    const installationsById = new Map(installations.map((item) => [item.id, item]));
+    const latestInstallationByCustomer = new Map();
+    installations.forEach((item) => {
+      if (!latestInstallationByCustomer.has(item.customer_id)) {
+        latestInstallationByCustomer.set(item.customer_id, item);
       }
-    }
-    return getLocalStore('maintenance', defaultMockData.maintenance_reminders);
+    });
+    const bookingIds = [...new Set(installations.map((item) => item.booking_id).filter(Boolean))];
+    const bookingsResult = bookingIds.length
+      ? await supabase.from('service_bookings').select('id,address,province,phone').in('id', bookingIds)
+      : { data: [], error: null };
+    if (bookingsResult.error) throw bookingsResult.error;
+
+    const profilesById = new Map((profilesResult.data || []).map((item) => [item.id, item]));
+    const bookingsById = new Map((bookingsResult.data || []).map((item) => [item.id, item]));
+    return reminders.map((reminder) => {
+      const warranty = warrantiesById.get(reminder.warranty_id);
+      const installation = (warranty?.installation_id && installationsById.get(warranty.installation_id))
+        || latestInstallationByCustomer.get(reminder.customer_id);
+      const booking = installation && bookingsById.get(installation.booking_id);
+      const profile = profilesById.get(reminder.customer_id);
+      return {
+        ...reminder,
+        customer_name: profile?.full_name || 'ลูกค้าไม่ระบุชื่อ',
+        customer_phone: profile?.phone || booking?.phone || '',
+        address: booking ? [booking.address, booking.province].filter(Boolean).join(' · ') : '',
+      };
+    });
+  },
+
+  async addMaintenanceReminder(item) {
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อเพิ่มข้อมูลบำรุงรักษา');
+    if (!item.customer_id) throw new Error('กรุณาเลือกลูกค้าที่มีอยู่ในระบบ');
+    if (!item.due_date) throw new Error('กรุณากำหนดวันที่เข้าบริการ');
+
+    const { data, error } = await supabase.from('maintenance_reminders').insert({
+      customer_id: item.customer_id,
+      warranty_id: item.warranty_id || null,
+      title: item.title?.trim() || 'รอบบำรุงรักษาระบบโซลาร์เซลล์',
+      reminder_type: item.reminder_type,
+      frequency_months: Number(item.frequency_months) || 6,
+      due_date: item.due_date,
+      status: 'pending',
+      notes: item.notes?.trim() || '',
+    }).select('id').single();
+    if (error) throw error;
+    return data;
   },
 
   async updateMaintenanceStatus(id, status, extra = {}) {
-    if (supabase && !String(id).startsWith('maint-')) {
-      const payload = {
-        status,
-        ...extra,
-        updated_at: new Date().toISOString(),
-      };
-      const { error } = await supabase.from('maintenance_reminders').update(payload).eq('id', id);
-      if (error) throw error;
-    }
-    const current = getLocalStore('maintenance', defaultMockData.maintenance_reminders);
-    const updated = current.map((m) => (m.id === id ? { ...m, status, ...extra, updated_at: new Date().toISOString() } : m));
-    setLocalStore('maintenance', updated);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่ออัปเดตข้อมูลบำรุงรักษา');
+    const { data, error } = await supabase.from('maintenance_reminders')
+      .update({ status, ...extra, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('id,status')
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error('ไม่พบรายการแจ้งเตือนที่ต้องการอัปเดต');
     return true;
   },
 
   // 5. Support Tickets
   async getTickets() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) return data;
-      } catch (e) {
-        console.warn('Supabase tickets error:', e);
-      }
-    }
-    return getLocalStore('tickets', defaultMockData.support_tickets);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อโหลดข้อมูลแจ้งซ่อมจริง');
+
+    const { data, error } = await supabase.from('support_tickets')
+      .select('id,ticket_number,customer_id,title,description,category,priority,status,assigned_to,resolution_notes,resolved_at,created_at,updated_at')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const tickets = data || [];
+    if (!tickets.length) return [];
+
+    const profileIds = [...new Set(tickets.flatMap((item) => [item.customer_id, item.assigned_to]).filter(Boolean))];
+    const profilesResult = profileIds.length
+      ? await supabase.from('profiles').select('id,full_name,phone').in('id', profileIds)
+      : { data: [], error: null };
+    if (profilesResult.error) throw profilesResult.error;
+
+    const profilesById = new Map((profilesResult.data || []).map((item) => [item.id, item]));
+    return tickets.map((ticket) => {
+      const customer = profilesById.get(ticket.customer_id);
+      const assignee = profilesById.get(ticket.assigned_to);
+      return {
+        ...ticket,
+        customer_name: customer?.full_name || 'ลูกค้าไม่ระบุชื่อ',
+        customer_phone: customer?.phone || '',
+        assigned_to_name: assignee?.full_name || '',
+      };
+    });
   },
 
   async saveTicket(item) {
-    const current = getLocalStore('tickets', defaultMockData.support_tickets);
-    let updated;
-    if (item.id) {
-      updated = current.map((t) => (t.id === item.id ? { ...t, ...item } : t));
-    } else {
-      const newItem = {
-        ...item,
-        id: `tk-${Date.now()}`,
-        ticket_number: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
-        created_at: new Date().toISOString(),
-      };
-      updated = [newItem, ...current];
-    }
-    setLocalStore('tickets', updated);
-    return item;
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อบันทึกข้อมูลแจ้งซ่อม');
+    if (!item.customer_id) throw new Error('กรุณาเลือกลูกค้าที่มีอยู่ในระบบ');
+    if (!item.title?.trim()) throw new Error('กรุณากรอกหัวข้อเคส');
+
+    const payload = {
+      customer_id: item.customer_id,
+      title: item.title.trim(),
+      description: item.description?.trim() || '',
+      category: item.category,
+      priority: item.priority,
+      status: item.status,
+      assigned_to: item.assigned_to || null,
+      resolution_notes: item.resolution_notes?.trim() || '',
+      resolved_at: ['resolved', 'closed'].includes(item.status)
+        ? item.resolved_at || new Date().toISOString()
+        : null,
+    };
+    const query = item.id
+      ? supabase.from('support_tickets').update(payload).eq('id', item.id)
+      : supabase.from('support_tickets').insert(payload);
+    const { data, error } = await query.select('id,ticket_number').single();
+    if (error) throw error;
+    return data;
   },
 
   // 6. Payments
@@ -1021,62 +1262,83 @@ export const adminService = {
 
   // 7. Reviews
   async getReviews() {
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('reviews')
-          .select('*,customer:profiles!reviews_customer_id_fkey(full_name),installation:installations!reviews_installation_id_fkey(installation_number)')
-          .order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          const orderItemIds = [...new Set(data.map((item) => item.order_item_id).filter(Boolean))];
-          let orderItemsById = new Map();
-          if (orderItemIds.length) {
-            const { data: orderItems, error: orderItemsError } = await supabase.from('order_items')
-              .select('id,product_name,products(name)')
-              .in('id', orderItemIds);
-            if (orderItemsError) throw orderItemsError;
-            orderItemsById = new Map((orderItems || []).map((item) => [item.id, item]));
-          }
-          return data.map((item) => ({
-            ...item,
-            customer_name: item.customer?.full_name || '',
-            installation_number: item.installation?.installation_number || '',
-            reviewed_item_name: orderItemsById.get(item.order_item_id)?.products?.name
-              || orderItemsById.get(item.order_item_id)?.product_name
-              || '',
-          }));
-        }
-      } catch (e) {
-        console.warn('Supabase reviews error:', e);
-      }
-    }
-    return getLocalStore('reviews', defaultMockData.reviews);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อโหลดรีวิวจริง');
+
+    const { data, error } = await supabase.from('reviews')
+      .select('id,customer_id,installation_id,order_item_id,quotation_item_id,rating,comment,is_published,created_at')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const reviews = data || [];
+    if (!reviews.length) return [];
+
+    const customerIds = [...new Set(reviews.map((item) => item.customer_id).filter(Boolean))];
+    const installationIds = [...new Set(reviews.map((item) => item.installation_id).filter(Boolean))];
+    const orderItemIds = [...new Set(reviews.map((item) => item.order_item_id).filter(Boolean))];
+    const quotationItemIds = [...new Set(reviews.map((item) => item.quotation_item_id).filter(Boolean))];
+    const [profilesResult, installationsResult, orderItemsResult, quotationItemsResult] = await Promise.all([
+      customerIds.length
+        ? supabase.from('profiles').select('id,full_name').in('id', customerIds)
+        : Promise.resolve({ data: [], error: null }),
+      installationIds.length
+        ? supabase.from('installations').select('id,installation_number').in('id', installationIds)
+        : Promise.resolve({ data: [], error: null }),
+      orderItemIds.length
+        ? supabase.from('order_items').select('id,product_name').in('id', orderItemIds)
+        : Promise.resolve({ data: [], error: null }),
+      quotationItemIds.length
+        ? supabase.from('quotation_items').select('id,product_id,description').in('id', quotationItemIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (profilesResult.error) throw profilesResult.error;
+    if (installationsResult.error) throw installationsResult.error;
+    if (orderItemsResult.error) throw orderItemsResult.error;
+    if (quotationItemsResult.error) throw quotationItemsResult.error;
+
+    const profilesById = new Map((profilesResult.data || []).map((profile) => [profile.id, profile]));
+    const installationsById = new Map((installationsResult.data || []).map((installation) => [installation.id, installation]));
+    const orderItemsById = new Map((orderItemsResult.data || []).map((item) => [item.id, item]));
+    const quotationItems = quotationItemsResult.data || [];
+    const productIds = [...new Set(quotationItems.map((item) => item.product_id).filter(Boolean))];
+    const productsResult = productIds.length
+      ? await supabase.from('products').select('id,name').in('id', productIds)
+      : { data: [], error: null };
+    if (productsResult.error) throw productsResult.error;
+    const quotationItemsById = new Map(quotationItems.map((item) => [item.id, item]));
+    const productsById = new Map((productsResult.data || []).map((item) => [item.id, item]));
+
+    return reviews.map((item) => ({
+      ...item,
+      customer_name: profilesById.get(item.customer_id)?.full_name || 'ลูกค้า',
+      installation_number: installationsById.get(item.installation_id)?.installation_number || '',
+      reviewed_item_name: orderItemsById.get(item.order_item_id)?.product_name
+        || productsById.get(quotationItemsById.get(item.quotation_item_id)?.product_id)?.name
+        || quotationItemsById.get(item.quotation_item_id)?.description
+        || '',
+    }));
   },
 
   async toggleReviewPublish(id, isPublished) {
-    if (supabase && !id.startsWith('rev-')) {
-      try {
-        await supabase.from('reviews').update({ is_published: isPublished }).eq('id', id);
-      } catch (e) {
-        console.warn('Supabase review toggle error:', e);
-      }
-    }
-    const current = getLocalStore('reviews', defaultMockData.reviews);
-    const updated = current.map((r) => (r.id === id ? { ...r, is_published: isPublished } : r));
-    setLocalStore('reviews', updated);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อแก้ไขรีวิว');
+    const { data, error } = await supabase.from('reviews')
+      .update({ is_published: isPublished })
+      .eq('id', id)
+      .select('id')
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error('ไม่พบรีวิวที่ต้องการแก้ไข');
     return true;
   },
 
   async deleteReview(id) {
-    if (supabase && !id.startsWith('rev-')) {
-      try {
-        await supabase.from('reviews').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Supabase deleteReview error:', e);
-      }
-    }
-    const current = getLocalStore('reviews', defaultMockData.reviews);
-    const updated = current.filter((r) => r.id !== id);
-    setLocalStore('reviews', updated);
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อลบรีวิว');
+    const { data, error } = await supabase.from('reviews')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error('ไม่พบรีวิวที่ต้องการลบ');
     return true;
   },
 
@@ -1157,6 +1419,31 @@ export const adminService = {
     const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
+  },
+
+  async setProductPublished(id, isActive) {
+    if (supabase) {
+      const { data, error } = await supabase.from('products')
+        .update({ is_active: isActive })
+        .eq('id', id)
+        .select('id,is_active')
+        .single();
+      if (error) throw error;
+      if (!data) throw new Error('ไม่พบสินค้าที่ต้องการเปลี่ยนสถานะ');
+      window.dispatchEvent(new Event('solarservice:products-updated'));
+      return data;
+    }
+
+    const current = getLocalStore('products', defaultMockData.products);
+    if (!current.some((product) => product.id === id)) {
+      throw new Error('ไม่พบสินค้าที่ต้องการเปลี่ยนสถานะ');
+    }
+    const updated = current.map((product) => (
+      product.id === id ? { ...product, is_active: isActive } : product
+    ));
+    setLocalStore('products', updated);
+    window.dispatchEvent(new Event('solarservice:products-updated'));
+    return updated.find((product) => product.id === id);
   },
 
   async saveProduct(item) {

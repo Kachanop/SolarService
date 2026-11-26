@@ -16,12 +16,13 @@ import {
 } from 'lucide-react';
 import { Money } from '../../components/Shared.jsx';
 
-export default function AdminProducts({ products, onSaveProduct, onDeleteProduct, setToast }) {
+export default function AdminProducts({ products, onSaveProduct, onDeleteProduct, onTogglePublish, setToast }) {
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStock, setFilterStock] = useState('');
   const [formModal, setFormModal] = useState(null);
   const [page, setPage] = useState(1);
+  const [publishingId, setPublishingId] = useState(null);
   const pageSize = 10;
 
   const categories = ['แผงโซลาร์เซลล์', 'อินเวอร์เตอร์', 'แบตเตอรี่', 'อุปกรณ์ติดตั้ง'];
@@ -74,6 +75,21 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
           setToast(`ลบสินค้าไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาด'}`);
         }
       }
+    }
+  }
+
+  async function handleTogglePublish(product) {
+    const nextState = !product.is_active;
+    setPublishingId(product.id);
+    try {
+      await onTogglePublish(product.id, nextState);
+      if (setToast) setToast(nextState ? 'เผยแพร่สินค้าเรียบร้อยแล้ว' : 'ซ่อนสินค้าเรียบร้อยแล้ว');
+    } catch (error) {
+      if (setToast) {
+        setToast(`เปลี่ยนสถานะสินค้าไม่สำเร็จ: ${error instanceof Error ? error.message : 'เกิดข้อผิดพลาด'}`);
+      }
+    } finally {
+      setPublishingId(null);
     }
   }
 
@@ -210,7 +226,7 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
       <div className="admin-table">
         <div
           className="admin-table-head"
-          style={{ gridTemplateColumns: 'minmax(220px, 2fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1fr) minmax(90px, 0.8fr) minmax(110px, 1fr)' }}
+          style={{ gridTemplateColumns: 'minmax(220px, 2fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1fr) minmax(150px, 1.1fr) minmax(110px, 1fr)' }}
         >
           <span>สินค้า & SKU</span>
           <span>หมวดหมู่</span>
@@ -228,7 +244,7 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
               <div
                 key={p.id}
                 className="admin-table-row"
-                style={{ gridTemplateColumns: 'minmax(220px, 2fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1fr) minmax(90px, 0.8fr) minmax(110px, 1fr)' }}
+                style={{ gridTemplateColumns: 'minmax(220px, 2fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1fr) minmax(150px, 1.1fr) minmax(110px, 1fr)' }}
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -281,10 +297,20 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
                   </span>
                 </div>
 
-                <div>
+                <div className="admin-product-publication-controls">
                   <span className={`status-pill ${p.is_active ? 'green' : 'gray'}`}>
                     {p.is_active ? 'เผยแพร่' : 'ซ่อน'}
                   </span>
+                  <button
+                    type="button"
+                    className={`button ${p.is_active ? 'button-outline' : 'button-green'} small-button`}
+                    style={{ fontSize: '9px' }}
+                    onClick={() => handleTogglePublish(p)}
+                    disabled={publishingId === p.id}
+                    title={p.is_active ? 'ซ่อนสินค้านี้จากหน้าร้าน' : 'เผยแพร่สินค้านี้บนหน้าร้าน'}
+                  >
+                    {p.is_active ? <><EyeOff size={12} /> ซ่อนสินค้า</> : <><Eye size={12} /> เผยแพร่</>}
+                  </button>
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px' }}>

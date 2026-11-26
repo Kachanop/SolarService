@@ -1,17 +1,39 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Download, Calendar, Filter, FileSpreadsheet, TrendingUp, DollarSign, Package, Wrench } from 'lucide-react';
 import { Money } from '../../components/Shared.jsx';
+import { adminService } from '../../services/adminService.js';
 
 export default function AdminReports({ analyticsData, onExport }) {
   const [period, setPeriod] = useState('6m');
+  const [reportData, setReportData] = useState(analyticsData);
+  const [loading, setLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
 
-  if (!analyticsData) {
-    return <div className="admin-loading">กำลังโหลดข้อมูลรายงาน...</div>;
-  }
+  useEffect(() => {
+    let active = true;
+    if (period === '6m') {
+      setReportData(analyticsData);
+      setReportError('');
+      setLoading(false);
+      return () => { active = false; };
+    }
 
-  const { monthlySales, breakdown, topSellingItems, kpis } = analyticsData;
+    setReportData(null);
+    setReportError('');
+    setLoading(true);
+    adminService.getAnalytics(period)
+      .then((data) => { if (active) setReportData(data); })
+      .catch((error) => {
+        if (active) setReportError(error?.message || 'โหลดรายงานไม่สำเร็จ');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [period, analyticsData]);
+
+  const { monthlySales = [], breakdown, kpis } = reportData || {};
 
   function exportAccountingCSV() {
+    if (!reportData) return;
     const headers = ['เดือน', 'ยอดขายสินค้า (บาท)', 'ยอดขายแพ็กเกจติดตั้ง (บาท)', 'ยอดขายรวม (บาท)', 'จำนวนงานติดตั้ง (งาน)'];
     const rows = monthlySales.map((m) => [
       m.month,
@@ -43,10 +65,10 @@ export default function AdminReports({ analyticsData, onExport }) {
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
             >
-              <option value="1m">เดือนปัจจุบัน (พฤศจิกายน 2569)</option>
+              <option value="1m">เดือนนี้</option>
               <option value="3m">3 เดือนล่าสุด</option>
-              <option value="6m">6 เดือนล่าสุด (มิ.ย. - พ.ย. 2569)</option>
-              <option value="1y">ปีนี้ (2569)</option>
+              <option value="6m">6 เดือนล่าสุด</option>
+              <option value="1y">12 เดือนล่าสุด</option>
             </select>
           </div>
         </div>
@@ -56,12 +78,21 @@ export default function AdminReports({ analyticsData, onExport }) {
             type="button"
             className="button button-green small-button"
             onClick={exportAccountingCSV}
+            disabled={!reportData || loading}
           >
             <Download size={14} /> ดาวน์โหลดรายงานบัญชี (Excel / CSV)
           </button>
         </div>
       </div>
 
+      {reportError ? (
+        <div className="admin-message error" role="alert">{reportError}</div>
+      ) : loading || !reportData ? (
+        <div className="admin-loading">
+          {period === '6m' && !analyticsData ? 'ไม่สามารถโหลดข้อมูลรายงานได้ โปรดตรวจสอบการเชื่อมต่อฐานข้อมูล' : 'กำลังโหลดข้อมูลรายงาน...'}
+        </div>
+      ) : (
+      <>
       {/* Summary Row */}
       <div className="stats-grid">
         <div className="stat-card">
@@ -88,7 +119,9 @@ export default function AdminReports({ analyticsData, onExport }) {
           <strong>
             {monthlySales.reduce((acc, cur) => acc + cur.installations, 0)} ไซต์งาน
           </strong>
-          <span style={{ fontSize: '9px', color: '#567c46' }}>เฉลี่ย 4.5 งาน/เดือน</span>
+          <span style={{ fontSize: '9px', color: '#567c46' }}>
+            เฉลี่ย {(monthlySales.reduce((acc, cur) => acc + cur.installations, 0) / Math.max(monthlySales.length, 1)).toFixed(1)} งาน/เดือน
+          </span>
         </div>
       </div>
 
@@ -120,8 +153,8 @@ export default function AdminReports({ analyticsData, onExport }) {
               style={{ gridTemplateColumns: 'minmax(100px, 1fr) repeat(4, minmax(130px, 1.2fr))' }}
             >
               <div>
-                <strong>{item.month} 2569</strong>
-                <small>ปีบัญชีปัจจุบัน</small>
+                <strong>{item.month}</strong>
+                <small>ข้อมูลจากระบบ</small>
               </div>
               <div>
                 <Money value={item.productSales} />
@@ -141,6 +174,8 @@ export default function AdminReports({ analyticsData, onExport }) {
           ))}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

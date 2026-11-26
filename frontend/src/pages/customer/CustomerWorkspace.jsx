@@ -4,7 +4,7 @@ import {
   FileText, Package, RefreshCw, ShieldCheck, Truck, Wrench, X,
 } from 'lucide-react';
 import {
-  createRepairTicket, createReview, getMyCompletedReviewableOrderItems,
+  createRepairTicket, createReview, getMyCompletedReviewableInstallationItems, getMyCompletedReviewableOrderItems,
   getMyInstallations, getMyMaintenance, getMyOrders, getMyQuotes,
   getMyReviews, getMyTickets, getMyWarranties, respondToQuote,
 } from '../../services/customerService.js';
@@ -19,6 +19,9 @@ const serviceErrorMessage = (error, fallback) => {
   if (!message) return fallback;
   if (/order_item_id|order_items.*schema cache|schema cache.*order_items/i.test(message)) {
     return `${message} — กรุณารัน backend/supabase/migrations/20261127000000_product_reviews.sql ใน Supabase SQL Editor แล้วโหลดหน้านี้ใหม่`;
+  }
+  if (/quotation_item_id|quotation_items.*schema cache|schema cache.*quotation_items/i.test(message)) {
+    return `${message} — กรุณารัน backend/supabase/migrations/20261127030000_installation_product_review_targets.sql ใน Supabase SQL Editor แล้วโหลดหน้านี้ใหม่`;
   }
   return message;
 };
@@ -243,24 +246,36 @@ function CustomerReviews({ setToast }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [orderItemId, setOrderItemId] = useState('');
+  const [reviewTargetKey, setReviewTargetKey] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [failedImageUrl, setFailedImageUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const selectedItem = reviewable.find((item) => item.id === orderItemId);
+  const selectedItem = reviewable.find((item) => item.review_target_key === reviewTargetKey);
   const selectedProduct = selectedItem?.products;
   const selectedImageUrl = selectedProduct?.image_url || '';
 
   useEffect(() => {
     let active = true;
-    Promise.all([getMyCompletedReviewableOrderItems(), getMyReviews()])
-      .then(([canReview, existing]) => {
+    Promise.all([
+      getMyCompletedReviewableOrderItems(),
+      getMyCompletedReviewableInstallationItems(),
+      getMyReviews(),
+    ])
+      .then(([orderItems, installationItems, existing]) => {
         if (active) {
-          setReviewable(canReview);
+          const reviewTargets = [
+            ...orderItems.map((item) => ({
+              ...item,
+              review_target_type: 'order_item',
+              review_target_key: `order:${item.id}`,
+            })),
+            ...installationItems,
+          ];
+          setReviewable(reviewTargets);
           setReviews(existing);
-          setOrderItemId(canReview[0]?.id || '');
+          setReviewTargetKey(reviewTargets[0]?.review_target_key || '');
           setError('');
         }
       })
@@ -271,11 +286,16 @@ function CustomerReviews({ setToast }) {
 
   async function submit(event) {
     event.preventDefault();
-    if (!orderItemId) return;
+    if (!selectedItem) return;
     setSaving(true);
     try {
-      await createReview({ orderItemId, rating, comment });
-      setToast('บันทึกรีวิวเรียบร้อยแล้ว รอแอดมินเผยแพร่');
+      await createReview({
+        orderItemId: selectedItem.review_target_type === 'order_item' ? selectedItem.id : null,
+        quotationItemId: selectedItem.review_target_type === 'quotation_item' ? selectedItem.id : null,
+        rating,
+        comment,
+      });
+      setToast('เผยแพร่รีวิวบนหน้าสินค้าเรียบร้อยแล้ว');
       setComment('');
       setRefresh((value) => value + 1);
     } catch (err) {
@@ -285,16 +305,18 @@ function CustomerReviews({ setToast }) {
     }
   }
 
-  return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">CUSTOMER REVIEWS</div><h1>รีวิวสินค้า</h1><p>เลือกสินค้าที่ซื้อและได้รับเรียบร้อยแล้ว พร้อมดูรายละเอียดก่อนเขียนรีวิว</p></div></div>
+  return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">CUSTOMER REVIEWS</div><h1>รีวิวสินค้า / งานติดตั้ง</h1><p>รีวิวสินค้าที่สั่งซื้อสำเร็จ หรืองานติดตั้งที่ดำเนินการเสร็จแล้ว</p></div></div>
     {error && <ErrorBox error={error} />} {loading && <Loading />}
     {!loading && !error && <form className="form-card review-form" onSubmit={submit}>
-      <h3>แชร์ประสบการณ์การใช้สินค้า</h3>
+      <h3>แชร์ประสบการณ์การใช้สินค้าและงานติดตั้ง</h3>
       {reviewable.length ? <>
-        <label>สินค้าที่ต้องการรีวิว
-          <select value={orderItemId} onChange={(event) => setOrderItemId(event.target.value)}>
+        <label>สินค้าหรืองานติดตั้งที่ต้องการรีวิว
+          <select value={reviewTargetKey} onChange={(event) => setReviewTargetKey(event.target.value)}>
             {reviewable.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.products?.name || item.product_name} · {item.orders?.order_number}
+              <option key={item.review_target_key} value={item.review_target_key}>
+                {item.review_target_type === 'quotation_item'
+                  ? `${item.product_name} · ติดตั้ง ${item.installation_number} สำเร็จ`
+                  : `${item.products?.name || item.product_name} · ${item.orders?.order_number}`}
               </option>
             ))}
           </select>
@@ -306,27 +328,81 @@ function CustomerReviews({ setToast }) {
               : <Package size={34} aria-hidden="true" />}
           </div>
           <div className="review-product-info">
-            <small>{selectedProduct?.category || 'สินค้าในคำสั่งซื้อ'}</small>
+            <small>{selectedItem.review_target_type === 'quotation_item' ? 'สินค้าในงานติดตั้งที่เสร็จสมบูรณ์' : selectedProduct?.category || 'สินค้าในคำสั่งซื้อที่จัดส่งสำเร็จ'}</small>
             <strong>{selectedProduct?.name || selectedItem.product_name}</strong>
             {selectedProduct?.description && <p>{selectedProduct.description}</p>}
+            {selectedProduct?.sku && <span>รหัสสินค้า {selectedProduct.sku}</span>}
             <span>{money(selectedItem.unit_price)} / ชิ้น · จำนวน {selectedItem.quantity}</span>
-            <span>คำสั่งซื้อ {selectedItem.orders?.order_number}</span>
+            <span>รวม {money(selectedItem.line_total ?? selectedItem.unit_price * selectedItem.quantity)}</span>
+            {selectedItem.review_target_type === 'quotation_item'
+              ? <>
+                  <span>หมายเลขติดตั้ง {selectedItem.installation_number}</span>
+                  {selectedItem.quotation_number && <span>ใบเสนอราคา {selectedItem.quotation_number}</span>}
+                </>
+              : <>
+                  <span>
+                    คำสั่งซื้อ {selectedItem.orders?.order_number}
+                    {selectedItem.orders?.created_at ? ` · ${new Date(selectedItem.orders.created_at).toLocaleDateString('th-TH')}` : ''}
+                  </span>
+                </>}
           </div>
         </article>}
         <div className="star-picker" aria-label="คะแนนรีวิว">{[1,2,3,4,5].map((value) => <button type="button" className={value <= rating ? 'selected' : ''} key={value} onClick={() => setRating(value)}>★</button>)}</div>
         <label>ความคิดเห็น<textarea rows="4" value={comment} onChange={(event) => setComment(event.target.value)} required placeholder="เล่าประสบการณ์การใช้สินค้า" /></label>
         <button className="button button-green" type="submit" disabled={saving}>{saving ? 'กำลังบันทึก…' : 'ส่งรีวิว'} <ArrowRight size={16} /></button>
-      </> : <p>ยังไม่มีสินค้าที่จัดส่งสำเร็จและยังไม่ได้รับรีวิว</p>}
+      </> : <p>ยังไม่มีสินค้าที่สั่งซื้อสำเร็จหรืองานติดตั้งที่เสร็จสมบูรณ์ซึ่งรอรีวิว</p>}
     </form>}
     {!loading && reviews.length > 0 && <div className="bk-history-list">{reviews.map((review) => {
-      const reviewedProduct = review.order_items?.products?.name || review.order_items?.product_name;
+      const reviewedItems = review.order_items
+        ? [review.order_items]
+        : review.quotation_items
+          ? [review.quotation_items]
+          : review.installation_products || [];
+      const reviewedProductName = (item) => item.products?.name || item.product_name || item.description;
       return <article className="bk-history-card" key={review.id}>
         <div className="bk-history-heading">
-          <strong>{reviewedProduct || review.installations?.installation_number || 'รีวิวบริการติดตั้ง'}</strong>
-          <span className={`status-pill ${review.is_published ? 'green' : 'yellow'}`}>{review.is_published ? 'เผยแพร่แล้ว' : 'รอตรวจสอบ'}</span>
+          <strong>
+            {reviewedItems.length === 1
+              ? reviewedProductName(reviewedItems[0])
+              : reviewedItems.length > 1
+                ? `สินค้าในงานติดตั้ง ${reviewedItems.length} รายการ`
+                : review.installations?.installation_number || 'รีวิวบริการติดตั้ง'}
+          </strong>
+          <span className={`status-pill ${review.is_published ? 'green' : 'yellow'}`}>{review.is_published ? 'เผยแพร่แล้ว' : 'ซ่อนอยู่'}</span>
         </div>
+        {reviewedItems.length > 0 && <div className="review-history-products">
+          {reviewedItems.map((item) => {
+            const product = item.products || {};
+            const productName = reviewedProductName(item);
+            const quantity = Number(item.quantity || 0);
+            const total = item.line_total ?? Number(item.unit_price || 0) * quantity;
+            return <div className="review-history-product" key={item.id}>
+              <div className="review-history-product-image">
+                {product.image_url
+                  ? <img src={product.image_url} alt={productName} onError={(event) => { event.currentTarget.hidden = true; }} />
+                  : <Package size={22} aria-hidden="true" />}
+              </div>
+              <div className="review-product-info">
+                <small>{product.category || (review.order_items ? 'สินค้าในคำสั่งซื้อ' : 'สินค้าในงานติดตั้ง')}</small>
+                <strong>{productName}</strong>
+                {product.description && <p>{product.description}</p>}
+                {product.sku && <span>รหัสสินค้า {product.sku}</span>}
+                {item.equipment_model && <span>รุ่นอุปกรณ์ {item.equipment_model}</span>}
+                {item.warranty_number && <span>เลขรับประกัน {item.warranty_number}</span>}
+                {item.warranty_end && <span>รับประกันถึง {new Date(item.warranty_end).toLocaleDateString('th-TH')}</span>}
+                {item.unit_price != null && item.quantity != null && <>
+                  <span>{money(item.unit_price)} / ชิ้น · จำนวน {quantity.toLocaleString('th-TH')}</span>
+                  <span>รวม {money(total)}</span>
+                </>}
+              </div>
+            </div>;
+          })}
+        </div>}
         <div className="bk-history-details">
           <span>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+          {review.order_items?.orders?.order_number && <span>คำสั่งซื้อ {review.order_items.orders.order_number}</span>}
+          {review.related_installation_number && <span>หมายเลขติดตั้ง {review.related_installation_number}</span>}
+          {review.quotation_number && <span>ใบเสนอราคา {review.quotation_number}</span>}
           <p>{review.comment}</p>
           <span>{dateTime(review.created_at)}</span>
         </div>
