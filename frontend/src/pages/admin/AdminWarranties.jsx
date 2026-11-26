@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ShieldCheck,
   Search,
@@ -30,7 +30,7 @@ const statusLabels = {
   claimed: 'มีการเคลมประกัน',
 };
 
-export default function AdminWarranties({ warranties, onSave, onDelete, setToast }) {
+export default function AdminWarranties({ warranties, onSave, onDelete, setToast, installation, installationId }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -39,6 +39,22 @@ export default function AdminWarranties({ warranties, onSave, onDelete, setToast
 
   const [formModal, setFormModal] = useState(null);
   const [certModal, setCertModal] = useState(null);
+  const [saveError, setSaveError] = useState('');
+  const openedInstallationId = useRef(null);
+
+  useEffect(() => {
+    if (!installationId || !installation || openedInstallationId.current === installationId) return;
+    openedInstallationId.current = installationId;
+    setFormModal({
+      customer_id: installation.customer_id || '',
+      customer_name: installation.customer_name || '',
+      customer_phone: installation.phone || '',
+      installation_id: installation.id,
+      installation_number: installation.installation_number || '',
+      equipment_type: 'inverter', equipment_model: '', serial_number: '',
+      warranty_start: new Date().toISOString().slice(0, 10), warranty_end: '', status: 'active', notes: '',
+    });
+  }, [installationId, installation]);
 
   const filtered = useMemo(() => {
     return (warranties || []).filter((item) => {
@@ -62,7 +78,13 @@ export default function AdminWarranties({ warranties, onSave, onDelete, setToast
       alert('กรุณากรอก Serial Number และชื่อลูกค้า');
       return;
     }
-    onSave(formModal);
+    setSaveError('');
+    Promise.resolve(onSave(formModal)).then(() => {
+      setFormModal(null);
+      if (setToast) setToast('บันทึกข้อมูลรับประกันแล้ว');
+    }).catch((error) => {
+      setSaveError(error?.message || 'บันทึกข้อมูลรับประกันไม่สำเร็จ');
+    });
     setFormModal(null);
     if (setToast) setToast('บันทึกข้อมูลการรับประกันเรียบร้อยแล้ว');
   }
@@ -150,7 +172,7 @@ export default function AdminWarranties({ warranties, onSave, onDelete, setToast
                 equipment_model: '',
                 serial_number: '',
                 warranty_start: new Date().toISOString().slice(0, 10),
-                warranty_end: new Date(Date.now() + 10 * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10),
+                warranty_end: '',
                 status: 'active',
                 notes: '',
               })
@@ -325,7 +347,16 @@ export default function AdminWarranties({ warranties, onSave, onDelete, setToast
             </div>
 
             <form onSubmit={handleSave}>
+              {saveError && <p role="alert" className="admin-error">{saveError}</p>}
               <div className="admin-form-grid">
+                {formModal.installation_id && <label className="full-width">งานติดตั้ง
+                  <input readOnly value={`${formModal.installation_number || ''} (${formModal.installation_id})`} />
+                </label>}
+                <label className="full-width">Customer ID *
+                  <input required readOnly={Boolean(formModal.installation_id)} value={formModal.customer_id || ''}
+                    onChange={(e) => setFormModal({ ...formModal, customer_id: e.target.value })}
+                    placeholder="UUID ของลูกค้าในระบบ" />
+                </label>
                 <label>
                   ชื่อลูกค้า *
                   <input

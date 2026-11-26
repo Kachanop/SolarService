@@ -32,6 +32,9 @@ function getAdminErrorMessage(error) {
 }
 
 export default function AdminWorkspace({ route, title, navigate, authUser, setToast }) {
+  const installationId = route === '/warranties'
+    ? new URLSearchParams(window.location.hash.split('?')[1] || '').get('installation_id')
+    : null;
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
@@ -389,9 +392,14 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
           {route === '/warranties' && (
             <AdminWarranties
               warranties={warrantiesData}
+              installation={installationsData.find((item) => item.id === installationId) || null}
+              installationId={installationId}
               onSave={async (item) => {
-                await adminService.saveWarranty(item);
+                const saved = await adminService.saveWarranty(item);
+                const fresh = await adminService.getWarranties();
+                setWarrantiesData(fresh);
                 setRefreshKey((k) => k + 1);
+                return saved;
               }}
               onDelete={async (id) => {
                 await adminService.deleteWarranty(id);

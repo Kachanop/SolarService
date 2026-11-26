@@ -1,6 +1,6 @@
 export const roleMenus = {
   Guest: [{ label: 'หน้าแรก', path: '/' }, { label: 'สินค้า', path: '/products' }, { label: 'แพ็กเกจติดตั้ง', path: '/packages' }, { label: 'บริการช่าง', path: '/services' }, { label: 'เกี่ยวกับเรา', path: '/about' }],
-  Customer: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'การจองของฉัน', path: '/booking-history' }, { label: 'ใบเสนอราคา', path: '/quotes' }, { label: 'ติดตามงาน', path: '/tracking' }, { label: 'บัญชีของฉัน', path: '/account' }],
+  Customer: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'คำสั่งซื้อของฉัน', path: '/orders' }, { label: 'การจองของฉัน', path: '/booking-history' }, { label: 'ใบเสนอราคา', path: '/quotes' }, { label: 'ติดตามงาน', path: '/tracking' }, { label: 'ประกัน & แจ้งซ่อม', path: '/warranty' }, { label: 'รีวิว', path: '/reviews' }, { label: 'บัญชีของฉัน', path: '/account' }],
   Staff: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'บัญชีของฉัน', path: '/account' }],
   Technician: [{ label: 'ภาพรวม', path: '/technician' }, { label: 'ตารางนัดหมาย', path: '/schedule' }, { label: 'งานของฉัน', path: '/jobs' }, { label: 'ประวัติงาน', path: '/work-history' }, { label: 'บัญชีของฉัน', path: '/account' }],
   Admin: [
@@ -26,9 +26,10 @@ export const technicianRoutes = new Set(['/technician', '/schedule', '/jobs', '/
 
 export const pageTitles = {
   '/customer': 'ภาพรวมของฉัน', '/bookings': 'การจองของฉัน', '/quotes': 'ใบเสนอราคา',
-  '/booking-history': 'ประวัติการจอง',
+  '/booking-history': 'ประวัติการจอง', '/orders': 'คำสั่งซื้อของฉัน',
   '/tracking': 'ติดตามงานติดตั้ง', '/cart': 'ตะกร้าสินค้า', '/checkout': 'ยืนยันคำสั่งซื้อ',
   '/profile': 'บัญชีของฉัน', '/account': 'บัญชีของฉัน', '/reviews': 'รีวิวบริการ',
+  '/warranty': 'ใบรับประกันและแจ้งซ่อม', '/maintenance': 'การบำรุงรักษา',
   '/technician': 'ภาพรวมช่าง', '/schedule': 'ตารางนัดหมาย', '/jobs': 'งานที่ได้รับมอบหมาย',
   '/survey': 'แบบฟอร์มสำรวจหน้างาน', '/work-history': 'ประวัติงาน', '/job-detail': 'รายละเอียดงาน',
   '/admin': 'Dashboard & สถิติระบบ',

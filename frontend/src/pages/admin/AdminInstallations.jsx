@@ -392,7 +392,7 @@ export default function AdminInstallations({
                 className="button button-green small-button"
                 onClick={() => {
                   setStageModal(null);
-                  navigate('/warranties');
+                  navigate(`/warranties?installation_id=${encodeURIComponent(stageModal.id)}&customer_id=${encodeURIComponent(stageModal.customer_id || '')}&installation_number=${encodeURIComponent(stageModal.installation_number || '')}`);
                 }}
               >
                 <ShieldCheck size={13} /> ไปหน้าออกใบรับประกันสินค้า
