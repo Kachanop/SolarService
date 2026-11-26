@@ -304,4 +304,3 @@ function JobDetail({ assignment, authUser, onChange, installNotes, setInstallNot
     </article>
   );
 }
-//

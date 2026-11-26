@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CalendarDays, Check, ClipboardList, Sun, Wrench } from 'lucide-react';
+import { searchAddressByProvince } from 'thai-address-database';
 import { SERVICE_TYPES, createBooking, getMyProfile, getSlotAvailability } from '../services/bookingService.js';
 
 
@@ -9,7 +10,24 @@ const SERVICE_ICONS = {
   maintenance: <Wrench size={22} />,
 };
 
-const PROVINCES = ['กรุงเทพมหานคร', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'เชียงใหม่', 'ชลบุรี', 'ขอนแก่น', 'ภูเก็ต', 'อื่น ๆ'];
+const ADDRESS_ROWS = searchAddressByProvince('.', 10000);
+const PROVINCES = [...new Set(ADDRESS_ROWS.map((row) => row.province))].sort((a, b) => a.localeCompare(b, 'th'));
+
+function getAmphoes(province) {
+  return [...new Set(ADDRESS_ROWS.filter((row) => row.province === province).map((row) => row.amphoe))]
+    .sort((a, b) => a.localeCompare(b, 'th'));
+}
+
+function getDistricts(province, amphoe) {
+  return [...new Set(ADDRESS_ROWS
+    .filter((row) => row.province === province && row.amphoe === amphoe)
+    .map((row) => row.district))]
+    .sort((a, b) => a.localeCompare(b, 'th'));
+}
+
+function getZipcode(province, amphoe, district) {
+  return ADDRESS_ROWS.find((row) => row.province === province && row.amphoe === amphoe && row.district === district)?.zipcode || '';
+}
 
 // สร้างข้อความวันที่แบบ YYYY-MM-DD ตามเวลาของเครื่องผู้ใช้ (ไม่ใช้ toISOString เพราะจะเลื่อนเป็น UTC)
 function toDateInputValue(date) {
@@ -31,7 +49,10 @@ export default function Booking({ user, navigate, setToast }) {
   const [contactName, setContactName] = useState('');
   const [phone, setPhone] = useState('');
   const [province, setProvince] = useState('');
-  const [address, setAddress] = useState('');
+  const [amphoe, setAmphoe] = useState('');
+  const [district, setDistrict] = useState('');
+  const [zipcode, setZipcode] = useState('');
+  const [addressLine, setAddressLine] = useState('');
   const [notes, setNotes] = useState('');
 
   const [slots, setSlots] = useState([]);
@@ -99,7 +120,10 @@ export default function Booking({ user, navigate, setToast }) {
     else if (!chosen.is_available) next.slot = 'ช่วงเวลานี้ไม่ว่างแล้ว กรุณาเลือกช่วงเวลาอื่น';
     if (!/^0\d{8,9}$/.test(normalizePhone(phone))) next.phone = 'กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง เช่น 081-234-5678';
     if (!province) next.province = 'กรุณาเลือกจังหวัด';
-    if (address.trim().length < 10) next.address = 'กรุณากรอกที่อยู่ให้ครบถ้วน (บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ)';
+    if (!amphoe) next.amphoe = `กรุณาเลือก${province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}`;
+    if (!district) next.district = `กรุณาเลือก${province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}`;
+    if (!/^\d{5}$/.test(zipcode)) next.zipcode = 'กรุณากรอกรหัสไปรษณีย์ 5 หลัก';
+    if (!addressLine.trim()) next.addressLine = 'กรุณากรอกบ้านเลขที่ หมู่บ้าน หรือถนน';
     return next;
   }
 
@@ -119,7 +143,7 @@ export default function Booking({ user, navigate, setToast }) {
         serviceType,
         preferredAt: slotStart,
         phone: normalizePhone(phone),
-        address: address.trim(),
+        address: `${addressLine.trim()}, ${province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}${district}, ${province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}${amphoe}, ${zipcode}`,
         province,
         notes: notes.trim(),
       });
@@ -254,19 +278,62 @@ export default function Booking({ user, navigate, setToast }) {
               <input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="08X-XXX-XXXX" aria-invalid={Boolean(errors.phone)} />
               {errors.phone && <span className="bk-error" role="alert">{errors.phone}</span>}
             </label>
+            <label className="bk-field bk-full">
+              บ้านเลขที่ / หมู่บ้าน / ถนน
+              <textarea rows="2" value={addressLine} onChange={(event) => {
+                setAddressLine(event.target.value);
+                setErrors((current) => ({ ...current, addressLine: '' }));
+              }} placeholder="บ้านเลขที่ ซอย หมู่บ้าน ถนน" aria-invalid={Boolean(errors.addressLine)} />
+              {errors.addressLine && <span className="bk-error" role="alert">{errors.addressLine}</span>}
+            </label>
             <label className="bk-field">
               จังหวัด
-              <select value={province} onChange={(event) => setProvince(event.target.value)} aria-invalid={Boolean(errors.province)}>
+              <select value={province} onChange={(event) => {
+                setProvince(event.target.value);
+                setAmphoe('');
+                setDistrict('');
+                setZipcode('');
+                setErrors((current) => ({ ...current, province: '', amphoe: '', district: '', zipcode: '' }));
+              }} aria-invalid={Boolean(errors.province)}>
                 <option value="">เลือกจังหวัด</option>
                 {PROVINCES.map((name) => <option key={name} value={name}>{name}</option>)}
               </select>
               {errors.province && <span className="bk-error" role="alert">{errors.province}</span>}
             </label>
-            <label className="bk-field bk-full">
-              ที่อยู่สำหรับเข้าสำรวจ/ติดตั้ง
-              <textarea rows="3" value={address} onChange={(event) => setAddress(event.target.value)} placeholder="บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ รหัสไปรษณีย์" aria-invalid={Boolean(errors.address)} />
-              {errors.address && <span className="bk-error" role="alert">{errors.address}</span>}
+            <label className="bk-field">
+              {province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}
+              <select value={amphoe} disabled={!province} onChange={(event) => {
+                setAmphoe(event.target.value);
+                setDistrict('');
+                setZipcode('');
+                setErrors((current) => ({ ...current, amphoe: '', district: '', zipcode: '' }));
+              }} aria-invalid={Boolean(errors.amphoe)}>
+                <option value="">เลือก{province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}</option>
+                {getAmphoes(province).map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+              {errors.amphoe && <span className="bk-error" role="alert">{errors.amphoe}</span>}
             </label>
+            <label className="bk-field">
+              {province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}
+              <select value={district} disabled={!amphoe} onChange={(event) => {
+                setDistrict(event.target.value);
+                setZipcode(getZipcode(province, amphoe, event.target.value));
+                setErrors((current) => ({ ...current, district: '', zipcode: '' }));
+              }} aria-invalid={Boolean(errors.district)}>
+                <option value="">เลือก{province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}</option>
+                {getDistricts(province, amphoe).map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+              {errors.district && <span className="bk-error" role="alert">{errors.district}</span>}
+            </label>
+            <label className="bk-field">
+              รหัสไปรษณีย์
+              <input type="text" inputMode="numeric" autoComplete="postal-code" maxLength="5" value={zipcode} onChange={(event) => {
+                setZipcode(event.target.value.replace(/\D/g, '').slice(0, 5));
+                setErrors((current) => ({ ...current, zipcode: '' }));
+              }} placeholder="เช่น 23110" aria-invalid={Boolean(errors.zipcode)} />
+              {errors.zipcode && <span className="bk-error" role="alert">{errors.zipcode}</span>}
+            </label>
+            <p className="bk-hint bk-full">เลือกพื้นที่ตามลำดับ จังหวัด → อำเภอ/เขต → ตำบล/แขวง ระบบเติมรหัสไปรษณีย์ให้อัตโนมัติ</p>
             <label className="bk-field bk-full">
               รายละเอียดเพิ่มเติม (ไม่บังคับ)
               <textarea rows="2" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="เช่น จุดสังเกตบ้าน ชนิดหลังคา หรือเวลาที่ติดต่อได้สะดวก" />
