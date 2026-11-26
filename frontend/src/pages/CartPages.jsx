@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CalendarDays, Check, ShieldCheck, ShoppingBag, Wrench, X } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, Printer, ShieldCheck, ShoppingBag, Wrench, X } from 'lucide-react';
 import { Money, PageIntro } from '../components/Shared.jsx';
 import { supabase } from '../lib/supabase.js';
 import { createPromptPayQr, getPromptPayPaymentStatus } from '../services/paymentService.js';
@@ -322,7 +322,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       if (result.status !== 'succeeded' && !result.qrCodeUrl) {
         throw new Error('Stripe ไม่ได้ส่งลิงก์ QR PromptPay กลับมา');
       }
-      setQrPayment({ ...result, orderId: activeOrderId });
+      setQrPayment({ ...result, orderId: activeOrderId, createdAt: new Date().toISOString() });
       setPaymentMessage('รอการชำระเงินผ่าน PromptPay ระบบจะตรวจสอบสถานะให้อัตโนมัติ');
     } catch (error) {
       console.error('checkout error:', error);
@@ -330,6 +330,13 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function printPaymentQuotation() {
+    document.body.classList.add('print-payment-quotation');
+    window.addEventListener('afterprint', () => document.body.classList.remove('print-payment-quotation'), { once: true });
+    window.print();
+    window.setTimeout(() => document.body.classList.remove('print-payment-quotation'), 1000);
   }
 
   if (paid) {
@@ -364,34 +371,71 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
         <button className="button button-green" onClick={() => navigate('/products')}>เลือกซื้อสินค้า <ArrowRight size={16} /></button>
       </div>
     ) : qrPayment ? (
-      <section className="promptpay-qr-panel" aria-live="polite">
-        <h2>สแกน QR เพื่อชำระเงิน</h2>
-        <p>เปิดแอปธนาคารแล้วสแกน QR Code เพื่อชำระผ่าน PromptPay</p>
-        <strong className="promptpay-amount"><Money value={qrPayment.amountInBaht ?? subtotal} /></strong>
-        <div className="promptpay-order-items">
-          {(qrPayment.orderItems || []).map((item, index) => (
-            <div className="promptpay-order-item" key={`${item.name}-${index}`}>
-              <span>{item.name} × {item.quantity}</span>
-              <strong><Money value={item.lineTotal} /></strong>
+      <section className="promptpay-qr-panel payment-quotation" aria-live="polite">
+        <div className="payment-quotation-document">
+          <header className="payment-quotation-header">
+            <div>
+              <span className="payment-quotation-brand">SOLARSERVICE</span>
+              <h2>ใบเสนอราคาและชำระเงิน</h2>
+              <p>สรุปรายการสินค้าและบริการ</p>
             </div>
-          ))}
+            <button className="button button-outline no-print" type="button" onClick={printPaymentQuotation}>
+              <Printer size={15} /> พิมพ์ / บันทึก PDF
+            </button>
+          </header>
+
+          <div className="payment-quotation-meta">
+            <div><small>เลขที่อ้างอิงคำสั่งซื้อ</small><strong>{orderId}</strong></div>
+            <div><small>วันที่ออกเอกสาร</small><strong>{new Date(qrPayment.createdAt || Date.now()).toLocaleDateString('th-TH', { dateStyle: 'long' })}</strong></div>
+          </div>
+
+          <div className="payment-quotation-customer">
+            <strong>ข้อมูลผู้สั่งซื้อ</strong>
+            <span>{shipping.name}</span>
+            <span>{shipping.phone}</span>
+            <span>{shipping.address}</span>
+          </div>
+
+          <div className="payment-quotation-table-wrap">
+            <table className="payment-quotation-table">
+              <thead><tr><th>รายการ</th><th>จำนวน</th><th>รวม</th></tr></thead>
+              <tbody>
+                {(qrPayment.orderItems || []).map((item, index) => (
+                  <tr key={`${item.name}-${index}`}>
+                    <td>{item.name}</td><td>{item.quantity}</td><td><Money value={item.lineTotal} /></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr><th colSpan="2">ยอดสุทธิที่ต้องชำระ</th><th><Money value={qrPayment.amountInBaht ?? subtotal} /></th></tr></tfoot>
+            </table>
+          </div>
+
+          {wantsTechnician && selectedSlot && (
+            <p className="payment-quotation-service"><Wrench size={14} /> นัดช่างติดตั้ง: {selectedSlot.label} วันที่ {installDate} · {installProvince}</p>
+          )}
+
+          <div className="payment-quotation-qr">
+            <h3>QR สำหรับชำระเงินผ่าน PromptPay</h3>
+            <p>เปิดแอปธนาคารแล้วสแกน QR Code เพื่อชำระเงินตามยอดที่ระบุ</p>
+            {secondsRemaining > 0 && qrPayment.qrCodeUrl
+              ? <img className="promptpay-qr-image" src={qrPayment.qrCodeUrl} alt="QR Code สำหรับชำระเงินผ่าน PromptPay" />
+              : <p className="payment-quotation-expired">QR หมดอายุแล้ว กรุณาสร้าง QR ใหม่ก่อนชำระเงิน</p>}
+            <strong className={secondsRemaining ? 'promptpay-countdown' : 'promptpay-countdown expired'}>
+              {secondsRemaining ? `QR ใช้ได้อีก ${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, '0')} นาที` : 'QR หมดอายุแล้ว'}
+            </strong>
+            {qrPayment.hostedInstructionsUrl && <a className="no-print" href={qrPayment.hostedInstructionsUrl} target="_blank" rel="noreferrer">เปิดหน้าแสดง QR จาก Stripe</a>}
+          </div>
         </div>
-        {wantsTechnician && selectedSlot && (
-          <p className="sx-note"><Wrench size={14} /> นัดช่างติดตั้ง: {selectedSlot.label} วันที่ {installDate} (ระบบจะยืนยันนัดหลังชำระเงิน)</p>
-        )}
-        {secondsRemaining > 0 && qrPayment.qrCodeUrl && <img className="promptpay-qr-image" src={qrPayment.qrCodeUrl} alt="QR Code สำหรับชำระเงินผ่าน PromptPay" />}
-        {secondsRemaining > 0 && qrPayment.hostedInstructionsUrl && <a className="button button-outline" href={qrPayment.hostedInstructionsUrl} target="_blank" rel="noreferrer">เปิดหน้าแสดง QR จาก Stripe</a>}
-        <strong className={secondsRemaining ? 'promptpay-countdown' : 'promptpay-countdown expired'}>
-          {secondsRemaining ? `QR ใช้ได้อีก ${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, '0')} นาที` : 'QR หมดอายุแล้ว'}
-        </strong>
-        <p>เลขที่คำสั่งซื้อ: {orderId}</p>
-        <p>{paymentMessage}</p>
-        <button className="button button-green" type="button" onClick={checkPaymentStatus} disabled={checkingPayment}>
-          {checkingPayment ? 'กำลังตรวจสอบ…' : 'ตรวจสอบการชำระเงิน'}
-        </button>
-        {secondsRemaining === 0 && <button className="button button-outline" type="button" onClick={submitCheckout} disabled={submitting}>
-          {submitting ? 'กำลังสร้าง QR…' : 'สร้าง QR ใหม่'} <ArrowRight size={16} />
-        </button>}
+
+        <div className="payment-quotation-actions no-print">
+          <p role="status">{paymentMessage}</p>
+          <button className="button button-green" type="button" onClick={checkPaymentStatus} disabled={checkingPayment}>
+            {checkingPayment ? 'กำลังตรวจสอบ…' : 'ตรวจสอบการชำระเงิน'}
+          </button>
+          {secondsRemaining === 0 && <button className="button button-outline" type="button" onClick={submitCheckout} disabled={submitting}>
+            {submitting ? 'กำลังสร้าง QR…' : 'สร้าง QR ใหม่'} <ArrowRight size={16} />
+          </button>}
+        </div>
       </section>
     ) : (
       <form className="checkout-form" onSubmit={submitCheckout}>
