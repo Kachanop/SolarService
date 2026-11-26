@@ -177,7 +177,7 @@ function App() {
     `${product.name} ${product.category}`.toLowerCase().includes(search.toLowerCase())), [catalogProducts, search]);
   const protectedRoutes = new Set([
     '/customer', '/bookings', '/booking-history', '/orders', '/quotes', '/tracking', '/cart', '/checkout', '/profile', '/account', '/reviews', '/warranty', '/maintenance',
-    '/technician', '/schedule', '/jobs', '/survey', '/work-history', '/job-detail',
+    '/technician', '/schedule', '/jobs', '/survey-schedule', '/installation-schedule', '/survey', '/work-history', '/job-detail',
     '/admin', '/manage-products', '/manage-packages', '/manage-users',
     '/manage-bookings', '/manage-quotes', '/manage-orders', '/manage-payments',
     '/manage-technicians',
