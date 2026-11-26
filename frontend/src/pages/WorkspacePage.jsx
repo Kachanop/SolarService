@@ -11,7 +11,7 @@ import TechnicianWorkflow from '../technician/TechnicianWorkflow.jsx';
 import CustomerWorkspace from './customer/CustomerWorkspace.jsx';
 
 export default function WorkspacePage({ route, title, navigate, setToast, authUser }) {
-  const isTechnician = ['/technician', '/schedule', '/jobs', '/survey', '/work-history', '/job-detail'].includes(route);
+  const isTechnician = ['/technician', '/schedule', '/jobs', '/survey-schedule', '/installation-schedule', '/survey', '/work-history', '/job-detail'].includes(route);
   const isDashboard = ['/customer', '/technician', '/admin'].includes(route);
   const isBooking = route === '/bookings';
   const isSurvey = route === '/survey';

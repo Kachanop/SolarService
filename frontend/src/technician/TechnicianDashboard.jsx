@@ -32,9 +32,11 @@ const statusTones = {
 };
 
 const pageCopy = {
-  '/technician': { heading: 'งานของคุณ', description: 'ภาพรวมนัดหมายและงานที่ได้รับมอบหมาย' },
+  '/technician': { heading: 'ภาพรวม', description: 'งานสำรวจและติดตั้งที่ยังอยู่ระหว่างดำเนินการ' },
   '/schedule': { heading: 'ตารางนัดหมาย', description: 'รายการนัดหมายทั้งหมดที่มอบหมายให้คุณ' },
-  '/jobs': { heading: 'งานที่ได้รับมอบหมาย', description: 'งานที่ยังอยู่ระหว่างดำเนินการ' },
+  '/jobs': { heading: 'ภาพรวม', description: 'งานสำรวจและติดตั้งที่ยังอยู่ระหว่างดำเนินการ' },
+  '/survey-schedule': { heading: 'ตารางนัดสำรวจ', description: 'รายการงานสำรวจที่ยังอยู่ระหว่างดำเนินการ' },
+  '/installation-schedule': { heading: 'ตารางนัดติดตั้ง', description: 'รายการงานติดตั้งที่ยังอยู่ระหว่างดำเนินการ' },
   '/work-history': { heading: 'ประวัติงาน', description: 'งานที่เสร็จสิ้นหรือถูกยกเลิกแล้ว' },
   '/job-detail': { heading: 'รายละเอียดงาน', description: 'ข้อมูลการนัดหมายและรายละเอียดงานที่ได้รับมอบหมาย' },
 };
@@ -97,7 +99,6 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
 
   const bookings = useMemo(() => [...assignments].sort((a, b) => new Date(a.preferred_at) - new Date(b.preferred_at)), [assignments]);
 
-  const dashboardBookings = [...bookings].sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at));
   const activeBookings = bookings.filter((booking) => !['completed', 'cancelled'].includes(booking.assignment_status));
   const historyBookings = bookings.filter((booking) => ['completed', 'cancelled'].includes(booking.assignment_status)).reverse();
   const today = new Date();
@@ -109,13 +110,18 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
   }).length;
   const inProgressCount = bookings.filter((booking) => ['in_progress'].includes(booking.assignment_status)).length;
   const page = pageCopy[route] || pageCopy['/technician'];
-  const visibleBookings = route === '/jobs'
-    ? activeBookings
-    : route === '/work-history'
-      ? historyBookings
-      : route === '/technician'
-        ? dashboardBookings
-        : bookings;
+  const isOverview = route === '/technician' || route === '/jobs';
+  const visibleBookings = route === '/work-history'
+    ? historyBookings
+    : isOverview
+      ? activeBookings
+      : route === '/schedule'
+        ? activeBookings
+        : route === '/survey-schedule'
+          ? activeBookings.filter((booking) => booking.assignment_type === 'survey')
+          : route === '/installation-schedule'
+            ? activeBookings.filter((booking) => booking.assignment_type === 'installation')
+            : activeBookings;
   const selectedBooking = bookings.find((booking) => booking.id === selectedBookingId) || null;
 
   return (
@@ -137,17 +143,17 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
       <nav className="technician-tabs" aria-label="เมนูช่าง">
         {[
           ['/technician', 'ภาพรวม'],
-          ['/schedule', 'ตารางนัดหมาย'],
-          ['/jobs', 'งานของฉัน'],
+          ['/survey-schedule', 'ตารางนัดสำรวจ'],
+          ['/installation-schedule', 'ตารางนัดติดตั้ง'],
           ['/work-history', 'ประวัติงาน'],
         ].map(([path, label]) => (
-          <button key={path} type="button" className={route === path ? 'active' : ''} onClick={() => navigate(path)}>
+          <button key={path} type="button" className={route === path || (isOverview && path === '/technician') ? 'active' : ''} onClick={() => navigate(path)}>
             {label}
           </button>
         ))}
       </nav>
 
-      {route === '/technician' && (
+      {isOverview && (
         <div className="stats-grid technician-stats">
           <article className="stat-card"><span><CalendarDays /></span><small>นัดหมายวันนี้</small><strong>{loading ? '—' : todayCount}</strong></article>
           <article className="stat-card"><span><Wrench /></span><small>งานที่กำลังดำเนินการ</small><strong>{loading ? '—' : inProgressCount}</strong></article>
@@ -158,11 +164,10 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
       <section className="workspace-content technician-jobs">
         <div className="workspace-section-heading">
           <div>
-            <h2>{route === '/technician' ? 'งานที่ได้รับมอบหมายล่าสุด' : page.heading}</h2>
-            <p>{route === '/technician' ? 'ตรวจสอบกำหนดการและรายละเอียดงานของคุณ' : page.description}</p>
+            <h2>{isOverview ? 'งานที่กำลังดำเนินการ' : page.heading}</h2>
+            <p>{page.description}</p>
           </div>
-          {route === '/technician' && <button className="button button-outline small-button" type="button" onClick={() => navigate('/jobs')}>ดูงานทั้งหมด</button>}
-          {isDetailPage && <button className="button button-outline small-button" type="button" onClick={() => navigate('/jobs')}>กลับไปยังรายการงาน</button>}
+          {isDetailPage && <button className="button button-outline small-button" type="button" onClick={() => navigate('/technician')}>กลับไปยังรายการงาน</button>}
         </div>
 
         {errorMessage && (
@@ -183,13 +188,18 @@ export default function TechnicianDashboard({ route, title, authUser, navigate }
         {!isDetailPage && !loading && !errorMessage && visibleBookings.length === 0 && (
           <div className="technician-empty">
             <CalendarDays size={26} />
-            <strong>{route === '/work-history' ? 'ยังไม่มีประวัติงาน' : 'ยังไม่มีงานที่ได้รับมอบหมาย'}</strong>
+            <strong>{
+              route === '/work-history' ? 'ยังไม่มีประวัติงาน'
+                : route === '/survey-schedule' ? 'ยังไม่มีงานสำรวจที่ได้รับมอบหมาย'
+                  : route === '/installation-schedule' ? 'ยังไม่มีงานติดตั้งที่ได้รับมอบหมาย'
+                    : 'ยังไม่มีงานที่ได้รับมอบหมาย'
+            }</strong>
             <span>เมื่อมีการมอบหมายงาน รายการจะแสดงที่นี่</span>
           </div>
         )}
         {!isDetailPage && !loading && !errorMessage && visibleBookings.length > 0 && (
           <div className="technician-job-list">
-              {visibleBookings.slice(0, route === '/technician' ? 5 : visibleBookings.length).map((booking) => (
+              {visibleBookings.map((booking) => (
                 <article className="technician-job-card" key={booking.assignmentId || booking.id}>
                   <div className="technician-job-icon"><Wrench size={18} /></div>
                   <div className="technician-job-main">

@@ -74,7 +74,7 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
     const required = ['contact_name','contact_phone','installation_address','roof_type','roof_area_sqm','roof_direction','site_conditions','recommended_system_kw','panel_location','inverter_location','equipment_details','survey_date'];
     if (required.some((key) => !String(form[key] ?? '').trim())) { setError('กรุณากรอกข้อมูลสำรวจที่จำเป็นให้ครบก่อนส่งรายงาน'); return; }
     setSaving(true); setError('');
-    try { const survey = await saveSurveyDraft(selected.booking, authUser, form); if (files.length) await uploadSurveyImages(selected.booking, survey.id, authUser, files); await submitSurvey(selected.booking_id, installationTechnicianId); setFiles([]); setToast(installationTechnicianId ? 'ส่งรายงานและมอบหมายช่างติดตั้งแล้ว' : 'ส่งรายงานแล้ว รอ Admin มอบหมายช่างติดตั้ง'); navigate('/jobs'); }
+    try { const survey = await saveSurveyDraft(selected.booking, authUser, form); if (files.length) await uploadSurveyImages(selected.booking, survey.id, authUser, files); await submitSurvey(selected.booking_id, installationTechnicianId); setFiles([]); setToast(installationTechnicianId ? 'ส่งรายงานและมอบหมายช่างติดตั้งแล้ว' : 'ส่งรายงานแล้ว รอ Admin มอบหมายช่างติดตั้ง'); navigate('/technician'); }
     catch (reason) { setError(reason.message || 'ส่งรายงานไม่สำเร็จ'); }
     finally { setSaving(false); }
   }
@@ -102,7 +102,7 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
   const surveyLocked = selected?.survey?.status === 'submitted';
   if (loading) return <div className="workspace-wrap"><p className="technician-message">กำลังโหลดงานจาก Supabase…</p></div>;
   return <div className="workspace-wrap technician-workspace">
-    <div className="workspace-heading"><div><div className="eyebrow">TECHNICIAN WORKSPACE</div><h1>{route === '/survey' ? 'รายงานสำรวจหน้างาน' : 'รายละเอียดและส่งต่องาน'}</h1><p>งานและรายงานจาก Supabase</p></div><button className="button button-outline small-button" onClick={() => navigate('/jobs')}>กลับรายการงาน</button></div>
+    <div className="workspace-heading"><div><div className="eyebrow">TECHNICIAN WORKSPACE</div><h1>{route === '/survey' ? 'รายงานสำรวจหน้างาน' : 'รายละเอียดและส่งต่องาน'}</h1><p>งานและรายงานจาก Supabase</p></div><button className="button button-outline small-button" onClick={() => navigate('/technician')}>กลับรายการงาน</button></div>
     {error && <div className="technician-error" role="alert"><AlertCircle size={16}/>{error}</div>}
     {route === '/survey' && <>
       {!surveyAssignments.length ? <div className="technician-empty"><ClipboardList/><strong>ไม่มีงานสำรวจที่ได้รับมอบหมาย</strong></div> : <form className="job-card survey-card" onSubmit={handleSubmit}>

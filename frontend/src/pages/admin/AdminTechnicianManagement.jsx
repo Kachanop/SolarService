@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ClipboardList, MapPin, Phone, Search, UsersRound, Wrench } from 'lucide-react';
-import { assignTechnician, getAdminSurveyReport, getAdminTechnicianWorkflow, updateAdminSurvey, updateTechnicianType } from '../../services/technicianWorkflowService.js';
+import { assignTechnician, getAdminSurveyReport, getAdminTechnicianWorkflow, updateAdminSurvey } from '../../services/technicianWorkflowService.js';
 
 function dateLabel(value) { return value ? new Date(value).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : 'ไม่ระบุวันนัด'; }
 
@@ -46,10 +46,6 @@ export default function AdminTechnicianManagement({ authUser, setToast, navigate
     finally { setSaving(''); }
   }
 
-  async function changeType(technician, technicianType) {
-    try { await updateTechnicianType(technician.id,technicianType); setToast('ปรับประเภทช่างแล้ว'); setRevision((value)=>value+1); }
-    catch (reason) { setToast(`แก้ไขประเภทช่างไม่สำเร็จ: ${reason.message}`); }
-  }
   async function openReport(bookingId) {
     setReportError('');setReportEdit(false);setReport({loading:true,bookingId});
     try { const data=await getAdminSurveyReport(bookingId);if(!data){setReport(null);setReportError('ยังไม่มีรายงานสำรวจสำหรับงานนี้');return;}setReport({...data,bookingId}); }
@@ -90,7 +86,7 @@ export default function AdminTechnicianManagement({ authUser, setToast, navigate
         {!visible.length && <div className="technician-no-bookings">{bookings.length ? 'ไม่พบงานตามตัวกรอง' : 'ยังไม่มีรายการจองในฐานข้อมูล'}</div>}
       </div>}
     </section>
-    <section className="technician-team-section"><div className="workspace-section-heading"><div><h2>ทีมช่าง</h2><p>ข้อมูลโปรไฟล์จาก Supabase และกำหนดประเภทงานที่บัญชีมองเห็น</p></div></div><div className="technician-team-grid">{technicians.map((tech) => <article className="technician-team-card" key={tech.id}>{tech.avatar_url ? <img className="technician-avatar" src={tech.avatar_url} alt=""/> : <div className="technician-avatar">{(tech.full_name || 'ช').slice(0,1)}</div>}<div className="technician-card-info"><strong>{tech.full_name || 'ไม่ระบุชื่อ'}</strong><small>{tech.phone || 'ไม่มีเบอร์โทร'}</small></div><select aria-label={`ประเภทงานของ ${tech.full_name}`} value={tech.technician_type || 'both'} onChange={(e)=>changeType(tech,e.target.value)}><option value="survey">ช่างสำรวจ</option><option value="installation">ช่างติดตั้ง</option><option value="both">สำรวจและติดตั้ง</option></select></article>)}</div></section>
+    <section className="technician-team-section"><div className="workspace-section-heading"><div><h2>ทีมช่าง</h2><p>รายชื่อช่างสำหรับมอบหมายงานสำรวจและติดตั้ง</p></div></div><div className="technician-team-grid">{technicians.map((tech) => <article className="technician-team-card" key={tech.id}>{tech.avatar_url ? <img className="technician-avatar" src={tech.avatar_url} alt=""/> : <div className="technician-avatar">{(tech.full_name || 'ช').slice(0,1)}</div>}<div className="technician-card-info"><strong>{tech.full_name || 'ไม่ระบุชื่อ'}</strong><small>{tech.phone || 'ไม่มีเบอร์โทร'}</small></div></article>)}</div></section>
     {reportError&&<div className="technician-error" role="alert">{reportError}</div>}
     {report&&<div className="workflow-modal-backdrop" onClick={()=>setReport(null)}><section className="workflow-modal" onClick={(e)=>e.stopPropagation()}><button className="button button-outline small-button" onClick={()=>setReport(null)}>ปิด</button>{report.loading?<p>กำลังโหลดรายงาน…</p>:<><h2>รายงานสำรวจหน้างาน</h2><p>ผู้สำรวจ: {report.technician_name || '—'}</p>{reportEdit?<AdminSurveyEditor report={report} saving={reportSaving} onCancel={()=>setReportEdit(false)} onSave={saveReportChanges}/>:<><button className="button button-outline small-button" onClick={()=>setReportEdit(true)}>แก้ไขรายงาน (Admin)</button><div className="form-fields">{[['ผู้ติดต่อ',report.contact_name],['เบอร์โทร',report.contact_phone],['ที่อยู่',report.installation_address],['ประเภทหลังคา',report.roof_type],['พื้นที่หลังคา',report.roof_area_sqm],['ทิศทาง',report.roof_direction],['ระบบแนะนำ (kW)',report.recommended_system_kw],['สภาพพื้นที่',report.site_conditions],['ตำแหน่งแผง',report.panel_location],['ตำแหน่ง Inverter',report.inverter_location],['อุปกรณ์',report.equipment_details],['ปัญหา',report.problems],['ข้อเสนอแนะ',report.recommendations],['วันที่สำรวจ',report.survey_date]].map(([label,value])=><div key={label}><small>{label}</small><p>{value||'—'}</p></div>)}</div><div className="survey-photo-grid">{(report.survey_images||[]).map((image)=><a key={image.id} href={image.url} target="_blank" rel="noreferrer"><img src={image.url} alt={image.caption}/></a>)}</div></>}</>}</section></div>}
   </div>;
@@ -98,9 +94,19 @@ export default function AdminTechnicianManagement({ authUser, setToast, navigate
 
 function AssignmentCell({ booking, type, technicians, selection, setSelection, saving, onAssign }) {
   const current = type === 'survey' ? booking.survey_assignment : booking.installation_assignment;
+  const allWorkCompleted = booking.survey_assignment?.status === 'completed'
+    && booking.installation_assignment?.status === 'completed';
   const activeTechs = technicians.filter((t) => t.id !== current?.technician_id && ((t.technician_type || 'both') === type || t.technician_type === 'both'));
   const label = type === 'survey' ? 'สำรวจ' : 'ติดตั้ง';
-  if (type === 'installation' && !booking.survey_assignment) return <span className="technician-unassigned">รอสำรวจ</span>;
+  if (allWorkCompleted || current?.status === 'completed') {
+    return <span className="status-pill green">completed</span>;
+  }
+  if (type === 'installation' && booking.survey_assignment?.status !== 'completed') {
+    return <div className="technician-assign-control">
+      {current && <small>{current.profiles?.full_name || current.technician_id.slice(0,8)} · {current.status}</small>}
+      <span className="technician-unassigned">{booking.survey_assignment ? 'รอสำรวจเสร็จสิ้น' : 'รอมอบหมายงานสำรวจ'}</span>
+    </div>;
+  }
   return <div className="technician-assign-control">
     {current && <small>{current.profiles?.full_name || current.technician_id.slice(0,8)} · {current.status}</small>}
     <select aria-label={`เลือกช่าง${label}`} value={selection[`${booking.id}:${type}`] || ''} onChange={(e) => setSelection((s) => ({...s,[`${booking.id}:${type}`]:e.target.value}))}>
