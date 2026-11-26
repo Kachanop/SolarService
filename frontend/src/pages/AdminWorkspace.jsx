@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { CalendarDays } from 'lucide-react';
 import NotificationInbox from '../components/NotificationInbox.jsx';
 import { supabase } from '../lib/supabase.js';
@@ -32,6 +32,7 @@ function getAdminErrorMessage(error) {
 }
 
 export default function AdminWorkspace({ route, title, navigate, authUser, setToast }) {
+  const loadInstallationUpdates = useCallback((bookingId) => adminService.getInstallationUpdates(bookingId), []);
   const installationId = route === '/warranties'
     ? new URLSearchParams(window.location.hash.split('?')[1] || '').get('installation_id')
     : null;
@@ -375,6 +376,7 @@ export default function AdminWorkspace({ route, title, navigate, authUser, setTo
             <AdminInstallations
               installations={installationsData}
               technicians={technicians}
+              loadInstallationUpdates={loadInstallationUpdates}
               onUpdateStatus={async (id, status, extra) => {
                 await adminService.updateInstallationStatus(id, status, extra);
                 setRefreshKey((k) => k + 1);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Wrench,
   Search,
@@ -34,15 +34,35 @@ export default function AdminInstallations({
   technicians,
   onUpdateStatus,
   onSaveInstallation,
+  loadInstallationUpdates,
   navigate,
   setToast,
 }) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [stageModal, setStageModal] = useState(null);
+  const [installationPhotos, setInstallationPhotos] = useState([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photosError, setPhotosError] = useState('');
   const [createModal, setCreateModal] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  useEffect(() => {
+    if (!stageModal?.booking_id || !loadInstallationUpdates) {
+      setInstallationPhotos([]);
+      setPhotosError('');
+      return undefined;
+    }
+    let active = true;
+    setPhotosLoading(true);
+    setPhotosError('');
+    loadInstallationUpdates(stageModal.booking_id)
+      .then((photos) => { if (active) setInstallationPhotos(photos); })
+      .catch((error) => { if (active) setPhotosError(error.message || 'โหลดรูปงานติดตั้งไม่สำเร็จ'); })
+      .finally(() => { if (active) setPhotosLoading(false); });
+    return () => { active = false; };
+  }, [stageModal?.booking_id, loadInstallationUpdates]);
 
   const [form, setForm] = useState({
     customer_name: '',
@@ -345,6 +365,26 @@ export default function AdminInstallations({
                 <div><strong>หัวหน้าช่าง:</strong> {stageModal.lead_technician || '—'}</div>
               </div>
             </div>
+
+            <section style={{ marginBottom: '18px' }}>
+              <h3 style={{ fontSize: '13px', margin: '0 0 8px', color: '#273826' }}>บันทึกความคืบหน้าจากช่าง</h3>
+              <p style={{ whiteSpace: 'pre-wrap', margin: 0, color: stageModal.notes ? '#344434' : '#7c8b7a' }}>
+                {stageModal.notes || 'ยังไม่มีบันทึกความคืบหน้า'}
+              </p>
+            </section>
+
+            <section style={{ marginBottom: '18px' }}>
+              <h3 style={{ fontSize: '13px', margin: '0 0 8px', color: '#273826' }}>รูปภาพงานติดตั้ง</h3>
+              {photosLoading && <p>กำลังโหลดรูปภาพ…</p>}
+              {photosError && <p role="alert" style={{ color: '#b42318' }}>{photosError}</p>}
+              {!photosLoading && !photosError && installationPhotos.length === 0 && <p style={{ color: '#7c8b7a' }}>ยังไม่มีรูปภาพ</p>}
+              {installationPhotos.length > 0 && <div className="survey-photo-grid">
+                {installationPhotos.map((photo) => <a key={photo.id} href={photo.url} target="_blank" rel="noreferrer">
+                  <img src={photo.url} alt="รูปงานติดตั้งจากช่าง" />
+                  <small>{new Date(photo.created_at).toLocaleString('th-TH')}</small>
+                </a>)}
+              </div>}
+            </section>
 
             {/* Stages Checklist */}
             <h3 style={{ fontSize: '13px', margin: '0 0 10px', color: '#273826' }}>

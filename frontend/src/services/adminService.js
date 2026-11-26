@@ -1448,6 +1448,23 @@ export const adminService = {
     });
   },
 
+  async getInstallationUpdates(bookingId) {
+    if (!supabase) throw new Error('กรุณาตั้งค่า Supabase เพื่อดูรูปงานติดตั้ง');
+    const { data, error } = await supabase
+      .from('installation_images')
+      .select('id,storage_path,created_at')
+      .eq('booking_id', bookingId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return Promise.all((data || []).map(async (image) => {
+      const { data: signed, error: signedError } = await supabase.storage
+        .from('installation-images')
+        .createSignedUrl(image.storage_path, 3600);
+      if (signedError) throw signedError;
+      return { ...image, url: signed.signedUrl };
+    }));
+  },
+
   async updateInstallationStatus(id, status, extra = {}) {
     if (supabase && !String(id).startsWith('inst-')) {
       const { error } = await supabase.from('installations').update({ status, ...extra }).eq('id', id);
