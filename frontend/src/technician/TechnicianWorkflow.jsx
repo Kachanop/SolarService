@@ -1,15 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Calendar, Check, ClipboardList, ImagePlus, MapPin, Phone, Save, Send, User, Wrench } from 'lucide-react';
+import { AlertCircle, Calendar, Check, ClipboardList, ImagePlus, MapPin, Phone, Save, Send, User, Wrench, X } from 'lucide-react';
 import { getInstallationImages, getInstallationTechnicians, getMyWorkflowAssignments, getSurveyImageUrl, saveInstallationProgress, saveSurveyDraft, submitSurvey, uploadInstallationImages, uploadSurveyImages, updateAssignment } from '../services/technicianWorkflowService.js';
 import './technicianJob.css';
 
 const emptyForm = (booking, survey) => ({
-  contact_name: survey?.contact_name || '', contact_phone: survey?.contact_phone || booking?.phone || '', installation_address: survey?.installation_address || booking?.address || '',
+  contact_name: survey?.contact_name || '', contact_phone: normalizeThaiPhone(survey?.contact_phone || booking?.phone || ''), installation_address: survey?.installation_address || booking?.address || '',
   roof_type: survey?.roof_type || '', roof_area_sqm: survey?.roof_area_sqm ?? '', roof_direction: survey?.roof_direction || '',
   site_conditions: survey?.site_conditions || '', recommended_system_kw: survey?.recommended_system_kw ?? '', panel_location: survey?.panel_location || '',
   inverter_location: survey?.inverter_location || '', equipment_details: survey?.equipment_details || '', problems: survey?.problems || '', recommendations: survey?.recommendations || '',
   survey_date: survey?.survey_date || new Date().toISOString().slice(0,10), notes: survey?.notes || '',
 });
+
+function normalizeThaiPhone(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('0066')) digits = `0${digits.slice(4)}`;
+  else if (digits.startsWith('66')) digits = `0${digits.slice(2)}`;
+  return digits.slice(0, 10);
+}
 
 export default function TechnicianWorkflow({ authUser, route, setToast, navigate }) {
   const [assignments, setAssignments] = useState([]);
@@ -73,6 +80,7 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
     event.preventDefault();
     const required = ['contact_name','contact_phone','installation_address','roof_type','roof_area_sqm','roof_direction','site_conditions','recommended_system_kw','panel_location','inverter_location','equipment_details','survey_date'];
     if (required.some((key) => !String(form[key] ?? '').trim())) { setError('กรุณากรอกข้อมูลสำรวจที่จำเป็นให้ครบก่อนส่งรายงาน'); return; }
+    if (!/^0\d{9}$/.test(form.contact_phone)) { setError('กรุณากรอกเบอร์โทรศัพท์ 10 หลัก โดยขึ้นต้นด้วย 0'); return; }
     setSaving(true); setError('');
     try { const survey = await saveSurveyDraft(selected.booking, authUser, form); if (files.length) await uploadSurveyImages(selected.booking, survey.id, authUser, files); await submitSurvey(selected.booking_id, installationTechnicianId); setFiles([]); setToast(installationTechnicianId ? 'ส่งรายงานและมอบหมายช่างติดตั้งแล้ว' : 'ส่งรายงานแล้ว รอ Admin มอบหมายช่างติดตั้ง'); navigate('/technician'); }
     catch (reason) { setError(reason.message || 'ส่งรายงานไม่สำเร็จ'); }
@@ -108,7 +116,7 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
       {!surveyAssignments.length ? <div className="technician-empty"><ClipboardList/><strong>ไม่มีงานสำรวจที่ได้รับมอบหมาย</strong></div> : <form className="job-card survey-card" onSubmit={handleSubmit}>
         <div className="field">
           <label className="field-label" htmlFor="survey-job">เลือกงาน</label>
-          <select id="survey-job" value={selected?.booking_id || ''} onChange={(e) => { setSelectedId(e.target.value); const item = surveyAssignments.find((a) => a.booking_id === e.target.value); setForm(emptyForm(item?.booking, item?.survey)); }}>
+          <select id="survey-job" value={selected?.booking_id || ''} onChange={(e) => { setSelectedId(e.target.value); setFiles([]); const item = surveyAssignments.find((a) => a.booking_id === e.target.value); setForm(emptyForm(item?.booking, item?.survey)); }}>
             {surveyAssignments.map((a) => <option key={a.id} value={a.booking_id}>{a.booking?.booking_number} · {a.booking?.province} · {statusLabel(a.status)}</option>)}
           </select>
         </div>
@@ -174,13 +182,7 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
 
         <section className="job-section">
           <h3>รูปภาพหน้างาน</h3>
-          <label className={`dropzone${surveyLocked ? ' is-disabled' : ''}`} htmlFor="survey-files">
-            <ImagePlus size={22}/>
-            <span className="dropzone-title">{files.length ? `เลือกรูปใหม่ ${files.length} รูป` : 'แตะเพื่อเลือกรูปภาพ'}</span>
-            <span className="dropzone-hint">JPG / PNG / WebP · ไม่เกิน 10MB ต่อรูป · เลือกได้หลายรูป</span>
-            <input id="survey-files" disabled={surveyLocked} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => setFiles([...e.target.files])}/>
-          </label>
-          {files.length > 0 && <ul className="file-list">{files.map((f) => <li key={f.name + f.size}>{f.name}</li>)}</ul>}
+          <PhotoUpload files={files} setFiles={setFiles} disabled={surveyLocked} inputId="survey-files" />
           {photos.length > 0 && <div className="survey-photo-grid">{photos.map((photo) => <a href={photo.url} target="_blank" rel="noreferrer" key={photo.id}><img src={photo.url} alt={photo.caption}/><small>{photo.caption}</small></a>)}</div>}
         </section>
 
@@ -206,11 +208,88 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
   </div>;
 }
 
+function PhotoUpload({ files, setFiles, disabled = false, inputId }) {
+  const [previews, setPreviews] = useState([]);
+
+  useEffect(() => {
+    const nextPreviews = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
+    setPreviews(nextPreviews);
+    return () => nextPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [files]);
+
+  function addFiles(event) {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length) {
+      setFiles((current) => [
+        ...current,
+        ...selectedFiles.filter((file) => !current.some((item) => (
+          item.name === file.name && item.size === file.size && item.lastModified === file.lastModified
+        ))),
+      ]);
+    }
+    event.target.value = '';
+  }
+
+  return <div className={`technician-photo-upload${disabled ? ' is-disabled' : ''}`}>
+    <input
+      className="technician-photo-input"
+      id={inputId}
+      disabled={disabled}
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      multiple
+      onChange={addFiles}
+    />
+    {files.length === 0
+      ? <label className={`dropzone${disabled ? ' is-disabled' : ''}`} htmlFor={inputId}>
+        <ImagePlus size={22} />
+        <span className="dropzone-title">แตะเพื่อเลือกรูปภาพ</span>
+        <span className="dropzone-hint">JPG / PNG / WebP · ไม่เกิน 10 MB ต่อรูป · เลือกได้หลายรูป</span>
+      </label>
+      : <>
+        <div className="technician-photo-preview-grid" aria-live="polite">
+          {previews.map(({ file, url }, index) => (
+            <figure key={`${file.name}-${file.size}-${index}`}>
+              <img src={url} alt={`ตัวอย่างรูปงาน ${index + 1}`} />
+              {!disabled && <button
+                type="button"
+                className="technician-photo-remove"
+                aria-label={`นำรูป ${file.name} ออก`}
+                onClick={() => setFiles((current) => current.filter((item) => item !== file))}
+              >
+                <X size={18} />
+              </button>}
+              <figcaption>{file.name}</figcaption>
+            </figure>
+          ))}
+        </div>
+        {!disabled && <label className="technician-photo-change" htmlFor={inputId}>
+          <ImagePlus size={17} /> เพิ่มรูปภาพ
+        </label>}
+      </>}
+  </div>;
+}
+
 const REQUIRED_FIELDS = ['contact_name', 'contact_phone', 'installation_address', 'roof_area_sqm', 'site_conditions', 'recommended_system_kw', 'panel_location', 'inverter_location', 'equipment_details'];
 
 function Field({ label, name, form, setForm, type = 'text', wide = false, multiline = false, disabled = false }) {
   const required = REQUIRED_FIELDS.includes(name);
-  const common = { disabled, required, value: form[name], onChange: (e) => setForm({ ...form, [name]: e.target.value }) };
+  const isPhone = name === 'contact_phone';
+  const common = {
+    disabled,
+    required,
+    value: form[name],
+    inputMode: isPhone ? 'numeric' : undefined,
+    autoComplete: isPhone ? 'tel-national' : undefined,
+    maxLength: isPhone ? 10 : undefined,
+    pattern: isPhone ? '0[0-9]{9}' : undefined,
+    placeholder: isPhone ? '0812345678' : undefined,
+    title: isPhone ? 'กรุณากรอกเบอร์โทรศัพท์ 10 หลัก โดยขึ้นต้นด้วย 0' : undefined,
+    onChange: (e) => setForm({
+      ...form,
+      [name]: isPhone ? normalizeThaiPhone(e.target.value) : e.target.value,
+    }),
+  };
   return <label className={`field${wide ? ' wide' : ''}`}>
     <span className="field-label">{label}{required && <em aria-hidden="true"> *</em>}</span>
     {multiline
@@ -285,13 +364,7 @@ function JobDetail({ assignment, authUser, onChange, installNotes, setInstallNot
 
           <div className="field">
             <span className="field-label">รูปภาพงานติดตั้ง</span>
-            <label className="dropzone" htmlFor="install-files">
-              <ImagePlus size={22} />
-              <span className="dropzone-title">{newFiles.length ? `เลือกแล้ว ${newFiles.length} รูป` : 'แตะเพื่อเลือกรูปภาพ'}</span>
-              <span className="dropzone-hint">JPG / PNG / WebP · เลือกได้หลายรูป</span>
-              <input id="install-files" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => setNewFiles([...e.target.files])} />
-            </label>
-            {newFiles.length > 0 && <ul className="file-list">{newFiles.map((f) => <li key={f.name + f.size}>{f.name}</li>)}</ul>}
+            <PhotoUpload files={newFiles} setFiles={setNewFiles} disabled={saving} inputId={`install-files-${assignment.booking_id}`} />
           </div>
 
           <button className="button button-green job-submit" disabled={saving} onClick={() => onSave(assignment, newFiles)}>

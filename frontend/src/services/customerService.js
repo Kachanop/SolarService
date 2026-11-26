@@ -107,17 +107,25 @@ export async function createRepairTicket({ title, description, category, priorit
   return data;
 }
 
-export async function getMyCompletedReviewableInstallations() {
-  const installations = await getMyInstallations();
-  const ids = installations.map((item) => item.id);
-  if (!ids.length) return [];
+export async function getMyCompletedReviewableOrderItems() {
+  const user = await getUser();
+  const { data: orderItems, error: orderItemsError } = await supabase
+    .from('order_items')
+    .select('id,product_id,product_name,unit_price,quantity,created_at,products(name,category,description,image_url),orders!inner(id,order_number,status,customer_id)')
+    .eq('orders.customer_id', user.id)
+    .eq('orders.status', 'completed')
+    .order('created_at', { ascending: false });
+  if (orderItemsError) throw orderItemsError;
+  const items = orderItems || [];
+  if (!items.length) return [];
+
   const { data: reviews, error } = await supabase
     .from('reviews')
-    .select('installation_id')
-    .in('installation_id', ids);
+    .select('order_item_id')
+    .in('order_item_id', items.map((item) => item.id));
   if (error) throw error;
-  const reviewed = new Set((reviews || []).map((item) => item.installation_id));
-  return installations.filter((item) => item.status === 'completed' && !reviewed.has(item.id));
+  const reviewed = new Set((reviews || []).map((item) => item.order_item_id));
+  return items.filter((item) => !reviewed.has(item.id));
 }
 
 export async function getMyReviews() {
@@ -128,15 +136,29 @@ export async function getMyReviews() {
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+
+  const reviews = data || [];
+  const orderItemIds = [...new Set(reviews.map((review) => review.order_item_id).filter(Boolean))];
+  if (!orderItemIds.length) return reviews;
+
+  const { data: orderItems, error: orderItemsError } = await supabase
+    .from('order_items')
+    .select('id,product_name,unit_price,quantity,products(name,category,image_url)')
+    .in('id', orderItemIds);
+  if (orderItemsError) throw orderItemsError;
+  const orderItemsById = new Map((orderItems || []).map((item) => [item.id, item]));
+  return reviews.map((review) => ({
+    ...review,
+    order_items: orderItemsById.get(review.order_item_id) || null,
+  }));
 }
 
-export async function createReview({ installationId, rating, comment }) {
+export async function createReview({ orderItemId, rating, comment }) {
   const user = await getUser();
   const { data, error } = await supabase
     .from('reviews')
     .insert({
-      installation_id: installationId,
+      order_item_id: orderItemId,
       customer_id: user.id,
       rating,
       comment: comment.trim(),

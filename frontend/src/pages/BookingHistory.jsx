@@ -44,6 +44,7 @@ export default function BookingHistory({ authUser, setToast }) {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [actionError, setActionError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
@@ -51,6 +52,9 @@ export default function BookingHistory({ authUser, setToast }) {
   const [selectedSlot, setSelectedSlot] = useState('');
   const [slotsLoading, setSlotsLoading] = useState(false);
   const previousStatuses = useRef(new Map());
+  const filteredBookings = statusFilter
+    ? bookings.filter((booking) => booking.status === statusFilter)
+    : bookings;
 
   useEffect(() => {
     let active = true;
@@ -165,7 +169,19 @@ export default function BookingHistory({ authUser, setToast }) {
         <p>รายการนี้แสดงเฉพาะการจองของบัญชีที่เข้าสู่ระบบ สถานะจะตรวจสอบซ้ำทุก 30 วินาทีขณะเปิดหน้านี้</p>
       </section>
 
-      <div className="workspace-heading-actions" style={{ justifyContent: 'flex-end', marginBottom: '1rem' }}>
+      <div className="bk-history-toolbar">
+        {!loading && !errorMessage && bookings.length > 0 && (
+          <label className="bk-status-filter">
+            กรองตามสถานะ
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="">ทุกสถานะ ({bookings.length})</option>
+              {Object.entries(STATUS_LABELS).map(([status, label]) => {
+                const count = bookings.filter((booking) => booking.status === status).length;
+                return <option key={status} value={status}>{label} ({count})</option>;
+              })}
+            </select>
+          </label>
+        )}
         <button className="button button-outline small-button" type="button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loading}>
           <RefreshCw size={14} /> รีเฟรช
         </button>
@@ -188,8 +204,9 @@ export default function BookingHistory({ authUser, setToast }) {
         </div>
       )}
       {!loading && !errorMessage && bookings.length > 0 && (
-        <div className="bk-history-list">
-          {bookings.map((booking) => (
+        filteredBookings.length > 0 ? (
+          <div className="bk-history-list">
+          {filteredBookings.map((booking) => (
             <article className="bk-history-card" key={booking.id}>
               <div className="bk-history-heading">
                 <strong>{booking.booking_number}</strong>
@@ -272,7 +289,14 @@ export default function BookingHistory({ authUser, setToast }) {
               )}
             </article>
           ))}
-        </div>
+          </div>
+        ) : (
+          <div className="technician-empty">
+            <CalendarDays size={26} />
+            <strong>ไม่มีรายการจองในสถานะนี้</strong>
+            <span>ลองเลือกสถานะอื่นเพื่อดูรายการจอง</span>
+          </div>
+        )
       )}
 
       <p className="bk-hint bk-history-limitation">

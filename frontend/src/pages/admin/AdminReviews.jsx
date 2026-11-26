@@ -19,7 +19,7 @@ export default function AdminReviews({ reviews, onTogglePublish, onDeleteReview,
     return (reviews || []).filter((r) => {
       const matchSearch =
         !search ||
-        `${r.customer_name} ${r.comment} ${r.installation_number || ''}`
+        `${r.customer_name} ${r.comment} ${r.reviewed_item_name || ''} ${r.installation_number || ''}`
           .toLowerCase()
           .includes(search.toLowerCase());
       const matchRating = !filterRating || r.rating === Number(filterRating);
@@ -90,7 +90,7 @@ export default function AdminReviews({ reviews, onTogglePublish, onDeleteReview,
           className="admin-table-head"
           style={{ gridTemplateColumns: 'minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(240px, 2fr) minmax(90px, 0.7fr) minmax(130px, 1fr)' }}
         >
-          <span>ลูกค้า / งานที่ติดตั้ง</span>
+          <span>ลูกค้า / สินค้าหรืองานที่รีวิว</span>
           <span>คะแนนรีวิว</span>
           <span>ข้อคิดเห็นและประสบการณ์</span>
           <span>สถานะ</span>
@@ -106,7 +106,7 @@ export default function AdminReviews({ reviews, onTogglePublish, onDeleteReview,
             >
               <div>
                 <strong>{item.customer_name}</strong>
-                <small>{item.installation_number || 'งานติดตั้งโซลาร์'}</small>
+                <small>{item.reviewed_item_name || item.installation_number || 'งานติดตั้งโซลาร์'}</small>
               </div>
 
               <div>

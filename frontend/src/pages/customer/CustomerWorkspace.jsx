@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   AlertCircle, ArrowRight, CalendarDays, Check, Clock3, Download,
-  FileText, Package, RefreshCw, ShieldCheck, Truck, Wrench,
+  FileText, Package, RefreshCw, ShieldCheck, Truck, Wrench, X,
 } from 'lucide-react';
 import {
-  createRepairTicket, createReview, getMyCompletedReviewableInstallations,
+  createRepairTicket, createReview, getMyCompletedReviewableOrderItems,
   getMyInstallations, getMyMaintenance, getMyOrders, getMyQuotes,
   getMyReviews, getMyTickets, getMyWarranties, respondToQuote,
 } from '../../services/customerService.js';
@@ -12,6 +12,53 @@ import { uploadPaymentSlip } from '../../services/customerService.js';
 
 const money = (value) => Number(value || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' });
 const dateTime = (value) => value ? new Date(value).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+const serviceErrorMessage = (error, fallback) => {
+  const message = typeof error === 'string'
+    ? error
+    : [error?.message, error?.details, error?.hint].filter(Boolean).join(' — ');
+  if (!message) return fallback;
+  if (/order_item_id|order_items.*schema cache|schema cache.*order_items/i.test(message)) {
+    return `${message} — กรุณารัน backend/supabase/migrations/20261127000000_product_reviews.sql ใน Supabase SQL Editor แล้วโหลดหน้านี้ใหม่`;
+  }
+  return message;
+};
+
+const ORDER_STATUS_LABELS = {
+  pending: 'รอดำเนินการ',
+  confirmed: 'ยืนยันคำสั่งซื้อแล้ว',
+  processing: 'กำลังเตรียมสินค้า',
+  shipped: 'จัดส่งแล้ว',
+  completed: 'จัดส่งสำเร็จ',
+  cancelled: 'ยกเลิก',
+};
+
+const INSTALLATION_STATUS_LABELS = {
+  scheduled: 'นัดหมายแล้ว',
+  preparing: 'กำลังเตรียมงาน',
+  installing: 'กำลังติดตั้ง',
+  testing: 'กำลังทดสอบระบบ',
+  completed: 'ติดตั้งเสร็จแล้ว',
+  cancelled: 'ยกเลิก',
+};
+
+const TRACKING_STATUS_CLASSES = {
+  pending: 'tracking-status-pending',
+  confirmed: 'tracking-status-confirmed',
+  processing: 'tracking-status-processing',
+  shipped: 'tracking-status-shipped',
+  scheduled: 'tracking-status-scheduled',
+  preparing: 'tracking-status-preparing',
+  installing: 'tracking-status-installing',
+  testing: 'tracking-status-testing',
+  completed: 'tracking-status-completed',
+  cancelled: 'tracking-status-cancelled',
+};
+
+const TRACKING_FILTER_LABELS = {
+  ...ORDER_STATUS_LABELS,
+  ...INSTALLATION_STATUS_LABELS,
+  completed: 'เสร็จสิ้น',
+};
 
 export default function CustomerWorkspace({ route, authUser, setToast }) {
   if (route === '/orders') return <CustomerOrders authUser={authUser} setToast={setToast} />;
@@ -107,19 +154,87 @@ function CustomerTracking({ setToast }) {
   const [installations, setInstallations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   useEffect(() => {
     let active = true;
     Promise.all([getMyOrders(), getMyInstallations()]).then(([orderData, installData]) => { if (active) { setOrders(orderData); setInstallations(installData); setError(''); } })
       .catch((err) => { if (active) setError(err instanceof Error ? err.message : 'โหลดสถานะติดตามไม่สำเร็จ'); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  const statusOptions = typeFilter === 'orders'
+    ? ORDER_STATUS_LABELS
+    : typeFilter === 'installations'
+      ? INSTALLATION_STATUS_LABELS
+      : TRACKING_FILTER_LABELS;
+  const statusCount = (status) => (
+    (typeFilter !== 'installations' ? orders.filter((order) => order.status === status).length : 0)
+    + (typeFilter !== 'orders' ? installations.filter((item) => item.status === status).length : 0)
+  );
+  const filteredOrders = typeFilter !== 'installations'
+    ? orders.filter((order) => statusFilter === 'all' || order.status === statusFilter)
+    : [];
+  const filteredInstallations = typeFilter !== 'orders'
+    ? installations.filter((item) => statusFilter === 'all' || item.status === statusFilter)
+    : [];
+  const totalItems = orders.length + installations.length;
+  const filteredCount = filteredOrders.length + filteredInstallations.length;
+
   return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">LIVE TRACKING</div><h1>ติดตามคำสั่งซื้อและงานติดตั้ง</h1><p>ข้อมูลสถานะและเลขพัสดุอ่านจากคำสั่งซื้อและตารางงานติดตั้งจริง</p></div></div>
     {error && <ErrorBox error={error} />} {loading && <Loading />}
-    {!loading && !error && <div className="bk-history-list">
-      {orders.map((order) => <article className="bk-history-card" key={order.id}><div className="bk-history-heading"><strong>{order.order_number}</strong><span className="status-pill blue">{order.status}</span></div><div className="bk-history-details"><span><Truck size={15} /> เลขพัสดุ: {order.tracking_number || '—'}</span><span><Clock3 size={15} /> อัปเดต: {dateTime(order.updated_at)}</span></div></article>)}
-      {installations.map((item) => <article className="bk-history-card" key={item.id}><div className="bk-history-heading"><strong>{item.installation_number}</strong><span className="status-pill blue">{item.status}</span></div><div className="bk-history-details"><span><Wrench size={15} /> นัดหมาย: {dateTime(item.scheduled_at)}</span><span><CalendarDays size={15} /> เริ่มงาน: {dateTime(item.started_at)}</span><span><Check size={15} /> เสร็จสิ้น: {dateTime(item.completed_at)}</span></div></article>)}
-      {!orders.length && !installations.length && <div className="technician-empty"><Truck size={26} /><strong>ยังไม่มีข้อมูลติดตาม</strong></div>}
-    </div>}
+    {!loading && !error && <>
+      <div className="tracking-filters">
+        <label className="bk-field">
+          ประเภท
+          <select value={typeFilter} onChange={(event) => {
+            setTypeFilter(event.target.value);
+            setStatusFilter('all');
+          }}>
+            <option value="all">ทั้งหมด ({totalItems})</option>
+            <option value="orders">คำสั่งซื้อ ({orders.length})</option>
+            <option value="installations">งานติดตั้ง ({installations.length})</option>
+          </select>
+        </label>
+        <label className="bk-field">
+          สถานะ
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="all">ทุกสถานะ ({typeFilter === 'orders' ? orders.length : typeFilter === 'installations' ? installations.length : totalItems})</option>
+            {Object.entries(statusOptions).map(([status, label]) => (
+              <option key={status} value={status}>{label} ({statusCount(status)})</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="tracking-result-count">แสดง {filteredCount} จาก {totalItems} รายการ</p>
+      {filteredCount > 0 ? <div className="bk-history-list">
+        {filteredOrders.map((order) => <article className="bk-history-card" key={order.id}>
+          <div className="bk-history-heading">
+            <strong>{order.order_number}</strong>
+            <span className={`status-pill ${TRACKING_STATUS_CLASSES[order.status] || 'gray'}`}>{ORDER_STATUS_LABELS[order.status] || order.status}</span>
+          </div>
+          <div className="bk-history-details">
+            <span><Truck size={15} /> เลขพัสดุ: {order.tracking_number || '—'}</span>
+            <span><Clock3 size={15} /> อัปเดต: {dateTime(order.updated_at)}</span>
+          </div>
+        </article>)}
+        {filteredInstallations.map((item) => <article className="bk-history-card" key={item.id}>
+          <div className="bk-history-heading">
+            <strong>{item.installation_number}</strong>
+            <span className={`status-pill ${TRACKING_STATUS_CLASSES[item.status] || 'gray'}`}>{INSTALLATION_STATUS_LABELS[item.status] || item.status}</span>
+          </div>
+          <div className="bk-history-details">
+            <span><Wrench size={15} /> นัดหมาย: {dateTime(item.scheduled_at)}</span>
+            <span><CalendarDays size={15} /> เริ่มงาน: {dateTime(item.started_at)}</span>
+            <span><Check size={15} /> เสร็จสิ้น: {dateTime(item.completed_at)}</span>
+          </div>
+        </article>)}
+      </div> : <div className="technician-empty">
+        <Truck size={26} />
+        <strong>{totalItems ? 'ไม่พบรายการตามตัวกรอง' : 'ยังไม่มีข้อมูลติดตาม'}</strong>
+        <span>{totalItems ? 'ลองเปลี่ยนประเภทหรือสถานะที่เลือก' : 'คำสั่งซื้อและงานติดตั้งจะแสดงที่นี่เมื่อมีรายการ'}</span>
+      </div>}
+    </>}
   </div>;
 }
 
@@ -128,34 +243,38 @@ function CustomerReviews({ setToast }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [installationId, setInstallationId] = useState('');
+  const [orderItemId, setOrderItemId] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  const [failedImageUrl, setFailedImageUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const selectedItem = reviewable.find((item) => item.id === orderItemId);
+  const selectedProduct = selectedItem?.products;
+  const selectedImageUrl = selectedProduct?.image_url || '';
 
   useEffect(() => {
     let active = true;
-    Promise.all([getMyCompletedReviewableInstallations(), getMyReviews()])
+    Promise.all([getMyCompletedReviewableOrderItems(), getMyReviews()])
       .then(([canReview, existing]) => {
         if (active) {
           setReviewable(canReview);
           setReviews(existing);
-          setInstallationId(canReview[0]?.id || '');
+          setOrderItemId(canReview[0]?.id || '');
           setError('');
         }
       })
-      .catch((err) => { if (active) setError(err instanceof Error ? err.message : 'โหลดรีวิวไม่สำเร็จ'); })
+      .catch((err) => { if (active) setError(serviceErrorMessage(err, 'โหลดรีวิวไม่สำเร็จ')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [refresh]);
 
   async function submit(event) {
     event.preventDefault();
-    if (!installationId) return;
+    if (!orderItemId) return;
     setSaving(true);
     try {
-      await createReview({ installationId, rating, comment });
+      await createReview({ orderItemId, rating, comment });
       setToast('บันทึกรีวิวเรียบร้อยแล้ว รอแอดมินเผยแพร่');
       setComment('');
       setRefresh((value) => value + 1);
@@ -166,18 +285,53 @@ function CustomerReviews({ setToast }) {
     }
   }
 
-  return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">CUSTOMER REVIEWS</div><h1>รีวิวบริการ</h1><p>รีวิวบันทึกลงตาราง reviews และจำเป็นต้องเป็นงานติดตั้งที่เสร็จสิ้นของบัญชีนี้เท่านั้น</p></div></div>
+  return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">CUSTOMER REVIEWS</div><h1>รีวิวสินค้า</h1><p>เลือกสินค้าที่ซื้อและได้รับเรียบร้อยแล้ว พร้อมดูรายละเอียดก่อนเขียนรีวิว</p></div></div>
     {error && <ErrorBox error={error} />} {loading && <Loading />}
     {!loading && !error && <form className="form-card review-form" onSubmit={submit}>
-      <h3>แชร์ประสบการณ์ของคุณ</h3>
+      <h3>แชร์ประสบการณ์การใช้สินค้า</h3>
       {reviewable.length ? <>
-        <label>งานที่ติดตั้ง<select value={installationId} onChange={(event) => setInstallationId(event.target.value)}>{reviewable.map((item) => <option key={item.id} value={item.id}>{item.installation_number}</option>)}</select></label>
+        <label>สินค้าที่ต้องการรีวิว
+          <select value={orderItemId} onChange={(event) => setOrderItemId(event.target.value)}>
+            {reviewable.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.products?.name || item.product_name} · {item.orders?.order_number}
+              </option>
+            ))}
+          </select>
+        </label>
+        {selectedItem && <article className="review-product-preview">
+          <div className="review-product-image">
+            {selectedImageUrl && failedImageUrl !== selectedImageUrl
+              ? <img src={selectedImageUrl} alt={selectedProduct?.name || selectedItem.product_name} onError={() => setFailedImageUrl(selectedImageUrl)} />
+              : <Package size={34} aria-hidden="true" />}
+          </div>
+          <div className="review-product-info">
+            <small>{selectedProduct?.category || 'สินค้าในคำสั่งซื้อ'}</small>
+            <strong>{selectedProduct?.name || selectedItem.product_name}</strong>
+            {selectedProduct?.description && <p>{selectedProduct.description}</p>}
+            <span>{money(selectedItem.unit_price)} / ชิ้น · จำนวน {selectedItem.quantity}</span>
+            <span>คำสั่งซื้อ {selectedItem.orders?.order_number}</span>
+          </div>
+        </article>}
         <div className="star-picker" aria-label="คะแนนรีวิว">{[1,2,3,4,5].map((value) => <button type="button" className={value <= rating ? 'selected' : ''} key={value} onClick={() => setRating(value)}>★</button>)}</div>
-        <label>ความคิดเห็น<textarea rows="4" value={comment} onChange={(event) => setComment(event.target.value)} required placeholder="เล่าประสบการณ์การใช้บริการ" /></label>
+        <label>ความคิดเห็น<textarea rows="4" value={comment} onChange={(event) => setComment(event.target.value)} required placeholder="เล่าประสบการณ์การใช้สินค้า" /></label>
         <button className="button button-green" type="submit" disabled={saving}>{saving ? 'กำลังบันทึก…' : 'ส่งรีวิว'} <ArrowRight size={16} /></button>
-      </> : <p>ยังไม่มีงานติดตั้งที่เสร็จสิ้นและยังไม่ได้รับรีวิว</p>}
+      </> : <p>ยังไม่มีสินค้าที่จัดส่งสำเร็จและยังไม่ได้รับรีวิว</p>}
     </form>}
-    {!loading && reviews.length > 0 && <div className="bk-history-list">{reviews.map((review) => <article className="bk-history-card" key={review.id}><div className="bk-history-heading"><strong>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</strong><span className={`status-pill ${review.is_published ? 'green' : 'yellow'}`}>{review.is_published ? 'เผยแพร่แล้ว' : 'รอตรวจสอบ'}</span></div><div className="bk-history-details"><p>{review.comment}</p><span>{dateTime(review.created_at)}</span></div></article>)}</div>}
+    {!loading && reviews.length > 0 && <div className="bk-history-list">{reviews.map((review) => {
+      const reviewedProduct = review.order_items?.products?.name || review.order_items?.product_name;
+      return <article className="bk-history-card" key={review.id}>
+        <div className="bk-history-heading">
+          <strong>{reviewedProduct || review.installations?.installation_number || 'รีวิวบริการติดตั้ง'}</strong>
+          <span className={`status-pill ${review.is_published ? 'green' : 'yellow'}`}>{review.is_published ? 'เผยแพร่แล้ว' : 'รอตรวจสอบ'}</span>
+        </div>
+        <div className="bk-history-details">
+          <span>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+          <p>{review.comment}</p>
+          <span>{dateTime(review.created_at)}</span>
+        </div>
+      </article>;
+    })}</div>}
   </div>;
 }
 
@@ -205,6 +359,22 @@ function CustomerAfterSales({ setToast }) {
     return () => { active = false; };
   }, [refresh]);
 
+  useEffect(() => {
+    if (!showTicket) return undefined;
+    function closeOnEscape(event) {
+      if (event.key === 'Escape' && !saving) setShowTicket(false);
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [showTicket, saving]);
+
+  useEffect(() => {
+    if (!showTicket) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [showTicket]);
+
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
@@ -222,7 +392,7 @@ function CustomerAfterSales({ setToast }) {
     }
   }
 
-  return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">AFTER-SALES</div><h1>ใบรับประกันและแจ้งซ่อม</h1><p>ดูอุปกรณ์ที่รับประกัน รอบล้างแผง และสถานะคำขอซ่อมของบัญชีนี้</p></div><button className="button button-green small-button" type="button" onClick={() => setShowTicket(true)}><Wrench size={14} /> แจ้งซ่อม</button></div>
+  return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">AFTER-SALES</div><h1>ใบรับประกันและแจ้งซ่อม</h1><p>ดูอุปกรณ์ที่รับประกัน รอบล้างแผง และสถานะคำขอซ่อมของบัญชีนี้</p></div><button className="button button-green small-button" type="button" onClick={() => setShowTicket(true)} aria-haspopup="dialog" aria-expanded={showTicket}><Wrench size={14} /> แจ้งซ่อม</button></div>
     {error && <ErrorBox error={error} />} {loading && <Loading />}
     {!loading && !error && <>
       <div className="workspace-section-heading"><div><h2>ใบรับประกัน</h2></div></div>
@@ -232,6 +402,55 @@ function CustomerAfterSales({ setToast }) {
       <div className="workspace-section-heading"><div><h2>คำขอแจ้งซ่อม</h2></div></div>
       <div className="bk-history-list">{tickets.map((item) => <article className="bk-history-card" key={item.id}><div className="bk-history-heading"><strong>{item.ticket_number} · {item.title}</strong><span className="status-pill blue">{item.status}</span></div><div className="bk-history-details"><p>{item.description}</p>{item.resolution_notes && <p>บันทึกแก้ไข: {item.resolution_notes}</p>}<span>{dateTime(item.created_at)}</span></div></article>)} {!tickets.length && <div className="technician-empty"><Wrench size={26} /><strong>ยังไม่มีคำขอแจ้งซ่อม</strong></div>}</div>
     </>}
-    {showTicket && <div className="account-modal-backdrop" role="dialog" aria-modal="true"><form className="form-card" onSubmit={submit}><h3>ฟอร์มแจ้งซ่อม</h3><label>อุปกรณ์ / ใบรับประกัน<select value={warrantyId} onChange={(event) => setWarrantyId(event.target.value)}><option value="">ไม่ระบุใบรับประกัน</option>{warranties.map((item) => <option key={item.id} value={item.id}>{item.warranty_number} · {item.equipment_model}</option>)}</select></label><label>หัวข้ออาการปัญหา<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label><label>รายละเอียด<textarea rows="4" value={description} onChange={(event) => setDescription(event.target.value)} required /></label><div className="form-fields"><label>หมวดหมู่<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="repair">แจ้งซ่อมอุปกรณ์</option><option value="inverter_error">อินเวอร์เตอร์แจ้งเตือน Error</option><option value="billing">การเงิน / ใบเสร็จ</option><option value="inquiry">สอบถามการใช้งาน</option><option value="maintenance">บำรุงรักษา</option><option value="other">อื่น ๆ</option></select></label><label>ความเร่งด่วน<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="low">ต่ำ</option><option value="medium">ปานกลาง</option><option value="high">สูง</option><option value="urgent">ด่วนที่สุด</option></select></label></div><div className="bk-history-actions"><button className="button button-green" type="submit" disabled={saving}>{saving ? 'กำลังส่ง…' : 'ส่งใบแจ้งซ่อม'}</button><button className="button button-outline" type="button" onClick={() => setShowTicket(false)}>ปิด</button></div></form></div>}
+    {showTicket && <div
+      className="account-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="repair-ticket-title"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !saving) setShowTicket(false);
+      }}
+    >
+      <form className="form-card repair-ticket-modal" onSubmit={submit}>
+        <div className="repair-ticket-modal-heading">
+          <h2 id="repair-ticket-title">ฟอร์มแจ้งซ่อม</h2>
+          <button className="repair-ticket-modal-close" type="button" onClick={() => setShowTicket(false)} disabled={saving} aria-label="ปิดหน้าต่างแจ้งซ่อม">
+            <X size={18} />
+          </button>
+        </div>
+        <label>อุปกรณ์ / ใบรับประกัน
+          <select value={warrantyId} onChange={(event) => setWarrantyId(event.target.value)}>
+            <option value="">ไม่ระบุใบรับประกัน</option>
+            {warranties.map((item) => <option key={item.id} value={item.id}>{item.warranty_number} · {item.equipment_model}</option>)}
+          </select>
+        </label>
+        <label>หัวข้ออาการปัญหา<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
+        <label>รายละเอียด<textarea rows="4" value={description} onChange={(event) => setDescription(event.target.value)} required /></label>
+        <div className="form-fields">
+          <label>หมวดหมู่
+            <select value={category} onChange={(event) => setCategory(event.target.value)}>
+              <option value="repair">แจ้งซ่อมอุปกรณ์</option>
+              <option value="inverter_error">อินเวอร์เตอร์แจ้งเตือน Error</option>
+              <option value="billing">การเงิน / ใบเสร็จ</option>
+              <option value="inquiry">สอบถามการใช้งาน</option>
+              <option value="maintenance">บำรุงรักษา</option>
+              <option value="other">อื่น ๆ</option>
+            </select>
+          </label>
+          <label>ความเร่งด่วน
+            <select value={priority} onChange={(event) => setPriority(event.target.value)}>
+              <option value="low">ต่ำ</option>
+              <option value="medium">ปานกลาง</option>
+              <option value="high">สูง</option>
+              <option value="urgent">ด่วนที่สุด</option>
+            </select>
+          </label>
+        </div>
+        <div className="bk-history-actions">
+          <button className="button button-green" type="submit" disabled={saving}>{saving ? 'กำลังส่ง…' : 'ส่งใบแจ้งซ่อม'}</button>
+          <button className="button button-outline" type="button" onClick={() => setShowTicket(false)} disabled={saving}>ปิด</button>
+        </div>
+      </form>
+    </div>}
   </div>;
 }

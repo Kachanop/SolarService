@@ -36,7 +36,10 @@ function toDateInputValue(date) {
 }
 
 function normalizePhone(value) {
-  return value.replace(/[\s-]/g, '');
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('0066')) digits = `0${digits.slice(4)}`;
+  else if (digits.startsWith('66')) digits = `0${digits.slice(2)}`;
+  return digits.slice(0, 10);
 }
 
 export default function Booking({ user, navigate, setToast }) {
@@ -71,7 +74,7 @@ export default function Booking({ user, navigate, setToast }) {
       .then((profile) => {
         if (!active || !profile) return;
         setContactName(profile.full_name || '');
-        if (profile.phone) setPhone((current) => current || profile.phone);
+        if (profile.phone) setPhone((current) => current || normalizePhone(profile.phone));
       })
       .catch((error) => {
         if (active) {
@@ -118,7 +121,7 @@ export default function Booking({ user, navigate, setToast }) {
     const chosen = slots.find((slot) => slot.slot_start === slotStart);
     if (!slotStart || !chosen) next.slot = 'กรุณาเลือกช่วงเวลา';
     else if (!chosen.is_available) next.slot = 'ช่วงเวลานี้ไม่ว่างแล้ว กรุณาเลือกช่วงเวลาอื่น';
-    if (!/^0\d{8,9}$/.test(normalizePhone(phone))) next.phone = 'กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง เช่น 081-234-5678';
+    if (!/^0\d{9}$/.test(normalizePhone(phone))) next.phone = 'กรุณากรอกเบอร์โทรศัพท์ 10 หลัก โดยขึ้นต้นด้วย 0 เช่น 0812345678';
     if (!province) next.province = 'กรุณาเลือกจังหวัด';
     if (!amphoe) next.amphoe = `กรุณาเลือก${province === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ'}`;
     if (!district) next.district = `กรุณาเลือก${province === 'กรุงเทพมหานคร' ? 'แขวง' : 'ตำบล'}`;
@@ -275,7 +278,7 @@ export default function Booking({ user, navigate, setToast }) {
             </label>
             <label className="bk-field">
               เบอร์โทรศัพท์
-              <input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="08X-XXX-XXXX" aria-invalid={Boolean(errors.phone)} />
+              <input type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} pattern="0[0-9]{9}" title="กรุณากรอกเบอร์โทรศัพท์ 10 หลัก โดยขึ้นต้นด้วย 0" value={phone} onChange={(event) => setPhone(normalizePhone(event.target.value))} placeholder="0812345678" aria-invalid={Boolean(errors.phone)} />
               {errors.phone && <span className="bk-error" role="alert">{errors.phone}</span>}
             </label>
             <label className="bk-field bk-full">

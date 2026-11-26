@@ -69,6 +69,20 @@
 .dropzone-title { font-weight: 600; color: var(--sv-green-dark); }
 .dropzone-hint { font-size: .8rem; color: #6b7280; }
 .file-list { margin: 0; padding-left: 18px; font-size: .85rem; color: #4b5563; }
+.technician-photo-upload { position: relative; display: grid; overflow: hidden; background: #f7faf5; border: 2px dashed #b8c7b1; border-radius: 12px; }
+.technician-photo-upload:focus-within { outline: 3px solid rgba(85, 120, 74, .22); outline-offset: 2px; }
+.technician-photo-upload > .technician-photo-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.technician-photo-upload .dropzone { min-height: 150px; border: 0; border-radius: 0; background: transparent; }
+.technician-photo-upload .dropzone:hover,
+.technician-photo-upload .dropzone:focus-within { background: #eef5ea; }
+.technician-photo-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; padding: 12px; }
+.technician-photo-preview-grid figure { position: relative; min-width: 0; margin: 0; padding: 8px; overflow: hidden; background: #f8faf6; border: 1px solid #e3e9df; border-radius: 10px; }
+.technician-photo-preview-grid img { display: block; width: 100%; height: min(60vh, 480px); min-height: 180px; object-fit: contain; background: #fff; border-radius: 6px; }
+.technician-photo-preview-grid figcaption { margin-top: 6px; overflow-wrap: anywhere; color: #5f6b5b; font-size: .75rem; }
+.technician-photo-remove { position: absolute; top: 14px; right: 14px; z-index: 1; display: grid; width: 36px; height: 36px; place-items: center; color: #fff; background: rgba(36, 48, 37, .82); border: 0; border-radius: 50%; cursor: pointer; }
+.technician-photo-remove:hover { background: #a53d34; }
+.technician-photo-change { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 12px 12px; padding: 11px; color: #526e48; background: #fff; border: 1px solid #cdd9c6; border-radius: 8px; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.technician-photo-change:hover { background: #eef5ea; }
 
 .job-submit { justify-self: start; padding: 14px 28px; }
 .job-submit:disabled { opacity: .6; cursor: not-allowed; }

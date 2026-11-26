@@ -1023,8 +1023,28 @@ export const adminService = {
   async getReviews() {
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) return data;
+        const { data, error } = await supabase.from('reviews')
+          .select('*,customer:profiles!reviews_customer_id_fkey(full_name),installation:installations!reviews_installation_id_fkey(installation_number)')
+          .order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          const orderItemIds = [...new Set(data.map((item) => item.order_item_id).filter(Boolean))];
+          let orderItemsById = new Map();
+          if (orderItemIds.length) {
+            const { data: orderItems, error: orderItemsError } = await supabase.from('order_items')
+              .select('id,product_name,products(name)')
+              .in('id', orderItemIds);
+            if (orderItemsError) throw orderItemsError;
+            orderItemsById = new Map((orderItems || []).map((item) => [item.id, item]));
+          }
+          return data.map((item) => ({
+            ...item,
+            customer_name: item.customer?.full_name || '',
+            installation_number: item.installation?.installation_number || '',
+            reviewed_item_name: orderItemsById.get(item.order_item_id)?.products?.name
+              || orderItemsById.get(item.order_item_id)?.product_name
+              || '',
+          }));
+        }
       } catch (e) {
         console.warn('Supabase reviews error:', e);
       }

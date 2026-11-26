@@ -243,6 +243,7 @@ function App() {
   const isWorkspace = Boolean(authUser);
   const isAdminRoute = adminRoutes.has(route) || (role === 'Admin' && ['/account', '/profile'].includes(route));
   const isTechnicianRoute = role === 'Technician' || technicianRoutes.has(route);
+  const isTechnicianPortalPage = technicianRoutes.has(route);
   const activeMenu = roleMenus[role] || roleMenus.Guest;
 
   return (
@@ -253,8 +254,8 @@ function App() {
           <span className="brand-mark"><Sun size={21} strokeWidth={2.2} /></span>
           <span>solar<span className="brand-light">service</span><small>POWER YOUR EVERYDAY</small></span>
         </a>
-        {!isAdminRoute && <button className="mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="เปิดเมนู">{mobileMenu ? <X /> : <Menu />}</button>}
-        {!isAdminRoute && <nav className={`main-nav ${mobileMenu ? 'open' : ''}`} aria-label="เมนูหลัก">
+        {!isAdminRoute && !isTechnicianPortalPage && <button className="mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="เปิดเมนู">{mobileMenu ? <X /> : <Menu />}</button>}
+        {!isAdminRoute && !isTechnicianPortalPage && <nav className={`main-nav ${mobileMenu ? 'open' : ''}`} aria-label="เมนูหลัก">
           {activeMenu.map((item) => <a key={item.path} className={route === item.path ? 'active' : ''} href={`#${item.path}`}>{item.label}</a>)}
           {!isWorkspace && <a href="#/contact">ติดต่อเรา</a>}
         </nav>}

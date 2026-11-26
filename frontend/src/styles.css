@@ -148,6 +148,15 @@ a { color: inherit; text-decoration: none; }
 .booking-form { max-width: 750px; padding: 18px; background: #fbfcfa; border: 1px solid #edf0ea; border-radius: 7px; }.form-helper { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 12px; background: #f0f4eb; border-radius: 6px; }.form-helper > span { width: 33px; height: 33px; display: grid; place-items: center; color: #678355; background: white; border-radius: 7px; }.form-helper p { margin: 0; }.form-helper strong,.form-helper small { display: block; }.form-helper strong { color: #506548; font-size: 10px; }.form-helper small { margin-top: 4px; color: #85907e; font-size: 8px; }.form-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }.form-fields .button { margin-top: 3px; }.upload-field { padding: 12px; border: 1px dashed #cbd6c3; border-radius: 5px; background: white; }.upload-field span { display: flex; align-items: center; gap: 7px; color: #668258; }.upload-field input { padding: 3px; border: 0; }
 .tracking-panel { padding: 17px; border: 1px solid #edf0ea; border-radius: 6px; }.tracking-top { display: flex; justify-content: space-between; align-items: center; color: #90988e; font-size: 8px; }.tracking-panel h3 { margin: 13px 0 4px; color: #3a493a; font-size: 13px; }.tracking-panel > p { margin: 0; color: #889185; font-size: 9px; }.timeline { display: grid; grid-template-columns: repeat(4,1fr); margin: 27px 0 7px; position: relative; }.timeline:before { content: ''; position: absolute; top: 12px; left: 8%; right: 8%; height: 2px; background: #e7ebe3; }.timeline > div { z-index: 1; display: flex; align-items: center; flex-direction: column; text-align: center; }.timeline > div > span { width: 25px; height: 25px; display: grid; place-items: center; color: #98a192; background: #edf0ea; border: 3px solid white; border-radius: 50%; font-size: 8px; }.timeline > div.done > span { color: white; background: #789369; }.timeline > div.current > span { color: white; background: #7b8e63; box-shadow: 0 0 0 3px #e7edde; }.timeline strong { margin-top: 7px; color: #606d5d; font-size: 9px; }.timeline small { margin-top: 4px; color: #939b91; font-size: 7px; }
 .report-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }.report-grid > div { display: flex; flex-direction: column; gap: 8px; padding: 15px; background: #f9faf7; border: 1px solid #edf0ea; border-radius: 6px; }.report-grid small,.report-grid span { color: #858f82; font-size: 8px; }.report-grid strong { color: #3c4b3b; font-size: 18px; }.report-grid .report-up { color: #6c8c57; }.review-callout { max-width: 490px; padding: 20px; text-align: center; background: #fbfcfa; border: 1px solid #edf0ea; border-radius: 7px; }.review-callout > span { color: #d2a848; letter-spacing: 3px; }.review-callout h3 { margin: 10px 0 5px; font-size: 14px; }.review-callout p { color: #828c7f; font-size: 9px; line-height: 1.8; }.review-callout .button { margin-top: 6px; }.review-form { max-width: 500px; }.review-form > p { margin: -13px 0 11px; color: #899286; font-size: 9px; }.star-picker { display: flex; gap: 4px; margin: 9px 0 16px; }.star-picker button { padding: 0 2px; color: #dce0d8; background: transparent; border: 0; font-size: 25px; }.star-picker button.selected { color: #d2a848; }
+.review-form select { width: 100%; padding: 11px 12px; color: #3e493e; background: #fbfcfa; border: 1px solid #e5e9e1; border-radius: 5px; font-size: 10px; font-weight: 400; }
+.review-product-preview { display: grid; grid-template-columns: 128px minmax(0,1fr); gap: 14px; margin: 4px 0 14px; padding: 12px; background: #f8faf6; border: 1px solid #e8ebe4; border-radius: 7px; }
+.review-product-image { min-height: 128px; display: grid; place-items: center; overflow: hidden; color: #718767; background: #edf2e8; border-radius: 6px; }
+.review-product-image img { width: 100%; height: 100%; min-height: 128px; object-fit: cover; }
+.review-product-info { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.review-product-info small { color: #788274; font-size: 9px; }
+.review-product-info strong { color: #354535; font-size: 11px; line-height: 1.5; }
+.review-product-info p { margin: 0; color: #788274; font-size: 9px; line-height: 1.6; }
+.review-product-info span { color: #61715b; font-size: 8px; }
 .not-found { min-height: 430px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }.not-found > span { color: #6f8a5e; font-size: 60px; font-weight: 700; }.not-found h1 { margin: 3px 0; font-size: 20px; }.not-found p { margin: 5px 0 20px; color: #858d82; font-size: 11px; }
 .toast { position: fixed; z-index: 10; right: 22px; bottom: 22px; display: flex; align-items: center; gap: 9px; padding: 12px 16px; color: white; background: #2d4031; border-radius: 7px; box-shadow: 0 8px 24px rgba(28,45,29,.2); font-size: 10px; animation: toast-in .25s ease-out; }.toast-check { width: 22px; height: 22px; display: grid; place-items: center; background: #607d4f; border-radius: 50%; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -238,9 +247,32 @@ a { color: inherit; text-decoration: none; }
 .workflow-modal > .button { float:right; }
 .workflow-modal h2 { color:#354535; }
 .workflow-modal details small { display:block; margin-top:4px; color:#788274; }
+.account-modal-backdrop { position:fixed; z-index:70; inset:0; display:grid; place-items:center; overflow-y:auto; padding:16px; background:rgba(26,35,27,.56); backdrop-filter:blur(2px); }
+.repair-ticket-modal { width:min(600px,100%); max-height:calc(100vh - 32px); overflow-y:auto; padding:24px; background:#fff; border:1px solid #e8ebe4; border-radius:10px; box-shadow:0 18px 60px rgba(31,43,32,.24); }
+.repair-ticket-modal-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.repair-ticket-modal-heading h2 { margin:0; color:#354535; font-size:18px; }
+.repair-ticket-modal-close { display:grid; place-items:center; width:34px; height:34px; flex:0 0 auto; color:#52634d; background:#f5f7f2; border:1px solid #e7ebe3; border-radius:50%; cursor:pointer; }
+.repair-ticket-modal-close:disabled { cursor:not-allowed; opacity:.55; }
+.repair-ticket-modal select { width:100%; padding:11px 12px; color:#3e493e; background:#fbfcfa; border:1px solid #e5e9e1; border-radius:5px; font-size:10px; font-weight:400; }
 .status-pill.gray { color: #70776d; background: #eef0ed; }
 
 .bk-history-list { display: grid; gap: 12px; }
+.tracking-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 12px; padding: 14px; background: #fff; border: 1px solid #e8ebe4; border-radius: 8px; }
+.tracking-result-count { margin: 0 0 12px; color: #788274; font-size: 10px; }
+.status-pill.tracking-status-pending { color: #8a5b08; background: #fff2d6; }
+.status-pill.tracking-status-confirmed { color: #285d8c; background: #e8f3ff; }
+.status-pill.tracking-status-processing { color: #6441a2; background: #f1eafd; }
+.status-pill.tracking-status-shipped { color: #176b70; background: #e2f5f2; }
+.status-pill.tracking-status-scheduled { color: #32657c; background: #e8f4f8; }
+.status-pill.tracking-status-preparing { color: #93531c; background: #fff0e1; }
+.status-pill.tracking-status-installing { color: #a64b20; background: #ffede3; }
+.status-pill.tracking-status-testing { color: #4e50a3; background: #eeefff; }
+.status-pill.tracking-status-completed { color: #346d3e; background: #e8f4e8; }
+.status-pill.tracking-status-cancelled { color: #963c35; background: #fbe9e7; }
+.bk-history-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 1rem; }
+.bk-status-filter { display: flex; min-width: min(280px, 100%); flex-direction: column; gap: 6px; color: #5c685a; font-size: 10px; font-weight: 600; }
+.bk-status-filter select { width: 100%; padding: 10px 11px; color: #3e493e; background: #fbfcfa; border: 1px solid #e5e9e1; border-radius: 5px; font: inherit; font-weight: 400; }
+.bk-status-filter select:focus { border-color: #93aa82; outline: 2px solid rgba(112,143,92,.1); }
 .bk-history-card { padding: 18px; background: #fff; border: 1px solid #e8ebe4; border-radius: 8px; }
 .bk-history-heading,.bk-history-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .bk-history-heading strong { color: #3e4d3d; font-size: 13px; }
@@ -297,6 +329,9 @@ a { color: inherit; text-decoration: none; }
   .bk-full { grid-column: auto; }
   .bk-section { padding: 13px; }
   .bk-slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bk-history-toolbar { align-items: stretch; flex-direction: column; }
+  .bk-history-toolbar > .button { align-self: flex-end; }
+  .bk-status-filter { min-width: 0; }
   .bk-history-card { padding: 13px; }
 }
 
