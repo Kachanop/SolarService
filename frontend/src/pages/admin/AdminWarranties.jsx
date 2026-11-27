@@ -224,7 +224,7 @@ export default function AdminWarranties({ warranties, onSave, onDelete, setToast
 
               <div>
                 <code style={{ fontSize: '10px', background: '#eef3ea', padding: '2px 5px', borderRadius: '4px' }}>
-                  {item.serial_number}
+                  {item.serial_number || 'รอระบุ'}
                 </code>
               </div>
 
@@ -546,7 +546,7 @@ export default function AdminWarranties({ warranties, onSave, onDelete, setToast
                 <div>
                   <small style={{ color: '#768774' }}>Serial Number</small>
                   <code style={{ display: 'block', fontSize: '12px', fontWeight: 'bold' }}>
-                    {certModal.serial_number}
+                    {certModal.serial_number || 'รอระบุจากเจ้าหน้าที่'}
                   </code>
                 </div>
 

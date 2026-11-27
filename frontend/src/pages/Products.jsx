@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ShoppingCart, Eye, X, Check, Zap } from 'lucide-react';
+import { Search, ShoppingCart, Eye, X, Check, Zap, ArrowRight } from 'lucide-react';
 import { PageIntro } from '../components/Shared.jsx';
 import { getPublishedProductReviews, getPublishedReviews } from '../services/reviewService.js';
 
@@ -258,28 +258,6 @@ function mergePackages(incomingPackages = []) {
   return [...dbPackages, ...missingDefaults];
 }
 
-/* ---------- ตัวอย่างสินค้า (แสดงเมื่อระบบยังไม่ส่งสินค้าเข้ามา) ---------- */
-const SAMPLE_PRODUCTS = [
-  { isSample: true, id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: photo('panel'),
-    description: 'แผงโมโนคริสตัลไลน์ประสิทธิภาพสูง ทนแดด ทนฝน เหมาะกับหลังคาบ้านและโรงงาน',
-    specs: { 'กำลังไฟ': '550 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี', 'ประกันกำลังผลิต': '25 ปี' }, popular: true },
-  { isSample: true, id: 'sample-2', name: 'แผงโซลาร์ Mono 450W', price: 3490, category: 'แผงโซลาร์', image: photo('panel'),
-    description: 'ขนาดกะทัดรัด ติดตั้งง่าย เหมาะกับพื้นที่หลังคาจำกัด',
-    specs: { 'กำลังไฟ': '450 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี' } },
-  { isSample: true, id: 'sample-3', name: 'อินเวอร์เตอร์ On-Grid 5 kW', price: 32900, category: 'อินเวอร์เตอร์', image: photo('inverter'),
-    description: 'ต่อเข้าระบบไฟบ้านโดยตรง ดูผลผลิตไฟผ่านแอปบนมือถือได้ทุกเวลา',
-    specs: { 'กำลังไฟ': '5 kW', 'ประสิทธิภาพ': '98%', 'การเชื่อมต่อ': 'Wi-Fi', 'ประกัน': '5 ปี' } },
-  { isSample: true, id: 'sample-4', name: 'อินเวอร์เตอร์ Hybrid 8 kW', price: 54900, category: 'อินเวอร์เตอร์', image: photo('inverter'),
-    description: 'รองรับการต่อแบตเตอรี่ ใช้ไฟต่อเนื่องแม้ไฟดับ เหมาะกับบ้านที่ต้องการความมั่นคงทางไฟฟ้า',
-    specs: { 'กำลังไฟ': '8 kW', 'รองรับแบตเตอรี่': 'ได้', 'ประกัน': '5 ปี' } },
-  { isSample: true, id: 'sample-5', name: 'แบตเตอรี่ลิเธียม 5 kWh', price: 59900, category: 'แบตเตอรี่', image: photo('battery'),
-    description: 'แบตเตอรี่ LiFePO4 ทั่วไป รุ่นที่จำหน่ายอาจมีสเปกแตกต่างกัน',
-    specs: { 'ความจุ': '5 kWh', 'เคมี': 'LiFePO4', 'รอบการชาร์จ': '6,000 รอบ', 'ประกัน': '10 ปี' } },
-  { isSample: true, id: 'sample-6', name: 'ชุดโครงยึดแผงบนหลังคา', price: 1890, category: 'อุปกรณ์เสริม', image: photo('mounting-kit'),
-    description: 'โครงอะลูมิเนียมกันสนิม รองรับหลังคาเมทัลชีทและกระเบื้อง (ราคาต่อ 1 แผง)',
-    specs: { 'วัสดุ': 'อะลูมิเนียม', 'รองรับลม': 'สูงสุด 180 กม./ชม.' } },
-];
-
 function matchReviewsForItem(publicReviews, item, kind) {
   if (!Array.isArray(publicReviews) || !item) return [];
   const itemName = String(item.name || '').trim().toLowerCase();
@@ -331,10 +309,12 @@ function ItemCard({ item, kind, itemReviews = [], onView, onAdd }) {
             type="button"
             className="sx-btn sx-btn-solid"
             onClick={() => onAdd(item, kind)}
-            disabled={item.isSample}
-            title={item.isSample ? 'ข้อมูลตัวอย่าง กรุณารัน migration เพื่อสั่งซื้อจริง' : undefined}
+            disabled={kind === 'product' && item.isSample}
+            title={kind === 'package' ? 'ติดต่อเพื่อนัดประเมินพื้นที่ก่อนซื้อแพ็กเกจ' : item.isSample ? 'ข้อมูลตัวอย่าง กรุณารัน migration เพื่อสั่งซื้อจริง' : undefined}
           >
-            <ShoppingCart size={16} /> {item.isSample ? 'ตัวอย่าง' : 'เพิ่มลงตะกร้า'}
+            {kind === 'package'
+              ? <><ArrowRight size={16} /> นัดประเมินหน้างาน</>
+              : <><ShoppingCart size={16} /> {item.isSample ? 'ตัวอย่าง' : 'เพิ่มลงตะกร้า'}</>}
           </button>
         </div>
       </div>
@@ -429,6 +409,9 @@ function DetailModal({ item, kind, publicReviews = [], onClose, onAdd }) {
           <h2>{item.name}</h2>
           <div className="sx-card-price sx-big">{baht(item.price)}</div>
           <p className="sx-modal-desc">{item.description}</p>
+          {kind === 'product' && item.warranty_months && (
+            <p className="sx-reviews-message">รับประกัน {item.warranty_months} เดือนต่อชิ้น ออกใบรับประกันหลังจัดส่งสำเร็จ</p>
+          )}
 
           {item.includes && item.includes.length > 0 && (
             <>
@@ -495,9 +478,11 @@ function DetailModal({ item, kind, publicReviews = [], onClose, onAdd }) {
               type="button"
               className="sx-btn sx-btn-solid sx-btn-wide"
               onClick={() => { onAdd(item, kind); onClose(); }}
-              disabled={item.isSample}
+              disabled={kind === 'product' && item.isSample}
             >
-              <ShoppingCart size={18} /> {item.isSample ? 'ข้อมูลตัวอย่าง ยังสั่งซื้อไม่ได้' : 'เพิ่มลงตะกร้า'}
+              {kind === 'package'
+                ? <><ArrowRight size={18} /> ติดต่อเพื่อนัดประเมินหน้างาน</>
+                : <><ShoppingCart size={18} /> {item.isSample ? 'ข้อมูลตัวอย่าง ยังสั่งซื้อไม่ได้' : 'เพิ่มลงตะกร้า'}</>}
             </button>
           </div>
         </div>
@@ -513,8 +498,9 @@ export default function Products({
   search,
   setSearch,
   addToCart,
+  navigate,
 }) {
-  const list = incoming.length ? incoming : SAMPLE_PRODUCTS;
+  const list = incoming;
   const packageList = mergePackages(incomingPackages);
 
   const [tab, setTab] = useState('products'); // 'products' | 'packages'
@@ -547,13 +533,7 @@ export default function Products({
 
   const handleAdd = (item, itemKind = kind) => {
     if (itemKind === 'package') {
-      addToCart({
-        ...item,
-        itemType: 'package',
-        category: 'แพ็กเกจติดตั้ง',
-        icon: '⚡',
-        tone: 'green',
-      });
+      navigate(`/contact?package=${encodeURIComponent(item.name)}`);
       return;
     }
     addToCart({ ...item, itemType: 'product' });
@@ -573,7 +553,7 @@ export default function Products({
       <PageIntro
         eyebrow="SOLAR SHOP"
         title="เลือกอุปกรณ์ที่ใช่"
-        description="อุปกรณ์โซลาร์เซลล์คุณภาพ พร้อมแพ็กเกจติดตั้งและคำแนะนำจากผู้เชี่ยวชาญ"
+        description="สั่งซื้ออุปกรณ์โซลาร์เซลล์ออนไลน์ได้โดยไม่ต้องติดตั้ง พร้อมเลือกผ่อนชำระและรับใบรับประกันรายชิ้น หากสนใจแพ็กเกจ ระบบจะพาไปติดต่อเพื่อนัดประเมินหน้างานก่อน"
       >
         <div className="search-field">
           <Search size={18} />
@@ -621,8 +601,8 @@ export default function Products({
       ) : (
         <div className="empty-state">
           <Search size={28} />
-          <h3>{(tab === 'products' ? list.length : packageList.length) ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการในระบบ'}</h3>
-          <p>{(tab === 'products' ? list.length : packageList.length) ? 'ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น' : 'โปรดกลับมาเยี่ยมชมอีกครั้งในภายหลัง'}</p>
+          <h3>{(tab === 'products' ? list.length : packageList.length) ? 'ไม่พบรายการที่ค้นหา' : tab === 'products' ? 'ยังไม่มีสินค้าในแค็ตตาล็อก' : 'ยังไม่มีรายการในระบบ'}</h3>
+          <p>{(tab === 'products' ? list.length : packageList.length) ? 'ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น' : tab === 'products' ? 'สินค้าใหม่จะแสดงที่นี่เมื่อผู้ดูแลเพิ่มและเปิดขายในระบบ' : 'โปรดกลับมาเยี่ยมชมอีกครั้งในภายหลัง'}</p>
         </div>
       )}
 

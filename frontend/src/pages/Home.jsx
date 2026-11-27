@@ -8,8 +8,8 @@ export default function Home({ navigate, addToCart, products: catalog = [], pack
       <div className="hero-copy">
         <div className="eyebrow"><span className="eyebrow-dot" /> พลังงานสะอาด สำหรับทุกบ้าน</div>
         <h1>ให้แสงอาทิตย์<br />ดูแลบ้านคุณ<span className="sun-accent">.</span></h1>
-        <p className="hero-description">เริ่มต้นประหยัดค่าไฟอย่างยั่งยืน ด้วยระบบโซลาร์เซลล์ที่ออกแบบเพื่อบ้านคุณ พร้อมทีมช่างผู้เชี่ยวชาญดูแลทุกขั้นตอน</p>
-        <div className="hero-actions"><a className="button button-green" href="#/packages">เลือกแพ็กเกจ <ArrowRight size={17} /></a><a className="text-link" href="#/services"><span className="play-icon">▶</span> รู้จักบริการของเรา</a></div>
+        <p className="hero-description">เลือกซื้ออุปกรณ์โซลาร์เซลล์ออนไลน์ได้โดยไม่ต้องติดตั้ง พร้อมเลือกผ่อนชำระและรับใบรับประกันรายชิ้น หรือให้ทีมงานประเมินหน้างานก่อนเลือกแพ็กเกจติดตั้ง</p>
+        <div className="hero-actions"><a className="button button-green" href="#/products">เลือกซื้อสินค้า <ArrowRight size={17} /></a><a className="text-link" href="#/packages"><span className="play-icon">▶</span> ดูแพ็กเกจติดตั้ง</a></div>
         <div className="hero-trust"><div className="avatar-stack"><span>น</span><span>ภ</span><span>ก</span><span>+</span></div><div><strong>2,400+ บ้าน</strong><small>ที่ไว้วางใจ SolarService</small></div><span className="trust-divider" /><div className="rating"><span>★★★★★</span><small>4.9/5 คะแนนรีวิว</small></div></div>
       </div>
       <div className="hero-art">
@@ -42,6 +42,6 @@ export default function Home({ navigate, addToCart, products: catalog = [], pack
       navigate={navigate}
       sectionClassName="section home-products"
     />
-    <section className="bottom-cta"><div><div className="eyebrow">เริ่มต้นง่ายกว่าที่คิด</div><h2>ยังไม่แน่ใจว่าบ้านคุณ<br />เหมาะกับระบบแบบไหน?</h2><p>ให้ช่างผู้เชี่ยวชาญเข้าสำรวจและออกแบบให้ฟรี ไม่มีค่าใช้จ่าย</p></div><a className="button button-dark" href="#/bookings">นัดช่างสำรวจฟรี <ArrowRight size={17} /></a></section>
+    <section className="bottom-cta"><div><div className="eyebrow">เริ่มต้นง่ายกว่าที่คิด</div><h2>เลือกอุปกรณ์ออนไลน์<br />หรือขอประเมินแพ็กเกจ</h2><p>สั่งซื้อสินค้าได้ทันทีโดยไม่ต้องเลือกติดตั้ง หากต้องการแพ็กเกจ ทีมงานจะติดต่อเพื่อนัดประเมินก่อนเสนอราคา</p></div><a className="button button-dark" href="#/contact">ติดต่อเพื่อนัดประเมิน <ArrowRight size={17} /></a></section>
   </>;
 }

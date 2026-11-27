@@ -12,10 +12,10 @@ export const PHOTO_CREDITS = {
 };
 
 export const products = [
-  { id: 1, name: 'แผงโซลาร์เซลล์ LONGi 580W', category: 'แผงโซลาร์เซลล์', price: 4_290, oldPrice: 4_890, badge: 'ขายดี', icon: '▰', tone: 'blue', image_url: productImage('panel'), photoCredit: PHOTO_CREDITS.panel, detail: 'ประสิทธิภาพสูง ทนทานต่อทุกสภาพอากาศ' },
-  { id: 2, name: 'อินเวอร์เตอร์ Huawei 5kW', category: 'อินเวอร์เตอร์', price: 32_500, badge: 'รับประกัน 10 ปี', icon: '⌁', tone: 'green', image_url: productImage('inverter-huawei'), photoCredit: PHOTO_CREDITS['inverter-huawei'], detail: 'แปลงพลังงานได้เต็มประสิทธิภาพ พร้อมระบบติดตาม' },
-  { id: 3, name: 'แบตเตอรี่ Huawei LUNA 5kWh', category: 'แบตเตอรี่', price: 68_900, icon: '▥', tone: 'sand', image_url: productImage('battery'), photoCredit: PHOTO_CREDITS.battery, detail: 'สำรองพลังงานไว้ใช้ได้แม้ในเวลากลางคืน' },
-  { id: 4, name: 'ชุดติดตั้งและอุปกรณ์ครบเซ็ต', category: 'อุปกรณ์ติดตั้ง', price: 12_900, badge: 'ครบชุด', icon: '⌘', tone: 'lilac', image_url: productImage('mounting-kit'), photoCredit: PHOTO_CREDITS['mounting-kit'], detail: 'อุปกรณ์มาตรฐานสำหรับระบบโซลาร์บนหลังคา' },
+  { id: 1, slug: 'longi-himo-6-580w', name: 'แผงโซลาร์เซลล์ LONGi 580W', category: 'แผงโซลาร์เซลล์', price: 4_290, oldPrice: 4_890, badge: 'ขายดี', icon: '▰', tone: 'blue', image_url: productImage('panel'), photoCredit: PHOTO_CREDITS.panel, detail: 'ประสิทธิภาพสูง ทนทานต่อทุกสภาพอากาศ' },
+  { id: 2, slug: 'huawei-sun2000-5ktl', name: 'อินเวอร์เตอร์ Huawei 5kW', category: 'อินเวอร์เตอร์', price: 32_500, badge: 'รับประกัน 10 ปี', icon: '⌁', tone: 'green', image_url: productImage('inverter-huawei'), photoCredit: PHOTO_CREDITS['inverter-huawei'], detail: 'แปลงพลังงานได้เต็มประสิทธิภาพ พร้อมระบบติดตาม' },
+  { id: 3, slug: 'huawei-luna2000-5kwh', name: 'แบตเตอรี่ Huawei LUNA 5kWh', category: 'แบตเตอรี่', price: 68_900, icon: '▥', tone: 'sand', image_url: productImage('battery'), photoCredit: PHOTO_CREDITS.battery, detail: 'สำรองพลังงานไว้ใช้ได้แม้ในเวลากลางคืน' },
+  { id: 4, slug: 'mounting-cpack-pv-kit', name: 'ชุดติดตั้งและอุปกรณ์ครบเซ็ต', category: 'อุปกรณ์ติดตั้ง', price: 12_900, badge: 'ครบชุด', icon: '⌘', tone: 'lilac', image_url: productImage('mounting-kit'), photoCredit: PHOTO_CREDITS['mounting-kit'], detail: 'อุปกรณ์มาตรฐานสำหรับระบบโซลาร์บนหลังคา' },
 ];
 
 export const packages = [

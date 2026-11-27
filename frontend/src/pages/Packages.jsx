@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Check, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { Check, ShieldCheck, CalendarDays, Phone } from 'lucide-react';
 import { packages as fallbackPackages } from '../data/catalog.js';
 import { PageIntro } from '../components/Shared.jsx';
 import { getPublishedReviews } from '../services/reviewService.js';
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const packagePhoto = (name) => `${import.meta.env.BASE_URL}images/packages/${name}.jpg`;
 
 function resolvePackageImage(pkg) {
@@ -18,7 +17,7 @@ function isTestPackage(pkg) {
   return /test|ทดสอบ/i.test(`${pkg.name || ''} ${pkg.slug || ''} ${pkg.description || ''}`);
 }
 
-export default function Packages({ navigate, packages: incomingPackages = [], addToCart, authUser, setToast }) {
+export default function Packages({ navigate, packages: incomingPackages = [] }) {
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
 
@@ -76,28 +75,12 @@ export default function Packages({ navigate, packages: incomingPackages = [], ad
     ))),
   ];
 
-  function orderPackage(pkg) {
-    if (pkg.isSample || !UUID_RE.test(String(pkg.id))) {
-      setToast?.('กรุณารัน migration 20261127060000 และ 20261127070000 ใน Supabase ก่อนสั่งซื้อแพ็กเกจ');
-      return;
-    }
-    addToCart?.({
-      ...pkg,
-      price: pkg.priceNumber,
-      itemType: 'package',
-      category: 'แพ็กเกจติดตั้ง',
-      icon: '⚡',
-      tone: 'green',
-    });
-    if (authUser) navigate('/checkout');
-  }
-
   return (
     <div className="page-wrap">
       <PageIntro
         eyebrow="SOLAR PACKAGES"
         title="แพ็กเกจที่พอดีกับบ้านคุณ"
-        description="ทุกแพ็กเกจออกแบบโดยผู้เชี่ยวชาญ พร้อมสั่งซื้อและชำระเงินผ่าน PromptPay ได้ทันที"
+        description="แพ็กเกจติดตั้งต้องนัดทีมงานประเมินหน้างานก่อน เพื่อยืนยันความเหมาะสมและเสนอราคาที่ถูกต้อง"
       />
       <div className="package-grid">
         {displayPackages.map((item) => {
@@ -116,18 +99,18 @@ export default function Packages({ navigate, packages: incomingPackages = [], ad
               <div className="package-price"><small>{testPkg ? 'ราคาทดสอบ' : 'เริ่มต้น'}</small><strong>{item.priceLabel}<span> บาท</span></strong></div>
               <ul>{(item.items || []).map((feature) => <li key={feature}><Check size={16} />{feature}</li>)}</ul>
               <div style={{ display: 'grid', gap: '8px' }}>
-                <button className="button button-green" type="button" onClick={() => orderPackage(item)} disabled={item.isSample}>
-                  <ShoppingCart size={16} /> {item.isSample ? 'แพ็กเกจตัวอย่าง (รอ Migration)' : 'สั่งซื้อ / ชำระเงิน'}
+                <button className="button button-green" type="button" onClick={() => navigate(`/contact?package=${encodeURIComponent(item.name)}`)}>
+                  <Phone size={16} /> ติดต่อเพื่อนัดประเมินหน้างาน
                 </button>
                 <button className="button button-outline" type="button" onClick={() => navigate('/bookings')}>
-                  นัดสำรวจฟรี <ArrowRight size={16} />
+                  <CalendarDays size={16} /> นัดสำรวจหน้างาน
                 </button>
               </div>
             </article>
           );
         })}
       </div>
-      <p className="package-note"><ShieldCheck size={16} /> ราคาจริงขึ้นอยู่กับการสำรวจพื้นที่และอุปกรณ์ที่เลือก ไม่มีค่าใช้จ่ายในการเข้าสำรวจ</p>
+      <p className="package-note"><ShieldCheck size={16} /> ยังไม่มีการเรียกเก็บเงินจากหน้าแพ็กเกจ ทีมงานจะติดต่อกลับเพื่อนัดประเมินก่อนเสนอราคา</p>
 
       <section style={{ marginTop: '36px', padding: '24px', background: '#fff', borderRadius: '18px', border: '1px solid #e0e6db' }} aria-label="รีวิวจากผู้ใช้จริง">
         <div style={{ marginBottom: '16px' }}>

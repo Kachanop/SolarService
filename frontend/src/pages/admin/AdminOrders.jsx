@@ -269,7 +269,7 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
 
                 <div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                  {order.status === 'pending' && (
+                  {order.status === 'pending' && order.payment_plan !== 'three_installments' && (
                     <button
                       type="button"
                       className="button button-green small-button"

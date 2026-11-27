@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, CalendarDays, Check, Printer, ShieldCheck, ShoppingBag, Wrench, X } from 'lucide-react';
 import { Money, PageIntro } from '../components/Shared.jsx';
 import { supabase } from '../lib/supabase.js';
+import { products as legacyCatalogProducts } from '../data/catalog.js';
 import { createPromptPayQr, getPromptPayPaymentStatus } from '../services/paymentService.js';
 import { getQuotationByOrderId } from '../services/customerService.js';
 import { searchAddressByProvince } from 'thai-address-database';
@@ -148,7 +149,7 @@ function getTodayDateValue() {
 
 export function Cart({ cart, setCart, navigate }) {
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  return <div className="page-wrap"><PageIntro eyebrow="YOUR CART" title="ตะกร้าสินค้า" description="ตรวจสอบรายการสินค้าและแพ็กเกจก่อนดำเนินการสั่งซื้อ" /><div className="cart-layout"><div className="cart-items">{cart.length ? cart.map((item) => <article className="cart-item" key={`${item.itemType || 'product'}-${item.id}`}><span className={`cart-product-icon ${item.tone || 'green'}`}>{item.icon || '⚡'}</span><div className="cart-item-info"><small>{item.category || (item.itemType === 'package' ? 'แพ็กเกจติดตั้ง' : 'สินค้า')}</small><h3>{item.name}</h3><strong><Money value={item.price} /></strong></div><div className="quantity-control"><button aria-label="ลดจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product') ? { ...current, quantity: Math.max(1, current.quantity - 1) } : current))}>−</button><span>{item.quantity}</span><button aria-label="เพิ่มจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product') ? { ...current, quantity: current.quantity + 1 } : current))}>+</button></div><button className="remove-item" aria-label="ลบสินค้า" onClick={() => setCart((items) => items.filter((current) => !(current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product'))))}><X size={17} /></button></article>) : <div className="empty-state"><ShoppingBag size={30} /><h3>ยังไม่มีสินค้าในตะกร้า</h3><p>เลือกชมอุปกรณ์โซลาร์เซลล์และแพ็กเกจที่เหมาะกับบ้านคุณ</p><a className="button button-green" href="#/products">เลือกซื้อสินค้า <ArrowRight size={16} /></a></div>}</div>{cart.length > 0 && <aside className="summary-card"><h3>สรุปคำสั่งซื้อ</h3><div><span>ยอดรวมสินค้า</span><strong><Money value={subtotal} /></strong></div><div><span>ค่าจัดส่ง</span><strong>คำนวณภายหลัง</strong></div><hr /><div className="summary-total"><span>ยอดรวม</span><strong><Money value={subtotal} /></strong></div><button className="button button-green" onClick={() => navigate('/checkout')}>ดำเนินการสั่งซื้อ <ArrowRight size={16} /></button><p><ShieldCheck size={14} /> ชำระเงินอย่างปลอดภัย</p></aside>}</div></div>;
+  return <div className="page-wrap"><PageIntro eyebrow="YOUR CART" title="ตะกร้าสินค้า" description="ตรวจสอบรายการสินค้าอุปกรณ์ก่อนชำระเงิน" /><div className="cart-layout"><div className="cart-items">{cart.length ? cart.map((item) => <article className="cart-item" key={`${item.itemType || 'product'}-${item.id}`}><span className={`cart-product-icon ${item.tone || 'green'}`}>{item.icon || '⚡'}</span><div className="cart-item-info"><small>{item.category || (item.itemType === 'package' ? 'แพ็กเกจติดตั้ง' : 'สินค้า')}</small><h3>{item.name}</h3><strong><Money value={item.price} /></strong></div><div className="quantity-control"><button aria-label="ลดจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product') ? { ...current, quantity: Math.max(1, current.quantity - 1) } : current))}>−</button><span>{item.quantity}</span><button aria-label="เพิ่มจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product') ? { ...current, quantity: current.quantity + 1 } : current))}>+</button></div><button className="remove-item" aria-label="ลบสินค้า" onClick={() => setCart((items) => items.filter((current) => !(current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product'))))}><X size={17} /></button></article>) : <div className="empty-state"><ShoppingBag size={30} /><h3>ยังไม่มีสินค้าในตะกร้า</h3><p>เลือกชมอุปกรณ์โซลาร์เซลล์ที่ต้องการ</p><a className="button button-green" href="#/products">เลือกซื้อสินค้า <ArrowRight size={16} /></a></div>}</div>{cart.length > 0 && <aside className="summary-card"><h3>สรุปคำสั่งซื้อ</h3><div><span>ยอดรวมสินค้า</span><strong><Money value={subtotal} /></strong></div><div><span>ค่าจัดส่ง</span><strong>คำนวณภายหลัง</strong></div><hr /><div className="summary-total"><span>ยอดรวม</span><strong><Money value={subtotal} /></strong></div><button className="button button-green" onClick={() => navigate('/checkout')}>ดำเนินการสั่งซื้อ <ArrowRight size={16} /></button><p><ShieldCheck size={14} /> ชำระเงินอย่างปลอดภัย</p></aside>}</div></div>;
 }
 
 export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
@@ -163,6 +164,10 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     notes: '',
   });
   const [orderId, setOrderId] = useState('');
+  const [paymentPlan, setPaymentPlan] = useState('full');
+  const [installmentRows, setInstallmentRows] = useState([]);
+  const [nextInstallment, setNextInstallment] = useState(null);
+  const [paymentStarted, setPaymentStarted] = useState(false);
   const [linkedQuote, setLinkedQuote] = useState(null);
   const [paidSummary, setPaidSummary] = useState(null);
   const [qrPayment, setQrPayment] = useState(null);
@@ -171,11 +176,12 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   const [submitting, setSubmitting] = useState(false);
   const [paid, setPaid] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const [resolvingLegacyItems, setResolvingLegacyItems] = useState(false);
+  const [legacyResolutionError, setLegacyResolutionError] = useState('');
 
   // ---- ตัวเลือกช่างติดตั้ง ----
   const [installMode, setInstallMode] = useState('none'); // 'none' = ไม่เอาช่าง | 'technician' = เอาช่าง
   const [installDate, setInstallDate] = useState('');
-  const [installProvince, setInstallProvince] = useState('');
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState('');
@@ -185,6 +191,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   const markPaidRef = useRef(null);
 
   const wantsTechnician = installMode === 'technician';
+  const packageItems = cart.filter((item) => item.itemType === 'package');
   const unorderableItems = cart.filter((item) => !isOrderableItem(item));
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
   const shippingAddress = [
@@ -194,6 +201,60 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     `จังหวัด${shipping.province}`,
     shipping.zipcode,
   ].filter((part) => part.trim()).join(', ');
+
+  useEffect(() => {
+    const legacyItems = cart.filter((item) => item.itemType !== 'package' && !isOrderableItem(item));
+    if (!legacyItems.length || !supabase) {
+      setResolvingLegacyItems(false);
+      setLegacyResolutionError('');
+      return undefined;
+    }
+
+    let active = true;
+    setResolvingLegacyItems(true);
+    setLegacyResolutionError('');
+    (async () => {
+      try {
+        const resolvedItems = await Promise.all(legacyItems.map(async (item) => {
+          const legacyProduct = legacyCatalogProducts.find((product) => String(product.id) === String(item.id));
+          const slug = item.slug || legacyProduct?.slug;
+          if (!slug) return { id: String(item.id), product: null };
+          const { data, error } = await supabase.from('products')
+            .select('id,name,slug,category,description,price,compare_at_price,image_url,stock_quantity,warranty_months,is_active')
+            .eq('slug', slug)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (error) throw error;
+          return { id: String(item.id), product: data };
+        }));
+        if (!active) return;
+
+        const productsByLegacyId = new Map(resolvedItems
+          .filter((entry) => entry.product)
+          .map((entry) => [entry.id, entry.product]));
+        const missingProducts = legacyItems.filter((item) => !productsByLegacyId.has(String(item.id)));
+        if (missingProducts.length) {
+          setLegacyResolutionError(`ไม่พบสินค้าเดิมในแค็ตตาล็อกปัจจุบัน: ${missingProducts.map((item) => item.name).join(', ')} กรุณาเลือกสินค้าจากหน้าแค็ตตาล็อกอีกครั้ง`);
+        }
+        if (productsByLegacyId.size) {
+          setCart((items) => items.map((item) => {
+            const product = productsByLegacyId.get(String(item.id));
+            return product
+              ? { ...item, ...product, itemType: 'product', quantity: item.quantity }
+              : item;
+          }));
+        }
+      } catch (error) {
+        if (active) {
+          setLegacyResolutionError(`ตรวจสอบสินค้าเดิมไม่สำเร็จ: ${getErrorMessage(error)}`);
+        }
+      } finally {
+        if (active) setResolvingLegacyItems(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [cart, setCart]);
 
   // โหลดเวลาว่างของช่างเมื่อเลือกวัน
   useEffect(() => {
@@ -230,7 +291,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       preferredAt: selectedSlot.start,
       phone: shipping.phone.replace(/\D/g, '').slice(0, 10),
       address: shippingAddress,
-      province: installProvince,
+      province: shipping.province,
       notes: `ติดตั้งอุปกรณ์จากคำสั่งซื้อ ${id}`,
     });
   }
@@ -238,6 +299,21 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   async function markPaid(id) {
     if (paidHandledRef.current) return;
     paidHandledRef.current = true;
+    if (qrPayment?.installmentId) {
+      const updatedInstallments = installmentRows.map((item) => (
+        item.id === qrPayment.installmentId ? { ...item, status: 'paid' } : item
+      ));
+      setInstallmentRows(updatedInstallments);
+      const next = updatedInstallments.find((item) => item.status === 'pending');
+      if (next) {
+        setNextInstallment(next);
+        setQrPayment(null);
+        setPaymentMessage(`ชำระงวด ${qrPayment.installmentNumber} แล้ว เลือกชำระงวดถัดไปเมื่อพร้อม`);
+        setToast(`ชำระงวด ${qrPayment.installmentNumber} เรียบร้อยแล้ว`);
+        return;
+      }
+    }
+
     const summaryItems = (qrPayment?.orderItems || []).length
       ? qrPayment.orderItems
       : cart.map((item) => ({
@@ -249,7 +325,9 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       orderId: id,
       createdAt: new Date().toISOString(),
       items: summaryItems,
-      amountInBaht: qrPayment?.amountInBaht ?? subtotal,
+      amountInBaht: installmentRows.length
+        ? installmentRows.reduce((total, item) => total + Number(item.amount), 0)
+        : qrPayment?.amountInBaht ?? subtotal,
     });
     setPaid(true);
     setCart([]);
@@ -287,7 +365,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
 
     async function checkStatus() {
       try {
-        const result = await getPromptPayPaymentStatus(qrPayment.orderId);
+        const result = await getPromptPayPaymentStatus(qrPayment.orderId, qrPayment.installmentId);
         if (active && result.paid) markPaidRef.current(qrPayment.orderId);
         else if (active && result.expired) {
           setSecondsRemaining(0);
@@ -313,7 +391,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     setCheckingPayment(true);
     setPaymentMessage('');
     try {
-      const result = await getPromptPayPaymentStatus(qrPayment.orderId);
+      const result = await getPromptPayPaymentStatus(qrPayment.orderId, qrPayment.installmentId);
       if (result.paid) {
         await markPaid(qrPayment.orderId);
       } else if (result.expired) {
@@ -337,6 +415,11 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       setToast('ตะกร้าสินค้าว่าง กรุณาเลือกสินค้าก่อนชำระเงิน');
       return;
     }
+    if (packageItems.length) {
+      setToast('แพ็กเกจต้องติดต่อเพื่อนัดประเมินหน้างานก่อนสั่งซื้อ');
+      navigate(`/contact?package=${encodeURIComponent(packageItems[0].name)}`);
+      return;
+    }
     if (!supabase) {
       setToast('กรุณาตั้งค่า Supabase ก่อนทำรายการสั่งซื้อ');
       return;
@@ -355,17 +438,18 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
       setToast('กรุณากรอกที่อยู่และเลือกจังหวัด อำเภอ/เขต ตำบล/แขวง พร้อมรหัสไปรษณีย์ให้ครบ');
       return;
     }
-    if (wantsTechnician && (!installDate || !selectedSlot || !installProvince.trim())) {
-      setToast('กรุณาเลือกวัน เวลา และระบุจังหวัดสำหรับนัดช่างติดตั้ง');
+    if (wantsTechnician && (!installDate || !selectedSlot)) {
+      setToast('กรุณาเลือกวันและเวลาสำหรับนัดช่างติดตั้ง');
       return;
     }
 
     setSubmitting(true);
     try {
       let activeOrderId = orderId;
+      let installmentToPay = nextInstallment;
       if (!activeOrderId) {
         const installNote = wantsTechnician
-          ? `\n[ต้องการช่างติดตั้ง] นัด: ${selectedSlot.label} วันที่ ${installDate} จังหวัด ${installProvince.trim()}`
+          ? `\n[ต้องการช่างติดตั้ง] นัด: ${selectedSlot.label} วันที่ ${installDate} จังหวัด ${shipping.province}`
           : '\n[ไม่ต้องการช่างติดตั้ง]';
         const { data, error } = await supabase.rpc('create_order', {
           p_shipping_name: shipping.name,
@@ -389,12 +473,52 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
         setOrderId(activeOrderId);
       }
 
-      const result = await createPromptPayQr(activeOrderId);
+      if (paymentPlan === 'three_installments' && !installmentRows.length) {
+        const { data: schedule, error: scheduleError } = await supabase.rpc('set_order_payment_plan', {
+          p_order_id: activeOrderId,
+          p_plan: paymentPlan,
+        });
+        if (scheduleError) {
+          if (/PGRST202|set_order_payment_plan|schema cache/i.test(scheduleError.message || '')) {
+            throw new Error(`${scheduleError.message} — กรุณารัน migration 20261128000000_customer_sales_workflows.sql ใน Supabase ก่อนเปิดใช้ระบบผ่อนชำระ`);
+          }
+          throw scheduleError;
+        }
+        if (!schedule?.length) throw new Error('ระบบไม่สามารถสร้างตารางผ่อนชำระได้');
+        setInstallmentRows(schedule);
+        installmentToPay = schedule.find((item) => item.status === 'pending') || schedule[0];
+        setNextInstallment(installmentToPay);
+      } else if (paymentPlan === 'three_installments' && !installmentToPay) {
+        installmentToPay = installmentRows.find((item) => item.status === 'pending') || null;
+        setNextInstallment(installmentToPay);
+      }
+
+      if (paymentPlan === 'full' && activeOrderId && installmentRows.length && !paymentStarted) {
+        const { error: planError } = await supabase.rpc('set_order_payment_plan', {
+          p_order_id: activeOrderId,
+          p_plan: 'full',
+        });
+        if (planError) throw planError;
+        setInstallmentRows([]);
+        setNextInstallment(null);
+      }
+
+      setPaymentStarted(true);
+      const result = await createPromptPayQr(activeOrderId, installmentToPay?.id || null);
       if (result.status !== 'succeeded' && !result.qrCodeUrl) {
         throw new Error('Stripe ไม่ได้ส่งลิงก์ QR PromptPay กลับมา');
       }
-      setQrPayment({ ...result, orderId: activeOrderId, createdAt: new Date().toISOString() });
-      setPaymentMessage('รอการชำระเงินผ่าน PromptPay ระบบจะตรวจสอบสถานะให้อัตโนมัติ');
+      setQrPayment({
+        ...result,
+        orderId: activeOrderId,
+        installmentId: installmentToPay?.id || null,
+        installmentNumber: installmentToPay?.installment_number || null,
+        createdAt: new Date().toISOString(),
+      });
+      paidHandledRef.current = false;
+      setPaymentMessage(installmentToPay
+        ? `รอชำระเงินงวดที่ ${installmentToPay.installment_number} ผ่าน PromptPay`
+        : 'รอการชำระเงินผ่าน PromptPay ระบบจะตรวจสอบสถานะให้อัตโนมัติ');
     } catch (error) {
       console.error('checkout error:', error);
       setToast(`ชำระเงินไม่สำเร็จ: ${getErrorMessage(error, 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ')}`);
@@ -487,7 +611,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
 
   return <div className="page-wrap">
     <style>{CSS}</style>
-    <PageIntro eyebrow="CHECKOUT" title="ยืนยันคำสั่งซื้อ" description="กรอกข้อมูลจัดส่ง เลือกว่าต้องการช่างติดตั้งหรือไม่ แล้วชำระเงินด้วย QR PromptPay" />
+    <PageIntro eyebrow="CHECKOUT" title="ยืนยันคำสั่งซื้อ" description="ซื้อสินค้าออนไลน์ได้โดยไม่ต้องเลือกติดตั้ง พร้อมเลือกชำระเต็มจำนวนหรือผ่อน 3 งวดไม่มีดอกเบี้ย" />
     {!cart.length && !orderId ? (
       <div className="empty-state">
         <ShoppingBag size={30} />
@@ -532,7 +656,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
           </div>
 
           {wantsTechnician && selectedSlot && (
-            <p className="payment-quotation-service"><Wrench size={14} /> นัดช่างติดตั้ง: {selectedSlot.label} วันที่ {installDate} · {installProvince}</p>
+            <p className="payment-quotation-service"><Wrench size={14} /> นัดช่างติดตั้ง: {selectedSlot.label} วันที่ {installDate} · {shipping.province}</p>
           )}
 
           <div className="payment-quotation-qr">
@@ -558,14 +682,30 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
           </button>}
         </div>
       </section>
+    ) : installmentRows.some((item) => item.status === 'paid') && nextInstallment && orderId ? (
+      <section className="success-panel" aria-live="polite">
+        <span><Check size={28} /></span>
+        <h2>งวดก่อนหน้าชำระแล้ว</h2>
+        <p>งวดถัดไป {nextInstallment.installment_number} จาก 3 · {new Date(nextInstallment.due_date).toLocaleDateString('th-TH')} · <Money value={nextInstallment.amount} /></p>
+        <p>ยอดรวมแบ่งชำระ 3 งวดโดยไม่มีดอกเบี้ย</p>
+        {paymentMessage && <p role="status">{paymentMessage}</p>}
+        <button className="button button-green" type="button" onClick={submitCheckout} disabled={submitting}>
+          {submitting ? 'กำลังสร้าง QR…' : `ชำระงวดที่ ${nextInstallment.installment_number}`} <ArrowRight size={16} />
+        </button>
+        <button className="button button-outline" type="button" onClick={() => navigate('/orders')}>กลับไปคำสั่งซื้อของฉัน</button>
+      </section>
     ) : (
       <form className="checkout-form" onSubmit={submitCheckout}>
         {unorderableItems.length > 0 && (
           <div className="sx-note sx-note-warn full-width" role="alert">
-            <p style={{ margin: '0 0 8px' }}>ในตะกร้ามีสินค้าตัวอย่างที่ยังไม่มีในฐานข้อมูล จึงสั่งซื้อไม่ได้: {unorderableItems.map((item) => item.name).join(', ')}</p>
-            <button type="button" className="button button-outline small-button" onClick={() => setCart((items) => items.filter(isOrderableItem))}>
-              ลบสินค้าตัวอย่างออกจากตะกร้า
-            </button>
+            <p style={{ margin: '0 0 8px' }}>
+              {resolvingLegacyItems
+                ? 'กำลังตรวจสอบและเชื่อมรายการเก่ากับสินค้าในแค็ตตาล็อก…'
+                : legacyResolutionError || `รายการที่ไม่มีรหัสสินค้าในฐานข้อมูลจึงยังสั่งซื้อไม่ได้: ${unorderableItems.map((item) => item.name).join(', ')}`}
+            </p>
+            {!resolvingLegacyItems && <button type="button" className="button button-outline small-button" onClick={() => setCart((items) => items.filter(isOrderableItem))}>
+              ลบรายการที่สั่งซื้อไม่ได้ออกจากตะกร้า
+            </button>}
           </div>
         )}
         <label>ชื่อ-นามสกุล
@@ -620,6 +760,27 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
           <textarea rows="2" disabled={locked} value={shipping.notes} placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" onChange={(event) => setShipping({ ...shipping, notes: event.target.value })} />
         </label>
 
+        <fieldset className="sx-install full-width" style={{ border: 0, padding: 0, margin: 0 }} disabled={paymentStarted || installmentRows.some((item) => item.status === 'paid')}>
+          <legend className="sx-install-title">วิธีชำระเงิน</legend>
+          <div className="sx-choice-group" role="radiogroup" aria-label="เลือกวิธีชำระเงิน">
+            <label className={`sx-choice ${paymentPlan === 'full' ? 'on' : ''}`}>
+              <input type="radio" name="payment-plan" checked={paymentPlan === 'full'} onChange={() => setPaymentPlan('full')} />
+              <span><strong>ชำระเต็มจำนวน</strong><small>ชำระยอดรวมครั้งเดียวผ่าน PromptPay</small></span>
+            </label>
+            <label className={`sx-choice ${paymentPlan === 'three_installments' ? 'on' : ''}`}>
+              <input
+                type="radio"
+                name="payment-plan"
+                checked={paymentPlan === 'three_installments'}
+                disabled={subtotal < 30}
+                onChange={() => setPaymentPlan('three_installments')}
+              />
+              <span><strong>ผ่อน 3 งวด ไม่มีดอกเบี้ย</strong><small>{subtotal >= 30 ? `แบ่งชำระ 3 ครั้ง งวดละประมาณ ${(subtotal / 3).toLocaleString('th-TH')} บาท` : 'ยอดรวมต้องไม่น้อยกว่า 30 บาท'}</small></span>
+            </label>
+          </div>
+          {paymentPlan === 'three_installments' && <p className="sx-note">งวดแรกชำระวันนี้ งวดที่ 2 และ 3 ครบกำหนดอีก 1 และ 2 เดือนตามลำดับ ชำระแต่ละงวดได้จากหน้าคำสั่งซื้อของฉัน</p>}
+        </fieldset>
+
         <fieldset className="sx-install full-width" style={{ border: 0, padding: 0, margin: 0 }} disabled={locked}>
           <legend className="sx-install-title">บริการติดตั้ง</legend>
           <div className="sx-choice-group" role="radiogroup" aria-label="เลือกบริการติดตั้ง">
@@ -635,13 +796,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
 
           {wantsTechnician && (
             <div className="sx-tech-panel">
-              <label>
-                จังหวัดที่ติดตั้ง
-                <select required value={installProvince} onChange={(event) => setInstallProvince(event.target.value)}>
-                  <option value="" disabled>เลือกจังหวัด</option>
-                  {THAI_PROVINCES.map((province) => <option key={province} value={province}>{province}</option>)}
-                </select>
-              </label>
+              <p className="sx-note">ใช้ที่อยู่จัดส่งเดียวกันสำหรับติดตั้ง: {shipping.addressLine} {shipping.district} {shipping.amphoe} {shipping.province}</p>
               <label>
                 <span><CalendarDays size={14} /> เลือกวันนัดช่าง</span>
                 <input type="date" required min={getTodayDateValue()} value={installDate} onChange={(event) => setInstallDate(event.target.value)} />

@@ -35,7 +35,7 @@ function App() {
     async function loadCatalog() {
       try {
         const { data, error } = await supabase.from('products')
-          .select('id,name,category,description,price,compare_at_price,image_url,stock_quantity,is_active')
+          .select('id,name,category,description,price,compare_at_price,image_url,stock_quantity,warranty_months,is_active')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
         if (error) throw error;

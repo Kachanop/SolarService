@@ -17,7 +17,7 @@ export async function getMyOrders() {
   const user = await getUser();
   const { data, error } = await supabase
     .from('orders')
-    .select('*,order_items(id,product_name,unit_price,quantity,line_total)')
+    .select('*,order_items(id,product_name,unit_price,quantity,line_total),order_installments(id,installment_number,amount,due_date,status,paid_at)')
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -92,7 +92,7 @@ export async function getMyTickets() {
   const user = await getUser();
   const { data, error } = await supabase
     .from('support_tickets')
-    .select('*')
+    .select('*,support_ticket_events(id,old_status,new_status,note,created_at)')
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;

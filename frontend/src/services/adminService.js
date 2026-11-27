@@ -1460,6 +1460,7 @@ export const adminService = {
       price: Number(item.price) || 0,
       compare_at_price: item.compare_at_price === '' || item.compare_at_price == null ? null : Number(item.compare_at_price),
       stock_quantity: Number(item.stock_quantity) || 0,
+      warranty_months: Math.max(1, Number(item.warranty_months) || 12),
       image_url: item.image_url?.trim() || null,
       description: item.description?.trim() || '',
       is_active: item.is_active ?? true,

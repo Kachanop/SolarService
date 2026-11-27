@@ -13,6 +13,7 @@
     "start:backend": "npm run start --workspace @solarservice/backend"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
     "thai-address-database": "^0.0.33"
   }
 }

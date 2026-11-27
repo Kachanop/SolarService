@@ -7,6 +7,33 @@ const PROMPTPAY_QR_TTL_MS = 5 * 60 * 1000;
 const MIN_PROMPTPAY_AMOUNT_SATANG = 1000;
 const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function getPromptPayErrorResponse(error) {
+  const message = typeof error?.message === 'string' ? error.message : '';
+  if (/(does not exist|not found|could not find|schema cache)/i.test(message)
+    && /\b(payment_plan|installment_id|order_installments|set_order_payment_plan)\b/i.test(message)) {
+    return {
+      status: 503,
+      message: 'ฐานข้อมูลยังไม่รองรับการชำระเงิน กรุณารัน migration 20261128000000_customer_sales_workflows.sql ใน Supabase',
+    };
+  }
+  if (typeof error?.type === 'string' && error.type.startsWith('Stripe')) {
+    return {
+      status: 502,
+      message: `Stripe ปฏิเสธการสร้าง PromptPay: ${message || 'กรุณาตรวจสอบการตั้งค่าบัญชี Stripe'}`,
+    };
+  }
+  if (message) {
+    return {
+      status: 500,
+      message: `สร้างรายการชำระเงินไม่สำเร็จ: ${message.slice(0, 240)}`,
+    };
+  }
+  return {
+    status: 500,
+    message: 'สร้างรายการชำระเงินไม่สำเร็จ กรุณาตรวจสอบบันทึกของเซิร์ฟเวอร์',
+  };
+}
+
 /**
  * Build Express app with injected env.
  * Accepts either a plain object (Cloudflare Workers env) or falls back to process.env.
@@ -48,7 +75,7 @@ export function createApp(env = process.env) {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id,customer_id,total,status,shipping_name')
+      .select('id,customer_id,total,status,shipping_name,payment_plan')
       .eq('id', orderId)
       .maybeSingle();
     if (orderError) throw orderError;
@@ -159,7 +186,7 @@ export function createApp(env = process.env) {
 
         const { data: payment, error: paymentLookupError } = await supabase
           .from('payments')
-          .select('id,order_id,customer_id,amount,status')
+          .select('id,order_id,customer_id,amount,status,installment_id')
           .eq('reference', paymentIntent.id)
           .eq('method', 'gateway')
           .maybeSingle();
@@ -169,6 +196,7 @@ export function createApp(env = process.env) {
           return res.status(500).send('Could not find payment');
         }
         if (!payment || payment.order_id !== orderId || payment.customer_id !== customerId
+          || (payment.installment_id || null) !== (paymentIntent.metadata?.installment_id || null)
           || Math.round(Number(payment.amount) * 100) !== paymentIntent.amount
           || Math.round(Number(payment.amount) * 100) !== paymentIntent.amount_received) {
           console.error('Stripe payment amount or order does not match the stored payment');
@@ -176,6 +204,38 @@ export function createApp(env = process.env) {
         }
 
         if (payment.status !== 'verified') {
+          const { error: paymentError } = await supabase
+            .from('payments')
+            .update({ status: 'verified', paid_at: new Date().toISOString() })
+            .eq('id', payment.id);
+          if (paymentError) {
+            console.error('Could not mark payment as verified:', paymentError.message);
+            return res.status(500).send('Could not update payment');
+          }
+        }
+
+        if (payment.installment_id) {
+          const { error: installmentError } = await supabase
+            .from('order_installments')
+            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .eq('id', payment.installment_id)
+            .eq('order_id', orderId);
+          if (installmentError) {
+            console.error('Could not mark installment as paid:', installmentError.message);
+            return res.status(500).send('Could not update installment');
+          }
+        }
+
+        const { count, error: installmentsError } = await supabase
+          .from('order_installments')
+          .select('id', { count: 'exact', head: true })
+          .eq('order_id', orderId)
+          .eq('status', 'pending');
+        if (installmentsError) {
+          console.error('Could not check remaining installments:', installmentsError.message);
+          return res.status(500).send('Could not check installments');
+        }
+        if (!payment.installment_id || count === 0) {
           const { error: orderError } = await supabase
             .from('orders')
             .update({ status: 'confirmed' })
@@ -184,15 +244,6 @@ export function createApp(env = process.env) {
           if (orderError) {
             console.error('Could not confirm paid order:', orderError.message);
             return res.status(500).send('Could not confirm order');
-          }
-
-          const { error: paymentError } = await supabase
-            .from('payments')
-            .update({ status: 'verified', paid_at: new Date().toISOString() })
-            .eq('id', payment.id);
-          if (paymentError) {
-            console.error('Could not mark payment as verified:', paymentError.message);
-            return res.status(500).send('Could not update payment');
           }
         }
       }
@@ -209,10 +260,13 @@ export function createApp(env = process.env) {
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
   app.post('/api/create-promptpay-qr', async (req, res) => {
-    const { orderId } = req.body || {};
+    const { orderId, installmentId = null } = req.body || {};
 
     if (typeof orderId !== 'string' || !orderIdPattern.test(orderId)) {
       return res.status(400).json({ error: 'ไม่พบหมายเลขคำสั่งซื้อที่ถูกต้อง' });
+    }
+    if (installmentId !== null && (typeof installmentId !== 'string' || !orderIdPattern.test(installmentId))) {
+      return res.status(400).json({ error: 'ไม่พบข้อมูลงวดชำระที่ถูกต้อง' });
     }
 
     try {
@@ -223,7 +277,33 @@ export function createApp(env = process.env) {
         return res.status(409).json({ error: 'คำสั่งซื้อนี้ไม่อยู่ในสถานะที่ชำระเงินได้' });
       }
 
-      const amountInSatang = Math.round(Number(order.total) * 100);
+      let installment = null;
+      if (order.payment_plan === 'three_installments') {
+        if (!installmentId) return res.status(400).json({ error: 'กรุณาเลือกงวดที่ต้องการชำระ' });
+        const { data, error } = await supabase.from('order_installments')
+          .select('id,installment_number,amount,status')
+          .eq('id', installmentId)
+          .eq('order_id', order.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data || data.status !== 'pending') {
+          return res.status(409).json({ error: 'งวดนี้ไม่อยู่ในสถานะที่ชำระเงินได้' });
+        }
+        const { data: earlierPending, error: earlierError } = await supabase.from('order_installments')
+          .select('id')
+          .eq('order_id', order.id)
+          .lt('installment_number', data.installment_number)
+          .eq('status', 'pending')
+          .limit(1)
+          .maybeSingle();
+        if (earlierError) throw earlierError;
+        if (earlierPending) return res.status(409).json({ error: 'กรุณาชำระงวดก่อนหน้าก่อน' });
+        installment = data;
+      } else if (installmentId) {
+        return res.status(400).json({ error: 'คำสั่งซื้อนี้ไม่ได้เลือกผ่อนชำระ' });
+      }
+
+      const amountInSatang = Math.round(Number(installment?.amount ?? order.total) * 100);
       if (!Number.isSafeInteger(amountInSatang) || amountInSatang < 1) {
         return res.status(400).json({ error: 'ยอดคำสั่งซื้อไม่ถูกต้อง' });
       }
@@ -231,12 +311,16 @@ export function createApp(env = process.env) {
         return res.status(400).json({ error: 'ยอดชำระ PromptPay ขั้นต่ำ 10 บาท กรุณาเพิ่มสินค้าในคำสั่งซื้อ' });
       }
 
-      const { data: priorPayments, error: priorPaymentError } = await supabase
+      let priorPaymentsQuery = supabase
         .from('payments')
         .select('id,reference,created_at')
         .eq('order_id', order.id)
         .eq('method', 'gateway')
-        .eq('status', 'submitted')
+        .eq('status', 'submitted');
+      priorPaymentsQuery = installment
+        ? priorPaymentsQuery.eq('installment_id', installment.id)
+        : priorPaymentsQuery.is('installment_id', null);
+      const { data: priorPayments, error: priorPaymentError } = await priorPaymentsQuery
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -289,7 +373,11 @@ export function createApp(env = process.env) {
           billing_details: { email: customerEmail, name: order.shipping_name },
         },
         confirm: true,
-        metadata: { order_id: order.id, customer_id: order.customer_id },
+        metadata: {
+          order_id: order.id,
+          customer_id: order.customer_id,
+          ...(installment ? { installment_id: installment.id } : {}),
+        },
       });
       if (paymentIntent.status !== 'succeeded'
         && !paymentIntent.next_action?.promptpay_display_qr_code?.image_url_png) {
@@ -304,6 +392,7 @@ export function createApp(env = process.env) {
       const { error: insertPaymentError } = await supabase.from('payments').insert({
         order_id: order.id,
         customer_id: order.customer_id,
+        installment_id: installment?.id || null,
         amount: amountInSatang / 100,
         method: 'gateway',
         status: 'submitted',
@@ -319,27 +408,34 @@ export function createApp(env = process.env) {
       return res.json(promptPayResponse(paymentIntent, orderItems, expiresAt));
     } catch (error) {
       console.error('Error creating PromptPay payment:', error);
-      return res.status(500).json({ error: 'สร้างรายการชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง' });
+      const response = getPromptPayErrorResponse(error);
+      return res.status(response.status).json({ error: response.message });
     }
   });
 
   app.get('/api/orders/:orderId/payment-status', async (req, res) => {
     const { orderId } = req.params;
+    const installmentId = req.query.installmentId || null;
     if (!orderIdPattern.test(orderId)) {
       return res.status(400).json({ error: 'ไม่พบหมายเลขคำสั่งซื้อที่ถูกต้อง' });
+    }
+    if (installmentId !== null && (typeof installmentId !== 'string' || !orderIdPattern.test(installmentId))) {
+      return res.status(400).json({ error: 'ไม่พบข้อมูลงวดชำระที่ถูกต้อง' });
     }
 
     try {
       const authorized = await getAuthorizedOrder(req, res, orderId);
       if (!authorized) return undefined;
 
-      const { data: payments, error } = await supabase
+      let paymentsQuery = supabase
         .from('payments')
         .select('id,status,reference,created_at')
         .eq('order_id', orderId)
-        .eq('method', 'gateway')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .eq('method', 'gateway');
+      paymentsQuery = installmentId
+        ? paymentsQuery.eq('installment_id', installmentId)
+        : paymentsQuery.is('installment_id', null);
+      const { data: payments, error } = await paymentsQuery.order('created_at', { ascending: false }).limit(1);
       if (error) throw error;
 
       const payment = payments?.[0];
@@ -350,15 +446,40 @@ export function createApp(env = process.env) {
       let expired = Boolean(payment && paymentStatus === 'submitted' && new Date(expiresAt).getTime() <= Date.now());
       if (payment && paymentStatus === 'submitted') {
         const intent = await stripe.paymentIntents.retrieve(payment.reference);
+        let expectedAmount = Math.round(Number(authorized.order.total) * 100);
+        if (installmentId) {
+          const { data: installment, error: installmentError } = await supabase.from('order_installments')
+            .select('id,amount')
+            .eq('id', installmentId)
+            .eq('order_id', authorized.order.id)
+            .maybeSingle();
+          if (installmentError) throw installmentError;
+          if (!installment) return res.status(404).json({ error: 'ไม่พบงวดชำระ' });
+          expectedAmount = Math.round(Number(installment.amount) * 100);
+        }
         const validIntent = intent.metadata?.order_id === authorized.order.id
           && intent.metadata?.customer_id === authorized.order.customer_id
+          && (installmentId ? intent.metadata?.installment_id === installmentId : !intent.metadata?.installment_id)
           && intent.currency === 'thb'
-          && intent.amount === Math.round(Number(authorized.order.total) * 100);
+          && intent.amount === expectedAmount;
 
         if (intent.status === 'succeeded' && validIntent && intent.amount_received === intent.amount) {
-          const { error: orderError } = await supabase.from('orders')
-            .update({ status: 'confirmed' }).eq('id', orderId).eq('status', 'pending');
-          if (orderError) throw orderError;
+          if (installmentId) {
+            const { error: installmentError } = await supabase.from('order_installments')
+              .update({ status: 'paid', paid_at: new Date().toISOString() })
+              .eq('id', installmentId).eq('order_id', orderId);
+            if (installmentError) throw installmentError;
+          }
+          const { count, error: remainingError } = await supabase.from('order_installments')
+            .select('id', { count: 'exact', head: true })
+            .eq('order_id', orderId)
+            .eq('status', 'pending');
+          if (remainingError) throw remainingError;
+          if (!installmentId || count === 0) {
+            const { error: orderError } = await supabase.from('orders')
+              .update({ status: 'confirmed' }).eq('id', orderId).eq('status', 'pending');
+            if (orderError) throw orderError;
+          }
           const { error: paymentError } = await supabase.from('payments')
             .update({ status: 'verified', paid_at: new Date().toISOString() }).eq('id', payment.id);
           if (paymentError) throw paymentError;

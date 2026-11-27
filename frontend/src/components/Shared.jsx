@@ -16,7 +16,6 @@ export function ProductCard({ product, addToCart, navigate, compact = false }) {
   </article>;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const packagePhoto = (name) => `${import.meta.env.BASE_URL}images/packages/${name}.jpg`;
 
 function resolvePackageImage(pkg) {
@@ -76,21 +75,6 @@ export function RecommendedShowcase({ products = [], packages = [], addToCart, n
   const recommendedProducts = pickRecommendedProducts(products, 3);
   const recommendedPackages = pickRecommendedPackages(packages, 3);
 
-  function orderPackage(pkg) {
-    if (!pkg || pkg.isSample || !UUID_RE.test(String(pkg.id))) {
-      navigate?.('/packages');
-      return;
-    }
-    addToCart?.({
-      ...pkg,
-      price: pkg.priceNumber,
-      itemType: 'package',
-      category: 'แพ็กเกจติดตั้ง',
-      icon: '⚡',
-      tone: 'green',
-    });
-  }
-
   return (
     <>
       <section className={sectionClassName}>
@@ -136,15 +120,13 @@ export function RecommendedShowcase({ products = [], packages = [], addToCart, n
               <p>{pkg.description}</p>
               <div className="package-price"><small>เริ่มต้น</small><strong>{pkg.priceLabel}<span> บาท</span></strong></div>
               <ul>{(pkg.items || []).slice(0, 4).map((feature) => <li key={feature}><Check size={16} />{feature}</li>)}</ul>
-              {!pkg.isSample && UUID_RE.test(String(pkg.id)) ? (
-                <button className={`button ${pkg.popular ? 'button-green' : 'button-outline'}`} type="button" onClick={() => orderPackage(pkg)}>
-                  <ShoppingCart size={16} /> เพิ่มลงตะกร้า
-                </button>
-              ) : (
-                <button className={`button ${pkg.popular ? 'button-green' : 'button-outline'}`} type="button" onClick={() => navigate?.('/bookings')}>
-                  นัดสำรวจฟรี <ArrowRight size={16} />
-                </button>
-              )}
+              <button
+                className={`button ${pkg.popular ? 'button-green' : 'button-outline'}`}
+                type="button"
+                onClick={() => navigate?.(`/contact?package=${encodeURIComponent(pkg.name)}`)}
+              >
+                ติดต่อเพื่อนัดประเมินหน้างาน <ArrowRight size={16} />
+              </button>
             </article>
           ))}
         </div>

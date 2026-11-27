@@ -33,14 +33,15 @@ async function apiRequest(path, options = {}) {
   return result;
 }
 
-export function createPromptPayQr(orderId) {
+export function createPromptPayQr(orderId, installmentId = null) {
   return apiRequest('/create-promptpay-qr', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderId }),
+    body: JSON.stringify({ orderId, installmentId }),
   });
 }
 
-export function getPromptPayPaymentStatus(orderId) {
-  return apiRequest(`/orders/${encodeURIComponent(orderId)}/payment-status`);
+export function getPromptPayPaymentStatus(orderId, installmentId = null) {
+  const query = installmentId ? `?installmentId=${encodeURIComponent(installmentId)}` : '';
+  return apiRequest(`/orders/${encodeURIComponent(orderId)}/payment-status${query}`);
 }

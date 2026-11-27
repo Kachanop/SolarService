@@ -9,6 +9,7 @@ import {
   getMyReviews, getMyTickets, getMyWarranties, respondToQuote,
 } from '../../services/customerService.js';
 import { uploadPaymentSlip } from '../../services/customerService.js';
+import { createPromptPayQr, getPromptPayPaymentStatus } from '../../services/paymentService.js';
 
 const money = (value) => Number(value || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' });
 const dateTime = (value) => value ? new Date(value).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
@@ -61,6 +62,14 @@ const TRACKING_FILTER_LABELS = {
   ...ORDER_STATUS_LABELS,
   ...INSTALLATION_STATUS_LABELS,
   completed: 'เสร็จสิ้น',
+};
+
+const TICKET_STATUS_LABELS = {
+  open: 'รับเรื่องแล้ว',
+  in_progress: 'กำลังดำเนินการ',
+  waiting_customer: 'รอข้อมูลเพิ่มเติม',
+  resolved: 'แก้ไขแล้ว',
+  closed: 'ปิดงาน',
 };
 
 export default function CustomerWorkspace({ route, authUser, navigate, setToast }) {
@@ -119,11 +128,93 @@ function CustomerOrders({ authUser, setToast }) {
     {loading && <Loading />}
     {!loading && !error && !orders.length && <div className="technician-empty"><Package size={26} /><strong>ยังไม่มีคำสั่งซื้อ</strong><span>รายการคำสั่งซื้อที่สร้างจากหน้าชำระเงินจะปรากฏที่นี่</span></div>}
     <div className="bk-history-list">{orders.map((order) => <article className="bk-history-card" key={order.id}>
-      <div className="bk-history-heading"><strong>{order.order_number}</strong><span className={`status-pill ${order.status === 'cancelled' ? 'gray' : order.status === 'completed' ? 'green' : 'blue'}`}>{order.status}</span></div>
+      <div className="bk-history-heading"><strong>{order.order_number}</strong><span className={`status-pill ${order.status === 'cancelled' ? 'gray' : order.status === 'completed' ? 'green' : 'blue'}`}>{ORDER_STATUS_LABELS[order.status] || order.status}</span></div>
       <div className="bk-history-details"><span><CalendarDays size={15} /> {dateTime(order.created_at)}</span><span><Truck size={15} /> เลขพัสดุ: {order.tracking_number || 'รออัปเดตจากแอดมิน'}</span><span><Package size={15} /> {money(order.total)}</span></div>
-      <div className="bk-history-actions"><button className="button button-outline small-button" type="button" onClick={() => setSlipOrder(order)}><FileText size={14} /> แนบสลิปโอนเงิน</button></div>
-      {slipOrder?.id === order.id && <form className="bk-reschedule-form" onSubmit={submitSlip}><label className="bk-field">เลือกสลิปโอนเงิน<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setSlipFile(event.target.files?.[0] || null)} required /></label><div className="bk-history-actions"><button className="button button-green small-button" type="submit" disabled={uploading}>{uploading ? 'กำลังอัปโหลด…' : 'ส่งสลิปให้แอดมินตรวจ'}</button><button className="button button-outline small-button" type="button" onClick={() => setSlipOrder(null)}>ปิด</button></div></form>}
+      {order.order_installments?.length > 0 && <div className="bk-history-details">
+        <strong>ผ่อนชำระ 3 งวด ไม่มีดอกเบี้ย</strong>
+        {(() => {
+          const orderedInstallments = [...order.order_installments].sort((a, b) => a.installment_number - b.installment_number);
+          const nextPendingId = orderedInstallments.find((item) => item.status === 'pending')?.id;
+          return orderedInstallments.map((installment) => (
+            <div key={installment.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <span>งวด {installment.installment_number} · ครบกำหนด {installment.due_date} · {money(installment.amount)} · {installment.status === 'paid' ? 'ชำระแล้ว' : 'รอชำระ'}</span>
+              {installment.status === 'pending' && installment.id === nextPendingId && (
+                <InstallmentPayment order={order} installment={installment} onPaid={() => setRefresh((value) => value + 1)} />
+              )}
+            </div>
+          ));
+        })()}
+      </div>}
+      {!order.order_installments?.length && <div className="bk-history-actions"><button className="button button-outline small-button" type="button" onClick={() => setSlipOrder(order)}><FileText size={14} /> แนบสลิปโอนเงิน</button></div>}
+      {!order.order_installments?.length && slipOrder?.id === order.id && <form className="bk-reschedule-form" onSubmit={submitSlip}><label className="bk-field">เลือกสลิปโอนเงิน<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setSlipFile(event.target.files?.[0] || null)} required /></label><div className="bk-history-actions"><button className="button button-green small-button" type="submit" disabled={uploading}>{uploading ? 'กำลังอัปโหลด…' : 'ส่งสลิปให้แอดมินตรวจ'}</button><button className="button button-outline small-button" type="button" onClick={() => setSlipOrder(null)}>ปิด</button></div></form>}
     </article>)}</div>
+  </div>;
+}
+
+function InstallmentPayment({ order, installment, onPaid }) {
+  const [qr, setQr] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const handled = React.useRef(false);
+
+  async function createQr() {
+    setLoading(true);
+    setMessage('');
+    handled.current = false;
+    try {
+      const result = await createPromptPayQr(order.id, installment.id);
+      if (result.status !== 'succeeded' && !result.qrCodeUrl) {
+        throw new Error('Stripe ไม่ได้ส่ง QR สำหรับชำระเงินกลับมา');
+      }
+      setQr(result);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'สร้าง QR ไม่สำเร็จ');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function checkStatus() {
+    if (!qr || handled.current) return;
+    try {
+      const result = await getPromptPayPaymentStatus(order.id, installment.id);
+      if (result.paid) {
+        handled.current = true;
+        setQr(null);
+        onPaid();
+      } else if (result.expired) {
+        setMessage('QR หมดอายุแล้ว กรุณาสร้าง QR ใหม่');
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'ตรวจสอบสถานะไม่สำเร็จ');
+    }
+  }
+
+  useEffect(() => {
+    if (!qr) return undefined;
+    const interval = window.setInterval(checkStatus, 5000);
+    return () => window.clearInterval(interval);
+  }, [qr, order.id, installment.id]);
+
+  if (!qr) {
+    return <div>
+      <button className="button button-green small-button" type="button" onClick={createQr} disabled={loading}>
+        {loading ? 'กำลังสร้าง QR…' : `ชำระงวด ${installment.installment_number}`}
+      </button>
+      {message && <span role="alert">{message}</span>}
+    </div>;
+  }
+
+  const expired = Date.now() >= new Date(qr.expiresAt).getTime();
+  return <div style={{ display: 'grid', gap: 8, justifyItems: 'start' }}>
+    {qr.qrCodeUrl && !expired && <img src={qr.qrCodeUrl} alt={`QR PromptPay งวดที่ ${installment.installment_number}`} width="180" />}
+    <span>{money(installment.amount)} · {expired ? 'QR หมดอายุ' : `หมดอายุ ${dateTime(qr.expiresAt)}`}</span>
+    <div className="bk-history-actions">
+      <button className="button button-outline small-button" type="button" onClick={checkStatus}>ตรวจสอบการชำระ</button>
+      {expired && <button className="button button-green small-button" type="button" onClick={createQr} disabled={loading}>สร้าง QR ใหม่</button>}
+      <button className="button button-outline small-button" type="button" onClick={() => setQr(null)}>ปิด</button>
+    </div>
+    {message && <span role="status">{message}</span>}
   </div>;
 }
 
@@ -492,6 +583,7 @@ function CustomerAfterSales({ setToast }) {
   const [category, setCategory] = useState('repair');
   const [priority, setPriority] = useState('medium');
   const [warrantyId, setWarrantyId] = useState('');
+  const [certificate, setCertificate] = useState(null);
   const [saving, setSaving] = useState(false);
   const [refresh, setRefresh] = useState(0);
 
@@ -524,7 +616,8 @@ function CustomerAfterSales({ setToast }) {
     event.preventDefault();
     setSaving(true);
     try {
-      await createRepairTicket({ title, description, category, priority, warrantyId: warrantyId || null });
+      const ticket = await createRepairTicket({ title, description, category, priority, warrantyId: warrantyId || null });
+      setTickets((current) => [ticket, ...current.filter((item) => item.id !== ticket.id)]);
       setToast('ส่งใบแจ้งซ่อมเรียบร้อยแล้ว');
       setTitle('');
       setDescription('');
@@ -537,16 +630,80 @@ function CustomerAfterSales({ setToast }) {
     }
   }
 
-  return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">AFTER-SALES</div><h1>ใบรับประกันและแจ้งซ่อม</h1><p>ดูอุปกรณ์ที่รับประกัน รอบล้างแผง และสถานะคำขอซ่อมของบัญชีนี้</p></div><button className="button button-green small-button" type="button" onClick={() => setShowTicket(true)} aria-haspopup="dialog" aria-expanded={showTicket}><Wrench size={14} /> แจ้งซ่อม</button></div>
+  function printWarrantyCertificate() {
+    document.body.classList.add('print-customer-warranty');
+    window.addEventListener('afterprint', () => document.body.classList.remove('print-customer-warranty'), { once: true });
+    window.print();
+    window.setTimeout(() => document.body.classList.remove('print-customer-warranty'), 1000);
+  }
+
+  return <div className="workspace-wrap">
+    <style>{`
+      @media print {
+        body.print-customer-warranty * { visibility: hidden !important; }
+        body.print-customer-warranty .customer-warranty-certificate,
+        body.print-customer-warranty .customer-warranty-certificate * { visibility: visible !important; }
+        body.print-customer-warranty .account-modal-backdrop { position: static; padding: 0; background: none; }
+        body.print-customer-warranty .customer-warranty-certificate { position: fixed; inset: 0; width: 100%; padding: 28px; border: 0; box-shadow: none; }
+        body.print-customer-warranty .customer-warranty-certificate .no-print { display: none !important; }
+      }
+    `}</style>
+    <div className="workspace-heading"><div><div className="eyebrow">AFTER-SALES</div><h1>ใบรับประกันและแจ้งซ่อม</h1><p>ดูอุปกรณ์ที่รับประกัน รอบล้างแผง และสถานะคำขอซ่อมของบัญชีนี้</p></div><button className="button button-green small-button" type="button" onClick={() => setShowTicket(true)} aria-haspopup="dialog" aria-expanded={showTicket}><Wrench size={14} /> แจ้งซ่อม</button></div>
     {error && <ErrorBox error={error} />} {loading && <Loading />}
-    {!loading && !error && <>
+    {!loading && <>
       <div className="workspace-section-heading"><div><h2>ใบรับประกัน</h2></div></div>
-      <div className="bk-history-list">{warranties.map((item) => <article className="bk-history-card" key={item.id}><div className="bk-history-heading"><strong>{item.warranty_number}</strong><span className={`status-pill ${item.status === 'active' ? 'green' : 'yellow'}`}>{item.status}</span></div><div className="bk-history-details"><span><ShieldCheck size={15} /> {item.equipment_model}</span><span>Serial: {item.serial_number}</span><span>หมดอายุ: {item.warranty_end}</span></div></article>)} {!warranties.length && <div className="technician-empty"><ShieldCheck size={26} /><strong>ยังไม่มีใบรับประกัน</strong></div>}</div>
+      <div className="bk-history-list">
+        {warranties.map((item) => <article className="bk-history-card" key={item.id}>
+          <div className="bk-history-heading"><strong>{item.warranty_number}</strong><span className={`status-pill ${item.status === 'active' ? 'green' : item.status === 'expired' ? 'gray' : 'yellow'}`}>{item.status}</span></div>
+          <div className="bk-history-details">
+            <span><ShieldCheck size={15} /> {item.equipment_model}</span>
+            {item.unit_number && <span>ชิ้นที่ {item.unit_number}</span>}
+            <span>Serial: {item.serial_number || 'รอระบุจากเจ้าหน้าที่'}</span>
+            <span>เริ่มรับประกัน: {item.warranty_start}</span>
+            <span>หมดอายุ: {item.warranty_end}</span>
+          </div>
+          <div className="bk-history-actions"><button className="button button-outline small-button" type="button" onClick={() => setCertificate(item)}><FileText size={14} /> ดู / พิมพ์ใบรับประกัน</button></div>
+        </article>)}
+        {!error && !warranties.length && <div className="technician-empty"><ShieldCheck size={26} /><strong>ยังไม่มีใบรับประกัน</strong></div>}
+      </div>
       <div className="workspace-section-heading"><div><h2>รอบบำรุงรักษา / ล้างแผง</h2></div></div>
-      <div className="bk-history-list">{maintenance.map((item) => <article className="bk-history-card" key={item.id}><div className="bk-history-heading"><strong>{item.title}</strong><span className="status-pill blue">{item.status}</span></div><div className="bk-history-details"><span><CalendarDays size={15} /> กำหนด: {item.due_date}</span><span><Clock3 size={15} /> ทุก {item.frequency_months} เดือน</span>{item.last_notified_at && <span>แจ้งแล้ว: {dateTime(item.last_notified_at)}</span>}</div></article>)} {!maintenance.length && <div className="technician-empty"><CalendarDays size={26} /><strong>ยังไม่มีรอบบำรุงรักษา</strong></div>}</div>
+      <div className="bk-history-list">{maintenance.map((item) => <article className="bk-history-card" key={item.id}><div className="bk-history-heading"><strong>{item.title}</strong><span className="status-pill blue">{item.status}</span></div><div className="bk-history-details"><span><CalendarDays size={15} /> กำหนด: {item.due_date}</span><span><Clock3 size={15} /> ทุก {item.frequency_months} เดือน</span>{item.last_notified_at && <span>แจ้งแล้ว: {dateTime(item.last_notified_at)}</span>}</div></article>)} {!error && !maintenance.length && <div className="technician-empty"><CalendarDays size={26} /><strong>ยังไม่มีรอบบำรุงรักษา</strong></div>}</div>
       <div className="workspace-section-heading"><div><h2>คำขอแจ้งซ่อม</h2></div></div>
-      <div className="bk-history-list">{tickets.map((item) => <article className="bk-history-card" key={item.id}><div className="bk-history-heading"><strong>{item.ticket_number} · {item.title}</strong><span className="status-pill blue">{item.status}</span></div><div className="bk-history-details"><p>{item.description}</p>{item.resolution_notes && <p>บันทึกแก้ไข: {item.resolution_notes}</p>}<span>{dateTime(item.created_at)}</span></div></article>)} {!tickets.length && <div className="technician-empty"><Wrench size={26} /><strong>ยังไม่มีคำขอแจ้งซ่อม</strong></div>}</div>
+      <div className="bk-history-list">
+        {tickets.map((item) => <article className="bk-history-card" key={item.id}>
+          <div className="bk-history-heading"><strong>{item.ticket_number} · {item.title}</strong><span className="status-pill blue">{TICKET_STATUS_LABELS[item.status] || item.status}</span></div>
+          <div className="bk-history-details"><p>{item.description}</p><span>วันที่แจ้ง: {dateTime(item.created_at)}</span>{item.resolution_notes && <p>บันทึกแก้ไข: {item.resolution_notes}</p>}</div>
+          {item.support_ticket_events?.length > 0 && <ol className="bk-history-details" aria-label="ประวัติการดำเนินการ">
+            {[...item.support_ticket_events].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map((event) => (
+              <li key={event.id}>
+                {TICKET_STATUS_LABELS[event.new_status] || event.new_status} · {event.note} · {dateTime(event.created_at)}
+              </li>
+            ))}
+          </ol>}
+        </article>)}
+        {!error && !tickets.length && <div className="technician-empty"><Wrench size={26} /><strong>ยังไม่มีคำขอแจ้งซ่อม</strong></div>}
+      </div>
     </>}
+    {certificate && <div className="account-modal-backdrop" role="dialog" aria-modal="true" aria-label={`ใบรับประกัน ${certificate.warranty_number}`} onClick={(event) => { if (event.target === event.currentTarget) setCertificate(null); }}>
+      <section className="customer-warranty-certificate" style={{ width: 'min(680px, calc(100vw - 32px))', padding: 28, background: '#fff', borderRadius: 16, border: '2px solid #526e48', color: '#27392c' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <div><div className="eyebrow">SOLARSERVICE</div><h2>ใบรับประกันสินค้า</h2><strong>{certificate.warranty_number}</strong></div>
+          <ShieldCheck size={40} />
+        </div>
+        <hr />
+        <p><strong>สินค้า:</strong> {certificate.equipment_model}</p>
+        {certificate.unit_number && <p><strong>ชิ้นที่:</strong> {certificate.unit_number}</p>}
+        <p><strong>หมายเลขเครื่อง (Serial):</strong> {certificate.serial_number || 'รอระบุจากเจ้าหน้าที่'}</p>
+        <p><strong>เริ่มรับประกัน:</strong> {certificate.warranty_start}</p>
+        <p><strong>สิ้นสุดการรับประกัน:</strong> {certificate.warranty_end}</p>
+        <p><strong>สถานะ:</strong> {certificate.status}</p>
+        {certificate.notes && <p><strong>เงื่อนไข:</strong> {certificate.notes}</p>}
+        <div className="bk-history-actions no-print">
+          <button className="button button-green" type="button" onClick={printWarrantyCertificate}>พิมพ์ / บันทึก PDF</button>
+          <button className="button button-outline" type="button" onClick={() => setCertificate(null)}>ปิด</button>
+        </div>
+      </section>
+    </div>}
     {showTicket && <div
       className="account-modal-backdrop"
       role="dialog"

@@ -211,6 +211,7 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
                 price: '',
                 compare_at_price: '',
                 stock_quantity: 10,
+                warranty_months: 12,
                 image_url: '',
                 description: '',
                 is_active: true,
@@ -478,6 +479,18 @@ export default function AdminProducts({ products, onSaveProduct, onDeleteProduct
                   required
                   value={formModal.stock_quantity ?? 0}
                   onChange={(e) => setFormModal({ ...formModal, stock_quantity: e.target.value })}
+                />
+              </label>
+
+              <label>
+                ระยะเวลารับประกัน (เดือน)
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                  value={formModal.warranty_months ?? 12}
+                  onChange={(e) => setFormModal({ ...formModal, warranty_months: e.target.value })}
                 />
               </label>
 
