@@ -259,15 +259,8 @@ function mergePackages(incomingPackages = []) {
 }
 
 function matchReviewsForItem(publicReviews, item, kind) {
-  if (!Array.isArray(publicReviews) || !item) return [];
-  const itemName = String(item.name || '').trim().toLowerCase();
-  const itemSku = String(item.sku || '').trim().toLowerCase();
-  return publicReviews.filter((review) => {
-    if (kind === 'product' && review.product_id && review.product_id === item.id) return true;
-    if (kind === 'package' && review.package_id && review.package_id === item.id) return true;
-    const label = String(review.target_label || '').trim().toLowerCase();
-    return Boolean(label && (label === itemName || (itemSku && label === itemSku)));
-  });
+  if (kind !== 'product' || !Array.isArray(publicReviews) || !item) return [];
+  return publicReviews.filter((review) => review.product_id && review.product_id === item.id);
 }
 
 /* ---------- การ์ดสินค้า / แพ็กเกจ ---------- */
@@ -363,16 +356,11 @@ function DetailModal({ item, kind, publicReviews = [], onClose, onAdd }) {
   }, [isDatabaseProduct, item.id]);
 
   const matchedFromPublic = matchReviewsForItem(publicReviews, item, kind);
-  const packageMatchedReviews = kind === 'package'
-    ? (matchedFromPublic.length
-      ? matchedFromPublic
-      : publicReviews.filter((review) => ['package', 'installation', 'installation_product', 'review'].includes(review.target_type)))
-    : [];
   const mergedProductReviews = [
     ...reviews,
     ...matchedFromPublic.filter((r) => !reviews.some((existing) => existing.id === r.id)),
   ];
-  const visibleReviews = kind === 'product' ? mergedProductReviews : packageMatchedReviews;
+  const visibleReviews = mergedProductReviews;
 
   const averageRating = visibleReviews.length
     ? visibleReviews.reduce((total, review) => total + Number(review.rating || 0), 0) / visibleReviews.length
@@ -440,8 +428,8 @@ function DetailModal({ item, kind, publicReviews = [], onClose, onAdd }) {
             <p className="sx-reviews-message">ไม่สามารถโหลดรีวิวสำหรับสินค้าตัวอย่างนี้ได้</p>
           </section>}
 
-          {(isDatabaseProduct || kind === 'package') && <section className="sx-reviews" aria-label="รีวิวจากผู้ใช้งาน">
-            <h4>{kind === 'package' ? 'รีวิวจากผู้ใช้บริการติดตั้ง' : 'รีวิวจากผู้ซื้อ'}</h4>
+          {isDatabaseProduct && <section className="sx-reviews" aria-label="รีวิวจากผู้ซื้อสินค้า">
+            <h4>รีวิวจากผู้ซื้อสินค้า</h4>
             {reviewsLoading && <p className="sx-reviews-message" role="status">กำลังโหลดรีวิว…</p>}
             {!reviewsLoading && reviewsError && <p className="sx-reviews-message" role="alert">{reviewsError}</p>}
             {!reviewsLoading && !reviewsError && visibleReviews.length > 0 && <>
@@ -469,7 +457,7 @@ function DetailModal({ item, kind, publicReviews = [], onClose, onAdd }) {
               </div>
             </>}
             {!reviewsLoading && !reviewsError && visibleReviews.length === 0 && (
-              <p className="sx-reviews-message">{kind === 'package' ? 'ยังไม่มีรีวิวจากผู้ใช้บริการติดตั้ง' : 'ยังไม่มีรีวิวจากผู้ซื้อสินค้านี้'}</p>
+              <p className="sx-reviews-message">ยังไม่มีรีวิวจากผู้ซื้อสินค้านี้</p>
             )}
           </section>}
 

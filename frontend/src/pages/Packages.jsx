@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
 import { Check, ShieldCheck, CalendarDays, Phone } from 'lucide-react';
 import { packages as fallbackPackages } from '../data/catalog.js';
 import { PageIntro } from '../components/Shared.jsx';
-import { getPublishedReviews } from '../services/reviewService.js';
 
 const packagePhoto = (name) => `${import.meta.env.BASE_URL}images/packages/${name}.jpg`;
 
@@ -18,19 +16,6 @@ function isTestPackage(pkg) {
 }
 
 export default function Packages({ navigate, packages: incomingPackages = [] }) {
-  const [reviews, setReviews] = useState([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    setReviewsLoading(true);
-    getPublishedReviews(12)
-      .then((data) => { if (active) setReviews(data); })
-      .catch(() => { if (active) setReviews([]); })
-      .finally(() => { if (active) setReviewsLoading(false); });
-    return () => { active = false; };
-  }, []);
-
   const dbPackages = incomingPackages.map((pkg) => ({
     ...pkg,
     size: `${Number(pkg.system_size_kw || 0)} kW`,
@@ -111,43 +96,6 @@ export default function Packages({ navigate, packages: incomingPackages = [] }) 
         })}
       </div>
       <p className="package-note"><ShieldCheck size={16} /> ยังไม่มีการเรียกเก็บเงินจากหน้าแพ็กเกจ ทีมงานจะติดต่อกลับเพื่อนัดประเมินก่อนเสนอราคา</p>
-
-      <section style={{ marginTop: '36px', padding: '24px', background: '#fff', borderRadius: '18px', border: '1px solid #e0e6db' }} aria-label="รีวิวจากผู้ใช้จริง">
-        <div style={{ marginBottom: '16px' }}>
-          <div className="eyebrow">CUSTOMER REVIEWS</div>
-          <h2 style={{ margin: '4px 0 0', fontSize: '22px', color: '#27392c' }}>รีวิวจากผู้ใช้จริง</h2>
-          <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6f7a6e' }}>เสียงตอบรับจากลูกค้าที่สั่งซื้อสินค้าและติดตั้งระบบจริง</p>
-        </div>
-        {reviewsLoading ? (
-          <p className="bk-hint" role="status">กำลังโหลดรีวิวจากผู้ใช้งาน…</p>
-        ) : reviews.length === 0 ? (
-          <p className="bk-hint">ยังไม่มีรีวิวจากผู้ใช้ที่เผยแพร่</p>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '12px' }}>
-            {reviews.map((review) => (
-              <article key={review.id} style={{ padding: '14px', background: '#f8faf6', border: '1px solid #e0e6db', borderRadius: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'flex-start' }}>
-                  <div>
-                    <strong style={{ color: '#27392c', fontSize: '13px' }}>{review.customer_name || 'ผู้ใช้งานจริง'}</strong>
-                    {review.target_label && (
-                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#27392c', background: '#eef3ea', padding: '2px 8px', borderRadius: '999px', display: 'inline-block' }}>
-                        {review.target_label}
-                      </div>
-                    )}
-                  </div>
-                  <time style={{ fontSize: '11px', color: '#6f7a6e' }} dateTime={review.created_at}>
-                    {new Date(review.created_at).toLocaleDateString('th-TH')}
-                  </time>
-                </div>
-                <div style={{ marginTop: '6px', color: '#d2a848', letterSpacing: '1px' }}>
-                  {'★'.repeat(Number(review.rating))}{'☆'.repeat(5 - Number(review.rating))}
-                </div>
-                <p style={{ margin: '8px 0 0', fontSize: '13px', lineHeight: 1.6, color: '#29382c' }}>{review.comment}</p>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

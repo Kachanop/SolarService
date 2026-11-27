@@ -90,13 +90,48 @@ export async function getMyMaintenance() {
 
 export async function getMyTickets() {
   const user = await getUser();
-  const { data, error } = await supabase
+  const { data: tickets, error } = await supabase
     .from('support_tickets')
-    .select('*,support_ticket_events(id,old_status,new_status,note,created_at)')
+    .select('*')
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+
+  if (!tickets?.length) return { tickets: [], historyError: '' };
+
+  const { data: events, error: eventsError } = await supabase
+    .from('support_ticket_events')
+    .select('id,ticket_id,old_status,new_status,note,created_at')
+    .in('ticket_id', tickets.map((ticket) => ticket.id))
+    .order('created_at', { ascending: true });
+
+  if (eventsError) {
+    const message = [eventsError.message, eventsError.details].filter(Boolean).join(' ');
+    if (/support_ticket_events/i.test(message)
+      && /(does not exist|not found|schema cache|could not find)/i.test(message)) {
+      console.error('Repair ticket history is unavailable; apply migration 20261128000000_customer_sales_workflows.sql:', eventsError);
+      return {
+        tickets: tickets.map((ticket) => ({ ...ticket, support_ticket_events: [] })),
+        historyError: 'รายการแจ้งซ่อมแสดงได้แล้ว แต่ประวัติสถานะยังไม่พร้อม กรุณาติดตั้ง migration 20261128000000_customer_sales_workflows.sql ใน Supabase',
+      };
+    }
+    throw eventsError;
+  }
+
+  const eventsByTicketId = new Map();
+  for (const event of events || []) {
+    const ticketEvents = eventsByTicketId.get(event.ticket_id) || [];
+    ticketEvents.push(event);
+    eventsByTicketId.set(event.ticket_id, ticketEvents);
+  }
+
+  return {
+    tickets: tickets.map((ticket) => ({
+      ...ticket,
+      support_ticket_events: eventsByTicketId.get(ticket.id) || [],
+    })),
+    historyError: '',
+  };
 }
 
 export async function createRepairTicket({ title, description, category, priority, warrantyId }) {
@@ -122,9 +157,11 @@ export async function getMyCompletedReviewableOrderItems() {
   const user = await getUser();
   const { data: orderItems, error: orderItemsError } = await supabase
     .from('order_items')
-    .select('id,product_id,product_name,unit_price,quantity,line_total,created_at,products(name,category,description,image_url,sku),orders!inner(id,order_number,status,customer_id,created_at)')
+    .select('id,product_id,package_id,product_name,unit_price,quantity,line_total,created_at,products(name,category,description,image_url,sku),orders!inner(id,order_number,status,customer_id,created_at)')
     .eq('orders.customer_id', user.id)
     .eq('orders.status', 'completed')
+    .not('product_id', 'is', null)
+    .is('package_id', null)
     .order('created_at', { ascending: false });
   if (orderItemsError) throw orderItemsError;
   const items = orderItems || [];
@@ -139,108 +176,13 @@ export async function getMyCompletedReviewableOrderItems() {
   return items.filter((item) => !reviewed.has(item.id));
 }
 
-export async function getMyCompletedReviewableInstallationItems() {
-  const user = await getUser();
-  const { data, error } = await supabase
-    .from('installations')
-    .select('id,installation_number,booking_id,quotation_id,completed_at,created_at')
-    .eq('customer_id', user.id)
-    .eq('status', 'completed')
-    .order('completed_at', { ascending: false });
-  if (error) throw error;
-
-  const installations = data || [];
-  if (!installations.length) return [];
-
-  const missingQuoteBookingIds = [...new Set(
-    installations.filter((item) => !item.quotation_id).map((item) => item.booking_id).filter(Boolean),
-  )];
-  const fallbackQuotesResult = missingQuoteBookingIds.length
-    ? await supabase.from('quotations')
-      .select('id,booking_id,quote_number')
-      .eq('customer_id', user.id)
-      .eq('status', 'approved')
-      .in('booking_id', missingQuoteBookingIds)
-      .order('updated_at', { ascending: false })
-    : { data: [], error: null };
-  if (fallbackQuotesResult.error) throw fallbackQuotesResult.error;
-
-  const quoteByBooking = new Map();
-  (fallbackQuotesResult.data || []).forEach((item) => {
-    if (!quoteByBooking.has(item.booking_id)) quoteByBooking.set(item.booking_id, item);
-  });
-  const quoteByInstallation = new Map(installations.map((item) => [
-    item.id,
-    item.quotation_id
-      ? { id: item.quotation_id, quote_number: '' }
-      : quoteByBooking.get(item.booking_id),
-  ]));
-  const quoteIds = [...new Set([...quoteByInstallation.values()].map((item) => item?.id).filter(Boolean))];
-  if (!quoteIds.length) return [];
-
-  const quotationItemsResult = await supabase.from('quotation_items')
-    .select('id,quotation_id,product_id,description,quantity,unit_price,line_total')
-    .in('quotation_id', quoteIds);
-  if (quotationItemsResult.error) throw quotationItemsResult.error;
-  const quotationItems = (quotationItemsResult.data || []).filter((item) => item.product_id);
-  if (!quotationItems.length) return [];
-
-  const productIds = [...new Set(quotationItems.map((item) => item.product_id))];
-  const quotationItemIds = quotationItems.map((item) => item.id);
-  const [reviewsResult, productsResult, quoteDetailsResult] = await Promise.all([
-    supabase.from('reviews')
-      .select('quotation_item_id')
-      .eq('customer_id', user.id)
-      .in('quotation_item_id', quotationItemIds),
-    supabase.from('products')
-      .select('id,name,category,description,image_url,sku')
-      .in('id', productIds),
-    supabase.from('quotations').select('id,quote_number').in('id', quoteIds),
-  ]);
-  if (reviewsResult.error) throw reviewsResult.error;
-  if (productsResult.error) throw productsResult.error;
-  if (quoteDetailsResult.error) throw quoteDetailsResult.error;
-
-  const reviewedQuotationItemIds = new Set((reviewsResult.data || []).map((item) => item.quotation_item_id));
-  const productsById = new Map((productsResult.data || []).map((item) => [item.id, item]));
-  const installationsByQuoteId = new Map();
-  installations.forEach((installation) => {
-    const quote = quoteByInstallation.get(installation.id);
-    if (quote) installationsByQuoteId.set(quote.id, installation);
-  });
-  const quoteNumbersById = new Map((quoteDetailsResult.data || []).map((item) => [item.id, item.quote_number]));
-
-  return quotationItems
-    .filter((item) => !reviewedQuotationItemIds.has(item.id))
-    .map((item) => {
-      const product = productsById.get(item.product_id);
-      const installation = installationsByQuoteId.get(item.quotation_id);
-      return {
-        ...item,
-        id: item.id,
-        review_target_type: 'quotation_item',
-        review_target_key: `quotation:${item.id}`,
-        product_name: product?.name || item.description,
-        products: product || {
-          name: item.description,
-          category: 'สินค้าในงานติดตั้ง',
-          description: item.description,
-          image_url: '',
-          sku: '',
-        },
-        installation_id: installation?.id || null,
-        installation_number: installation?.installation_number || '',
-        quotation_number: quoteNumbersById.get(item.quotation_id) || '',
-      };
-    });
-}
-
 export async function getMyReviews() {
   const user = await getUser();
   const { data, error } = await supabase
     .from('reviews')
     .select('*,installations(id,installation_number,booking_id,quotation_id)')
     .eq('customer_id', user.id)
+    .not('order_item_id', 'is', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
 
@@ -255,7 +197,7 @@ export async function getMyReviews() {
   const [orderItemsResult, quotationItemsResult, fallbackQuotesResult, warrantiesResult] = await Promise.all([
     orderItemIds.length
       ? supabase.from('order_items')
-        .select('id,product_id,product_name,unit_price,quantity,line_total,products(name,category,description,image_url,sku),orders(order_number,created_at)')
+        .select('id,product_id,package_id,product_name,unit_price,quantity,line_total,products(name,category,description,image_url,sku),orders(order_number,created_at)')
         .in('id', orderItemIds)
       : Promise.resolve({ data: [], error: null }),
     quotationItemIds.length
@@ -387,7 +329,10 @@ export async function getMyReviews() {
     });
     installationProductsById.set(warranty.installation_id, items);
   });
-  return reviews.map((review) => ({
+  return reviews.filter((review) => {
+    const item = orderItemsById.get(review.order_item_id);
+    return item?.product_id && !item.package_id;
+  }).map((review) => ({
     ...review,
     order_items: orderItemsById.get(review.order_item_id) || null,
     quotation_items: quotationItemsById.get(review.quotation_item_id) || null,
@@ -401,21 +346,13 @@ export async function getMyReviews() {
   }));
 }
 
-export async function createReview({ orderItemId, quotationItemId, installationId, rating, comment }) {
+export async function createReview({ orderItemId, rating, comment }) {
   const user = await getUser();
-  const targets = [orderItemId, quotationItemId, installationId].filter(Boolean);
-  if (targets.length !== 1) {
-    throw new Error('กรุณาเลือกสินค้าหรืองานติดตั้งที่ต้องการรีวิว');
-  }
-  const reviewTarget = orderItemId
-    ? { order_item_id: orderItemId }
-    : quotationItemId
-      ? { quotation_item_id: quotationItemId }
-      : { installation_id: installationId };
+  if (!orderItemId) throw new Error('กรุณาเลือกสินค้าที่ต้องการรีวิว');
   const { data, error } = await supabase
     .from('reviews')
     .insert({
-      ...reviewTarget,
+      order_item_id: orderItemId,
       customer_id: user.id,
       rating,
       comment: comment.trim(),

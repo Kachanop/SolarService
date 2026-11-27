@@ -305,8 +305,11 @@ function App() {
           {!isWorkspace && <a href="#/contact">ติดต่อเรา</a>}
         </nav>}
         <div className="header-actions">
-          {!isWorkspace ? (
-            <a className="login-link" href="#/login"><LogIn size={16} /> เข้าสู่ระบบ</a>
+          {!authLoading && (!isWorkspace ? (
+            <>
+              <a className="login-link" href="#/login"><LogIn size={16} /> เข้าสู่ระบบ</a>
+              <a className="button button-dark header-cta" href="#/register">สมัครสมาชิก <ArrowRight size={15} /></a>
+            </>
           ) : (
             <>
               {!isAdminRoute && <a
@@ -324,8 +327,7 @@ function App() {
               </a>}
               <button className="signout-button" onClick={signOut} title={authUser.email || 'ออกจากระบบ'}>ออกจากระบบ</button>
             </>
-          )}
-          {!isWorkspace && <a className="button button-dark header-cta" href="#/register">สมัครสมาชิก <ArrowRight size={15} /></a>}
+          ))}
         </div>
       </header>
 

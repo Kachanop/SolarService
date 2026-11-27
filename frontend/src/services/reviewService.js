@@ -16,26 +16,31 @@ export async function getPublishedReviews(limit = 20) {
     p_limit: limit,
   });
   if (!error) {
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data)
+      ? data.filter((review) => review.product_id && ['product', 'installation_product'].includes(review.target_type))
+      : [];
   }
 
   const message = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
   if (error?.code === 'PGRST202' || /get_public_reviews|schema cache/i.test(message)) {
     const { data: fallbackRows, error: fallbackError } = await supabase
       .from('reviews')
-      .select('id,rating,comment,created_at')
+      .select('id,rating,comment,created_at,order_item_id,order_items!inner(id,product_id,product_name,package_id)')
       .eq('is_published', true)
+      .not('order_item_id', 'is', null)
       .order('created_at', { ascending: false })
       .limit(limit);
     if (fallbackError) throw fallbackError;
-    return (fallbackRows || []).map((row) => ({
-      ...row,
-      customer_name: 'ผู้ใช้งานจริง',
-      target_label: 'รีวิวจากลูกค้า',
-      target_type: 'review',
-      product_id: null,
-      package_id: null,
-    }));
+    return (fallbackRows || [])
+      .filter((row) => row.order_items?.product_id && !row.order_items.package_id)
+      .map((row) => ({
+        ...row,
+        customer_name: 'ผู้ใช้งานจริง',
+        target_label: row.order_items.product_name,
+        target_type: 'product',
+        product_id: row.order_items.product_id,
+        package_id: null,
+      }));
   }
 
   throw error;
