@@ -978,6 +978,7 @@ export const adminService = {
           ? await supabase.from('packages').update(payload).eq('id', item.id).select()
           : await supabase.from('packages').insert(payload).select();
         if (!res.error && res.data) {
+          window.dispatchEvent(new Event('solarservice:packages-updated'));
           return res.data[0];
         }
       } catch (e) {
@@ -993,6 +994,7 @@ export const adminService = {
       updated = [newItem, ...current];
     }
     setLocalStore('packages', updated);
+    window.dispatchEvent(new Event('solarservice:packages-updated'));
     return item;
   },
 
@@ -1007,6 +1009,7 @@ export const adminService = {
     const current = getLocalStore('packages', defaultMockData.packages);
     const updated = current.filter((p) => p.id !== id);
     setLocalStore('packages', updated);
+    window.dispatchEvent(new Event('solarservice:packages-updated'));
     return true;
   },
 
@@ -1684,8 +1687,38 @@ export const adminService = {
   async getQuotes() {
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('quotations').select('*').order('created_at', { ascending: false });
-        if (!error && data && data.length > 0) return data;
+        const { data, error } = await supabase
+          .from('quotations')
+          .select('*,quotation_items(id,description,quantity,unit_price,line_total)')
+          .order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          const customerIds = [...new Set(data.map((q) => q.customer_id).filter(Boolean))];
+          const bookingIds = [...new Set(data.map((q) => q.booking_id).filter(Boolean))];
+          const [profilesRes, bookingsRes] = await Promise.all([
+            customerIds.length
+              ? supabase.from('profiles').select('id,full_name,phone').in('id', customerIds)
+              : Promise.resolve({ data: [] }),
+            bookingIds.length
+              ? supabase.from('service_bookings').select('id,booking_number').in('id', bookingIds)
+              : Promise.resolve({ data: [] }),
+          ]);
+          const profilesById = new Map((profilesRes.data || []).map((p) => [p.id, p]));
+          const bookingsById = new Map((bookingsRes.data || []).map((b) => [b.id, b]));
+          return data.map((q) => {
+            const customer = profilesById.get(q.customer_id);
+            const booking = bookingsById.get(q.booking_id);
+            return {
+              ...q,
+              customer_name: customer?.full_name || q.customer_name || 'ลูกค้าทั่วไป',
+              customer_phone: q.customer_phone || customer?.phone || '',
+              booking_number: booking?.booking_number || q.booking_number || '',
+              items: (q.quotation_items || []).map((item) => ({
+                description: item.description,
+                amount: Number(item.line_total ?? Number(item.unit_price || 0) * Number(item.quantity || 1)),
+              })),
+            };
+          });
+        }
       } catch (e) {
         console.warn('Supabase quotations error:', e);
       }

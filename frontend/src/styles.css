@@ -1124,6 +1124,85 @@ a { color: inherit; text-decoration: none; }
   min-width: 1190px;
   grid-template-columns: minmax(145px, 1.15fr) minmax(140px, 1fr) minmax(160px, 1.2fr) minmax(105px, .8fr) minmax(125px, 1fr) minmax(230px, 1.6fr);
 }
+.technician-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.technician-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e8ebe4;
+  border-radius: 10px;
+}
+.technician-summary-card > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #587b45;
+  background: #edf3e8;
+  border-radius: 9px;
+}
+.technician-summary-card small,
+.technician-summary-card strong { display: block; }
+.technician-summary-card small { color: #74806f; font-size: 11px; }
+.technician-summary-card strong { margin-top: 4px; color: #354535; font-size: 22px; }
+.technician-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 16px 0;
+}
+.technician-filters .admin-search-box { flex: 1 1 270px; }
+.technician-filters select {
+  min-height: 36px;
+  padding: 7px 30px 7px 10px;
+  color: #485548;
+  background: #fff;
+  border: 1px solid #dce2d6;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.technician-table-wrap { width: 100%; overflow-x: auto; border: 1px solid #e8ebe4; border-radius: 9px; }
+.technician-data-table { width: 100%; min-width: 1040px; border-collapse: collapse; background: #fff; }
+.technician-data-table th { padding: 13px 12px; color: #74806f; background: #f8faf6; border-bottom: 1px solid #e8ebe4; font-size: 10px; font-weight: 600; text-align: left; white-space: nowrap; }
+.technician-data-table td { max-width: 220px; padding: 13px 12px; color: #4b5848; border-bottom: 1px solid #eef0eb; font-size: 11px; vertical-align: middle; }
+.technician-data-table tbody tr:last-child td { border-bottom: 0; }
+.technician-data-table tbody tr:hover { background: #fbfcfa; }
+.technician-data-table td strong,.technician-data-table td small { display: block; }
+.technician-data-table td strong { color: #3e4d3d; font-size: 11px; }
+.technician-data-table td small { margin-top: 5px; color: #818a7d; font-size: 10px; }
+.technician-table-location small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.technician-assignment-summary { display: grid; justify-items: start; gap: 5px; }
+.technician-assignment-summary > strong { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.technician-manage-modal { max-width: 760px; }
+.technician-modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.technician-modal-heading h2 { margin: 0 0 6px; }
+.technician-modal-heading p { margin: 0; color: #788274; font-size: 12px; }
+.technician-icon-button { display: inline-grid; place-items: center; padding: 7px; color: #65705f; background: white; border: 1px solid #e2e7de; border-radius: 6px; cursor: pointer; }
+.technician-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; background: #f8faf6; border-radius: 8px; }
+.technician-detail-grid > span { min-width: 0; color: #485548; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.technician-detail-grid small { display: block; margin-bottom: 3px; color: #879082; font-size: 10px; }
+.technician-management-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+.technician-management-sections > section { min-width: 0; padding: 14px; border: 1px solid #e8ebe4; border-radius: 8px; }
+.technician-management-sections h3 { margin: 0 0 12px; color: #42513f; font-size: 12px; }
+.technician-history-list { display: grid; gap: 7px; max-height: 150px; overflow: auto; }
+.technician-history-list small { color: #788274; font-size: 10px; line-height: 1.5; }
+.technician-management-sections .technician-assign-control { align-items: stretch; flex-direction: column; }
+.technician-management-sections .technician-assign-control select { min-height: 36px; }
+.technician-management-sections .technician-assign-control .button { align-self: flex-start; }
+.technician-manage-modal .technician-team-section { margin-top: 0; }
+.technician-manage-modal + .workflow-modal-backdrop { z-index: 1001; }
+.technician-error .technician-icon-button { margin-left: auto; }
+.survey-photo-grid a small { display: block; padding: 5px; color: #71806d; }
 .technician-location small {
   max-width: 220px;
   overflow: hidden;
@@ -1173,6 +1252,17 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (max-width: 700px) {
+  .technician-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .technician-summary-card { gap: 8px; padding: 11px; }
+  .technician-summary-card > span { width: 32px; height: 32px; }
+  .technician-summary-card small { font-size: 9px; }
+  .technician-summary-card strong { font-size: 19px; }
+  .technician-filters { align-items: stretch; }
+  .technician-filters .admin-search-box,
+  .technician-filters select { flex: 1 1 100%; width: 100%; }
+  .technician-management-sections,
+  .technician-detail-grid { grid-template-columns: 1fr; }
+  .technician-manage-modal { width: 100%; max-height: 92vh; overflow: auto; }
   .technician-team-section .workspace-section-heading,
   .technician-survey-section .workspace-section-heading {
     align-items: flex-start;

@@ -11,5 +11,8 @@
     "build": "npm run build --workspace @solarservice/frontend",
     "preview": "npm run preview --workspace @solarservice/frontend",
     "start:backend": "npm run start --workspace @solarservice/backend"
+  },
+  "dependencies": {
+    "thai-address-database": "^0.0.33"
   }
 }

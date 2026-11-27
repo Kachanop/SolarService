@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check, LogIn, Menu, ShoppingCart, Sun, User, X } from 'lucide-react';
 import { supabase, supabaseConfigError } from './lib/supabase.js';
-import { products } from './data/catalog.js';
+import { products, packages as fallbackPackages } from './data/catalog.js';
 import { adminRoutes, pageTitles, roleMenus, routeFromHash, technicianRoutes } from './lib/routes.js';
 import Home from './pages/Home.jsx';
 import Products from './pages/Products.jsx';
@@ -24,6 +24,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(Boolean(supabase));
   const [cart, setCart] = useState([]);
   const [catalogProducts, setCatalogProducts] = useState(() => supabase ? [] : products);
+  const [catalogPackages, setCatalogPackages] = useState(() => supabase ? [] : fallbackPackages);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState('');
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -64,6 +65,38 @@ function App() {
     return () => {
       active = false;
       window.removeEventListener('solarservice:products-updated', refreshCatalog);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return undefined;
+    let active = true;
+    async function loadPackages() {
+      try {
+        const { data, error } = await supabase.from('packages')
+          .select('id,name,slug,system_size_kw,description,price,features,is_active')
+          .eq('is_active', true)
+          .order('price', { ascending: true });
+        if (error) throw error;
+        if (!active) return;
+        setCatalogPackages((data || []).map((pkg) => ({
+          ...pkg,
+          price: Number(pkg.price),
+          features: Array.isArray(pkg.features) ? pkg.features : [],
+        })));
+      } catch (error) {
+        if (!active) return;
+        setCatalogPackages([]);
+        console.warn('Load packages error:', error);
+      }
+    }
+
+    const refreshPackages = () => loadPackages();
+    window.addEventListener('solarservice:packages-updated', refreshPackages);
+    loadPackages();
+    return () => {
+      active = false;
+      window.removeEventListener('solarservice:packages-updated', refreshPackages);
     };
   }, []);
 
@@ -231,13 +264,25 @@ function App() {
       navigate('/login');
       return;
     }
+    const itemType = product.itemType || 'product';
+    const normalizedItem = {
+      ...product,
+      itemType,
+      category: product.category || (itemType === 'package' ? 'แพ็กเกจติดตั้ง' : 'สินค้า'),
+      icon: product.icon || (itemType === 'package' ? '⚡' : '▰'),
+      tone: product.tone || (itemType === 'package' ? 'green' : 'blue'),
+    };
     setCart((items) => {
-      const current = items.find((item) => item.id === product.id);
+      const current = items.find((item) => item.id === normalizedItem.id && (item.itemType || 'product') === itemType);
       return current
-        ? items.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)
-        : [...items, { ...product, quantity: 1 }];
+        ? items.map((item) => (
+          item.id === normalizedItem.id && (item.itemType || 'product') === itemType
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        ))
+        : [...items, { ...normalizedItem, quantity: 1 }];
     });
-    setToast(`เพิ่ม “${product.name}” ลงตะกร้าแล้ว`);
+    setToast(`เพิ่ม “${normalizedItem.name}” ลงตะกร้าแล้ว`);
   }
 
   const isWorkspace = Boolean(authUser);
@@ -288,8 +333,8 @@ function App() {
         {authLoading && <div className="auth-loading" role="status">กำลังตรวจสอบสถานะสมาชิก…</div>}
         {!authLoading && screen === '/login' && route !== '/login' && <AuthPage route="/login" navigate={navigate} onAuthenticated={onAuthenticated} setToast={setToast} />}
         {!authLoading && screen === '/' && <Home navigate={navigate} addToCart={addToCart} products={catalogProducts} />}
-        {!authLoading && screen === '/products' && <Products products={filteredProducts} search={search} setSearch={setSearch} addToCart={addToCart} />}
-        {!authLoading && screen === '/packages' && <Packages navigate={navigate} />}
+        {!authLoading && screen === '/products' && <Products products={filteredProducts} packages={catalogPackages} search={search} setSearch={setSearch} addToCart={addToCart} authUser={authUser} navigate={navigate} setToast={setToast} />}
+        {!authLoading && screen === '/packages' && <Packages navigate={navigate} packages={catalogPackages} addToCart={addToCart} authUser={authUser} setToast={setToast} />}
         {!authLoading && screen === '/services' && <Services navigate={navigate} />}
         {!authLoading && screen === '/about' && <About navigate={navigate} />}
         {!authLoading && screen === '/contact' && <Contact setToast={setToast} />}

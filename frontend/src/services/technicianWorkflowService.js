@@ -23,12 +23,6 @@ export async function getMyWorkflowAssignments() {
   });
 }
 
-export async function getInstallationTechnicians() {
-  const { data, error } = await client().rpc('list_installation_technicians');
-  if (error) throw error;
-  return data || [];
-}
-
 export async function updateTechnicianType(technicianId, technicianType) {
   const { error } = await client().from('profiles').update({ technician_type: technicianType }).eq('id',technicianId);
   if (error) throw error;
@@ -92,8 +86,8 @@ export async function getInstallationImages(bookingId) {
   }));
 }
 
-export async function submitSurvey(bookingId, installationTechnicianId = null) {
-  const { error } = await client().rpc('submit_site_survey', { p_booking_id: bookingId, p_installation_technician_id: installationTechnicianId || null });
+export async function submitSurvey(bookingId) {
+  const { error } = await client().rpc('submit_site_survey', { p_booking_id: bookingId });
   if (error) throw error;
 }
 
@@ -109,29 +103,46 @@ export async function saveInstallationProgress(assignment, notes, status) {
 
 export async function getAdminTechnicianWorkflow() {
   const db = client();
+  const fetchAll = async (buildQuery) => {
+    const rows = [];
+    const pageSize = 1000;
+    for (let start = 0; ; start += pageSize) {
+      const { data, error } = await buildQuery().range(start, start + pageSize - 1);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if (!data || data.length < pageSize) return rows;
+    }
+  };
   const [bookingResult, techResult, assignmentResult] = await Promise.all([
-    db.from('service_bookings').select('id,booking_number,customer_id,preferred_at,address,province,phone,notes,status,created_at').order('preferred_at', { ascending: true }),
-    db.from('profiles').select('id,full_name,phone,role,technician_type').eq('role','technician').order('full_name'),
-    db.from('technician_assignments').select('id,booking_id,technician_id,assignment_type,status,assigned_at,assigned_by'),
+    fetchAll(() => db.from('service_bookings').select('id,booking_number,customer_id,preferred_at,address,province,phone,notes,status,created_at').order('preferred_at', { ascending: true })),
+    fetchAll(() => db.from('profiles').select('id,full_name,phone,role,technician_type').eq('role','technician').order('full_name')),
+    fetchAll(() => db.from('technician_assignments').select('id,booking_id,technician_id,assignment_type,status,assigned_at,assigned_by')),
   ]);
-  for (const result of [bookingResult, techResult, assignmentResult]) if (result.error) throw result.error;
-  const customerIds = [...new Set((bookingResult.data || []).map((b) => b.customer_id).filter(Boolean))];
-  const customers = customerIds.length ? await db.from('profiles').select('id,full_name').in('id', customerIds) : { data: [] };
-  if (customers.error) throw customers.error;
-  const customerNames = new Map((customers.data || []).map((p) => [p.id,p.full_name]));
-  const technicianById = new Map((techResult.data || []).map((technician) => [technician.id, technician]));
-  const assignedByIds = [...new Set((assignmentResult.data || []).map((a) => a.assigned_by).filter(Boolean))];
-  const assigners = assignedByIds.length ? await db.from('profiles').select('id,full_name').in('id', assignedByIds) : { data: [] };
-  if (assigners.error) throw assigners.error;
-  const assignerById = new Map((assigners.data || []).map((profile) => [profile.id, profile]));
-  const assignments = (assignmentResult.data || []).map((assignment) => ({ ...assignment, profiles: technicianById.get(assignment.technician_id), assigned_by_name: assignerById.get(assignment.assigned_by)?.full_name || '' }));
-  const bookings = (bookingResult.data || []).map((booking) => {
+  const getProfilesByIds = async (ids) => {
+    const uniqueIds = [...new Set(ids.filter(Boolean))];
+    const profiles = [];
+    for (let start = 0; start < uniqueIds.length; start += 500) {
+      const { data, error } = await db.from('profiles').select('id,full_name').in('id', uniqueIds.slice(start, start + 500));
+      if (error) throw error;
+      profiles.push(...(data || []));
+    }
+    return profiles;
+  };
+  const [customers, assigners] = await Promise.all([
+    getProfilesByIds(bookingResult.map((b) => b.customer_id)),
+    getProfilesByIds(assignmentResult.map((a) => a.assigned_by)),
+  ]);
+  const customerNames = new Map(customers.map((p) => [p.id,p.full_name]));
+  const technicianById = new Map(techResult.map((technician) => [technician.id, technician]));
+  const assignerById = new Map(assigners.map((profile) => [profile.id, profile]));
+  const assignments = assignmentResult.map((assignment) => ({ ...assignment, profiles: technicianById.get(assignment.technician_id), assigned_by_name: assignerById.get(assignment.assigned_by)?.full_name || '' }));
+  const bookings = bookingResult.map((booking) => {
     const history = assignments.filter((a) => a.booking_id === booking.id).sort((a,b)=>new Date(b.assigned_at)-new Date(a.assigned_at));
     const assigned = history.filter((a) => a.status !== 'cancelled');
     return { ...booking, customer_name: customerNames.get(booking.customer_id) || '', assignments: assigned, assignment_history: history,
       survey_assignment: assigned.find((a) => a.assignment_type === 'survey'), installation_assignment: assigned.find((a) => a.assignment_type === 'installation') };
   });
-  return { bookings, technicians: techResult.data || [], assignments };
+  return { bookings, technicians: techResult, assignments };
 }
 
 export async function getAdminSurveyReport(bookingId) {

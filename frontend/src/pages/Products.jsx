@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Search, ShoppingCart, Eye, X, Check, Zap } from 'lucide-react';
 import { PageIntro } from '../components/Shared.jsx';
-import { getPublishedProductReviews } from '../services/reviewService.js';
+import { getPublishedProductReviews, getPublishedReviews } from '../services/reviewService.js';
 
 /* ---------- สไตล์ (อยู่ในไฟล์นี้เลย ไม่ต้องมีไฟล์ CSS แยก) ---------- */
 const CSS = `
 /* สีดึงมาจากธีมของเว็บ: เขียวเข้ม #27392c / เขียวหลัก #526e48 / พื้นหลัง #f7f8f4 */
-.sx-tabs, .sx-grid, .sx-overlay {
+.sx-tabs, .sx-grid, .sx-overlay, .sx-page-reviews {
   --sx-green: #526e48;
   --sx-green-dark: #27392c;
   --sx-green-soft: #eef3ea;
@@ -40,9 +40,14 @@ const CSS = `
 .sx-card-body { display: flex; flex-direction: column; gap: 8px; padding: 18px; flex: 1; }
 .sx-card-title { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 700; color: var(--sx-green-dark); }
 .sx-card-desc { margin: 0; color: var(--sx-muted); font-size: 14px; line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sx-card-review { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 10px; background: #f8faf6; border: 1px solid var(--sx-line); font-size: 12px; color: var(--sx-ink); }
+.sx-card-review-top { display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--sx-green-dark); }
+.sx-card-review-top span { color: #d2a848; letter-spacing: 0.5px; }
+.sx-card-review p { margin: 0; color: var(--sx-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sx-card-price { margin-top: auto; padding: 6px 0 4px; font-size: 24px; font-weight: 800; color: var(--sx-green); }
 .sx-card-price.sx-big { font-size: 32px; margin: 4px 0 12px; }
 .sx-card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sx-card-quote-btn { grid-column: 1 / -1; }
 
 /* ปุ่ม */
 .sx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 10px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid transparent; transition: background .15s, color .15s; }
@@ -50,15 +55,18 @@ const CSS = `
 .sx-btn-solid:hover { background: var(--sx-green-dark); }
 .sx-btn-ghost { background: #fff; color: var(--sx-green); border-color: #c5d3bd; }
 .sx-btn-ghost:hover { background: var(--sx-green-soft); }
+.sx-btn-soft { background: var(--sx-green-soft); color: var(--sx-green-dark); border-color: #d6e1cf; }
+.sx-btn-soft:hover { background: #e3ecdd; }
 .sx-btn:disabled { opacity: .55; cursor: not-allowed; }
-.sx-btn-wide { width: 100%; padding: 14px; font-size: 16px; margin-top: 22px; }
+.sx-btn-wide { width: 100%; padding: 14px; font-size: 16px; margin-top: 12px; }
 
 /* หน้าต่างรายละเอียด */
 .sx-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(39, 57, 44, .6); }
 .sx-modal { position: relative; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); width: min(1120px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; background: #fff; border-radius: 22px; }
+.sx-quote-modal { position: relative; width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; background: #fff; border-radius: 22px; padding: 28px; }
 .sx-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--sx-line); border-radius: 50%; background: #fff; color: var(--sx-green-dark); cursor: pointer; }
 .sx-modal-media { display: flex; min-width: 0; flex-direction: column; justify-content: center; background: var(--sx-green-soft); }
-.sx-modal-placeholder { display: grid; width: 100%; min-height: 340px; place-items: center; color: var(--sx-muted); font-weight: 600; text-align: center; }
+.sx-modal-placeholder { display: grid; width: 100%; min-height: 340px; place-items: center; padding: 24px; color: var(--sx-muted); font-weight: 600; text-align: center; }
 .sx-modal-media > img { width: 100%; height: min(72vh, 720px); min-height: 340px; object-fit: contain; display: block; }
 .sx-thumbs { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
 .sx-thumb { flex: 0 0 64px; height: 64px; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: none; cursor: pointer; }
@@ -90,6 +98,15 @@ const CSS = `
 .sx-review-stars { margin-top: 5px; color: #d2a848; letter-spacing: 1px; }
 .sx-review-card p { margin: 7px 0 0; color: var(--sx-ink); font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sx-reviews-message { margin: 0; color: var(--sx-muted); font-size: 13px; line-height: 1.6; }
+.sx-modal-actions { display: grid; gap: 8px; margin-top: 18px; }
+
+/* รีวิวจากผู้ใช้ท้ายหน้า */
+.sx-page-reviews { margin-top: 42px; padding: 26px; background: #fff; border: 1px solid var(--sx-line); border-radius: 20px; }
+.sx-page-reviews-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.sx-page-reviews-head h2 { margin: 4px 0 0; font-size: 22px; color: var(--sx-green-dark); }
+.sx-page-reviews-head p { margin: 4px 0 0; font-size: 13px; color: var(--sx-muted); }
+.sx-page-reviews-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.sx-review-target { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; background: var(--sx-green-soft); color: var(--sx-green-dark); font-size: 11px; font-weight: 600; }
 
 @media (max-width: 720px) {
   .sx-overlay { padding: 10px; }
@@ -103,12 +120,12 @@ const CSS = `
 
 /* ---------- helpers ---------- */
 const baht = (n) => `฿${Number(n || 0).toLocaleString('th-TH')}`;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const photo = (name) => `${import.meta.env.BASE_URL}images/products/${name}.jpg`;
 const packagePhoto = (name) => `${import.meta.env.BASE_URL}images/packages/${name}.jpg`;
 const FALLBACK_IMG = photo('panel');
 
-// หากรูปหลักโหลดไม่ขึ้น จะลองรูปสำรองก่อนใช้รูปแผงโซลาร์สำรอง
 const onImgError = (e, sources = []) => {
   const el = e.currentTarget;
   const step = Number(el.dataset.step || 1);
@@ -133,7 +150,7 @@ const guessKind = (item) => {
   return null;
 };
 
-const isPaymentTestProduct = (item) => /test|ทดสอบ/i.test(`${item.name || ''} ${item.description || ''}`);
+const isPaymentTestItem = (item) => /test|ทดสอบ/i.test(`${item.name || ''} ${item.slug || ''} ${item.description || ''}`);
 
 const productPhotoName = (item) => {
   const text = `${item.name || ''} ${item.category || ''}`.toLowerCase();
@@ -161,7 +178,7 @@ const packagePhotoName = (item) => {
 };
 
 const getSources = (item, kind = 'product') => {
-  if (kind === 'product' && isPaymentTestProduct(item)) return [];
+  if (isPaymentTestItem(item)) return [];
   const localPhoto = kind === 'package'
     ? packagePhoto(packagePhotoName(item))
     : productPhotoSource(item);
@@ -175,13 +192,24 @@ const getSources = (item, kind = 'product') => {
 
 const getImage = (item, kind) => getSources(item, kind)[0];
 
-/* ---------- ตัวอย่างแพ็กเกจ (ถ้าไม่ส่ง prop packages เข้ามา) ----------
-   เปลี่ยน image เป็นรูปจริงของคุณได้เลย เช่น '/images/pkg-5kw.jpg' หรือ URL เต็ม */
+/* ---------- ตัวอย่างแพ็กเกจ (ใช้เมื่อฐานข้อมูลยังไม่มีข้อมูลแพ็กเกจ) ---------- */
 const DEFAULT_PACKAGES = [
   {
     isSample: true,
+    id: 'pkg-test-10',
+    slug: 'package-test-10-baht',
+    name: 'แพ็กเกจทดสอบการชำระเงิน 10 บาท',
+    system_size_kw: 1,
+    price: 10,
+    description: 'แพ็กเกจทดลองสำหรับตรวจสอบขั้นตอนสั่งซื้อ สร้างใบเสนอราคา และชำระเงิน PromptPay ยอดขั้นต่ำตาม Stripe',
+    includes: ['แพ็กเกจทดลองระบบ 1 kW', 'ออกใบเสนอราคาอัตโนมัติ', 'รองรับชำระเงิน PromptPay 10 บาท'],
+  },
+  {
+    isSample: true,
     id: 'pkg-3kw',
+    slug: 'package-3kw',
     name: 'แพ็กเกจ 3 kW สำหรับบ้านขนาดเล็ก',
+    system_size_kw: 3,
     price: 89000,
     image: packagePhoto('package-3kw'),
     description: 'ชุดโซลาร์รูฟท็อปครบชุด เหมาะกับบ้านที่ใช้ไฟเดือนละ 1,500–2,500 บาท',
@@ -190,7 +218,9 @@ const DEFAULT_PACKAGES = [
   {
     isSample: true,
     id: 'pkg-5kw',
+    slug: 'package-5kw',
     name: 'แพ็กเกจ 5 kW สำหรับบ้านทั่วไป',
+    system_size_kw: 5,
     price: 139000,
     image: packagePhoto('package-5kw'),
     description: 'คุ้มค่าที่สุดสำหรับครอบครัวที่ใช้แอร์หลายเครื่อง ลดค่าไฟได้ต่อเนื่อง',
@@ -200,7 +230,9 @@ const DEFAULT_PACKAGES = [
   {
     isSample: true,
     id: 'pkg-10kw',
+    slug: 'package-10kw',
     name: 'แพ็กเกจ 10 kW สำหรับร้านค้า/โรงงานเล็ก',
+    system_size_kw: 10,
     price: 259000,
     image: packagePhoto('package-10kw'),
     description: 'รองรับการใช้ไฟช่วงกลางวันสูง ช่วยลดต้นทุนพลังงานของธุรกิจ',
@@ -208,9 +240,25 @@ const DEFAULT_PACKAGES = [
   },
 ];
 
+function mergePackages(incomingPackages = []) {
+  const dbPackages = incomingPackages.map((pkg) => ({
+    ...pkg,
+    price: Number(pkg.price),
+    includes: Array.isArray(pkg.features) ? pkg.features : [],
+    isSample: false,
+    itemType: 'package',
+    category: 'แพ็กเกจติดตั้ง',
+  }));
+  const hasMatch = (fallback) => dbPackages.some((dbPkg) => (
+    (fallback.slug && dbPkg.slug === fallback.slug)
+    || (fallback.slug === 'package-test-10-baht' && Number(dbPkg.price) === 10 && /ทดสอบ|test|เทส|10/i.test(dbPkg.name || ''))
+    || ([3, 5, 10].includes(Number(fallback.system_size_kw)) && Number(dbPkg.system_size_kw) === Number(fallback.system_size_kw))
+  ));
+  const missingDefaults = DEFAULT_PACKAGES.filter((fallback) => !hasMatch(fallback));
+  return [...dbPackages, ...missingDefaults];
+}
 
-/* ---------- ตัวอย่างสินค้า (แสดงเมื่อระบบยังไม่ส่งสินค้าเข้ามา) ----------
-   ราคาและรายละเอียดเป็นข้อมูลสมมติ ให้แก้เป็นของจริง และเปลี่ยน image เป็น path รูปจริงได้ */
+/* ---------- ตัวอย่างสินค้า (แสดงเมื่อระบบยังไม่ส่งสินค้าเข้ามา) ---------- */
 const SAMPLE_PRODUCTS = [
   { isSample: true, id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: photo('panel'),
     description: 'แผงโมโนคริสตัลไลน์ประสิทธิภาพสูง ทนแดด ทนฝน เหมาะกับหลังคาบ้านและโรงงาน',
@@ -232,21 +280,48 @@ const SAMPLE_PRODUCTS = [
     specs: { 'วัสดุ': 'อะลูมิเนียม', 'รองรับลม': 'สูงสุด 180 กม./ชม.' } },
 ];
 
+function matchReviewsForItem(publicReviews, item, kind) {
+  if (!Array.isArray(publicReviews) || !item) return [];
+  const itemName = String(item.name || '').trim().toLowerCase();
+  const itemSku = String(item.sku || '').trim().toLowerCase();
+  return publicReviews.filter((review) => {
+    if (kind === 'product' && review.product_id && review.product_id === item.id) return true;
+    if (kind === 'package' && review.package_id && review.package_id === item.id) return true;
+    const label = String(review.target_label || '').trim().toLowerCase();
+    return Boolean(label && (label === itemName || (itemSku && label === itemSku)));
+  });
+}
+
 /* ---------- การ์ดสินค้า / แพ็กเกจ ---------- */
-function ItemCard({ item, kind, onView, onAdd }) {
-  const isTestProduct = kind === 'product' && isPaymentTestProduct(item);
+function ItemCard({ item, kind, itemReviews = [], onView, onAdd }) {
+  const isTestItem = isPaymentTestItem(item);
+  const avgRating = itemReviews.length
+    ? itemReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / itemReviews.length
+    : 0;
   return (
     <article className="sx-card">
       <div className={`sx-card-media ${kind === 'product' ? 'sx-product-media' : ''}`}>
-        {isTestProduct
-          ? <span className="sx-card-placeholder">รายการทดสอบการชำระเงิน</span>
+        {isTestItem
+          ? <span className="sx-card-placeholder">{kind === 'package' ? 'แพ็กเกจทดสอบการชำระเงิน' : 'รายการทดสอบการชำระเงิน'}</span>
           : <img src={getImage(item, kind)} alt={item.name} loading="lazy" onError={(e) => onImgError(e, getSources(item, kind))} />}
         {item.popular && <span className="sx-badge">ขายดี</span>}
-        {kind === 'package' && !item.popular && <span className="sx-badge sx-badge-soft">รวมติดตั้ง</span>}
+        {kind === 'package' && !item.popular && (
+          <span className="sx-badge sx-badge-soft">{isTestItem ? 'ทดสอบ 10 บาท' : 'รวมติดตั้ง'}</span>
+        )}
       </div>
       <div className="sx-card-body">
         <h3 className="sx-card-title">{item.name}</h3>
         <p className="sx-card-desc">{item.description || 'ยังไม่มีรายละเอียดสินค้า'}</p>
+        {itemReviews.length > 0 && (
+          <div className="sx-card-review">
+            <div className="sx-card-review-top">
+              <span>{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}</span>
+              <strong>{avgRating.toFixed(1)}</strong>
+              <small>({itemReviews.length} รีวิว)</small>
+            </div>
+            {itemReviews[0]?.comment && <p>“{itemReviews[0].comment}” — {itemReviews[0].customer_name || 'ผู้ซื้อ'}</p>}
+          </div>
+        )}
         <div className="sx-card-price">{baht(item.price)}</div>
         <div className="sx-card-actions">
           <button type="button" className="sx-btn sx-btn-ghost" onClick={() => onView(item)}>
@@ -255,9 +330,9 @@ function ItemCard({ item, kind, onView, onAdd }) {
           <button
             type="button"
             className="sx-btn sx-btn-solid"
-            onClick={() => onAdd(item)}
+            onClick={() => onAdd(item, kind)}
             disabled={item.isSample}
-            title={item.isSample ? 'สินค้าตัวอย่าง ยังสั่งซื้อไม่ได้ (ยังไม่มีในฐานข้อมูล)' : undefined}
+            title={item.isSample ? 'ข้อมูลตัวอย่าง กรุณารัน migration เพื่อสั่งซื้อจริง' : undefined}
           >
             <ShoppingCart size={16} /> {item.isSample ? 'ตัวอย่าง' : 'เพิ่มลงตะกร้า'}
           </button>
@@ -268,7 +343,7 @@ function ItemCard({ item, kind, onView, onAdd }) {
 }
 
 /* ---------- หน้าต่างรายละเอียด ---------- */
-function DetailModal({ item, kind, onClose, onAdd }) {
+function DetailModal({ item, kind, publicReviews = [], onClose, onAdd }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
@@ -280,14 +355,14 @@ function DetailModal({ item, kind, onClose, onAdd }) {
     };
   }, [onClose]);
 
-  const isTestProduct = kind === 'product' && isPaymentTestProduct(item);
-  const gallery = !isTestProduct && item.images && item.images.length > 1 ? item.images : null;
+  const isTestItem = isPaymentTestItem(item);
+  const gallery = !isTestItem && item.images && item.images.length > 1 ? item.images : null;
   const [active, setActive] = useState(getImage(item, kind));
   const specs = item.specs && typeof item.specs === 'object' ? Object.entries(item.specs) : [];
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState('');
-  const isDatabaseProduct = kind === 'product' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(item.id));
+  const isDatabaseProduct = kind === 'product' && UUID_RE.test(String(item.id));
 
   useEffect(() => {
     if (!isDatabaseProduct) return undefined;
@@ -307,8 +382,20 @@ function DetailModal({ item, kind, onClose, onAdd }) {
     return () => { activeRequest = false; };
   }, [isDatabaseProduct, item.id]);
 
-  const averageRating = reviews.length
-    ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length
+  const matchedFromPublic = matchReviewsForItem(publicReviews, item, kind);
+  const packageMatchedReviews = kind === 'package'
+    ? (matchedFromPublic.length
+      ? matchedFromPublic
+      : publicReviews.filter((review) => ['package', 'installation', 'installation_product', 'review'].includes(review.target_type)))
+    : [];
+  const mergedProductReviews = [
+    ...reviews,
+    ...matchedFromPublic.filter((r) => !reviews.some((existing) => existing.id === r.id)),
+  ];
+  const visibleReviews = kind === 'product' ? mergedProductReviews : packageMatchedReviews;
+
+  const averageRating = visibleReviews.length
+    ? visibleReviews.reduce((total, review) => total + Number(review.rating || 0), 0) / visibleReviews.length
     : 0;
 
   return (
@@ -318,11 +405,9 @@ function DetailModal({ item, kind, onClose, onAdd }) {
           <X size={20} />
         </button>
         <div className="sx-modal-media">
-          {isTestProduct
-            ? <div className="sx-modal-placeholder">รายการทดสอบการชำระเงิน</div>
-            : <>
-              <img src={active} alt={item.name} onError={(e) => onImgError(e, getSources(item, kind))} />
-            </>}
+          {isTestItem
+            ? <div className="sx-modal-placeholder">{kind === 'package' ? 'แพ็กเกจทดสอบการชำระเงิน' : 'รายการทดสอบการชำระเงิน'}</div>
+            : <img src={active} alt={item.name} onError={(e) => onImgError(e, getSources(item, kind))} />}
           {gallery && (
             <div className="sx-thumbs">
               {gallery.map((src) => (
@@ -372,21 +457,24 @@ function DetailModal({ item, kind, onClose, onAdd }) {
             <p className="sx-reviews-message">ไม่สามารถโหลดรีวิวสำหรับสินค้าตัวอย่างนี้ได้</p>
           </section>}
 
-          {isDatabaseProduct && <section className="sx-reviews" aria-label="รีวิวสินค้า">
-            <h4>รีวิวจากผู้ซื้อ</h4>
+          {(isDatabaseProduct || kind === 'package') && <section className="sx-reviews" aria-label="รีวิวจากผู้ใช้งาน">
+            <h4>{kind === 'package' ? 'รีวิวจากผู้ใช้บริการติดตั้ง' : 'รีวิวจากผู้ซื้อ'}</h4>
             {reviewsLoading && <p className="sx-reviews-message" role="status">กำลังโหลดรีวิว…</p>}
             {!reviewsLoading && reviewsError && <p className="sx-reviews-message" role="alert">{reviewsError}</p>}
-            {!reviewsLoading && !reviewsError && reviews.length > 0 && <>
+            {!reviewsLoading && !reviewsError && visibleReviews.length > 0 && <>
               <div className="sx-review-summary">
                 <strong>{averageRating.toFixed(1)}</strong>
                 <span aria-label={`${averageRating.toFixed(1)} จาก 5 ดาว`}>{'★'.repeat(Math.round(averageRating))}{'☆'.repeat(5 - Math.round(averageRating))}</span>
-                <small>{reviews.length} รีวิวจากผู้ซื้อ</small>
+                <small>{visibleReviews.length} รีวิวจากผู้ใช้งาน</small>
               </div>
               <div className="sx-review-list">
-                {reviews.map((review) => (
+                {visibleReviews.map((review) => (
                   <article className="sx-review-card" key={review.id}>
                     <div className="sx-review-meta">
-                      <strong>{review.customer_name || 'ผู้ซื้อสินค้า'}</strong>
+                      <div>
+                        <strong>{review.customer_name || 'ผู้ซื้อสินค้า'}</strong>
+                        {review.target_label && <div className="sx-review-target">{review.target_label}</div>}
+                      </div>
                       <time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString('th-TH')}</time>
                     </div>
                     <div className="sx-review-stars" aria-label={`${review.rating} จาก 5 ดาว`}>
@@ -397,17 +485,21 @@ function DetailModal({ item, kind, onClose, onAdd }) {
                 ))}
               </div>
             </>}
-            {!reviewsLoading && !reviewsError && reviews.length === 0 && <p className="sx-reviews-message">ยังไม่มีรีวิวจากผู้ซื้อสินค้านี้</p>}
+            {!reviewsLoading && !reviewsError && visibleReviews.length === 0 && (
+              <p className="sx-reviews-message">{kind === 'package' ? 'ยังไม่มีรีวิวจากผู้ใช้บริการติดตั้ง' : 'ยังไม่มีรีวิวจากผู้ซื้อสินค้านี้'}</p>
+            )}
           </section>}
 
-          <button
-            type="button"
-            className="sx-btn sx-btn-solid sx-btn-wide"
-            onClick={() => { onAdd(item); onClose(); }}
-            disabled={item.isSample}
-          >
-            <ShoppingCart size={18} /> {item.isSample ? 'สินค้าตัวอย่าง ยังสั่งซื้อไม่ได้' : 'เพิ่มลงตะกร้า'}
-          </button>
+          <div className="sx-modal-actions">
+            <button
+              type="button"
+              className="sx-btn sx-btn-solid sx-btn-wide"
+              onClick={() => { onAdd(item, kind); onClose(); }}
+              disabled={item.isSample}
+            >
+              <ShoppingCart size={18} /> {item.isSample ? 'ข้อมูลตัวอย่าง ยังสั่งซื้อไม่ได้' : 'เพิ่มลงตะกร้า'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -415,26 +507,65 @@ function DetailModal({ item, kind, onClose, onAdd }) {
 }
 
 /* ---------- หน้าหลัก ---------- */
-export default function Products({ products: incoming = [], packages = DEFAULT_PACKAGES, search, setSearch, addToCart }) {
-  // ถ้าระบบยังไม่ส่งสินค้ามา ให้แสดงตัวอย่างแทน (ลบ SAMPLE_PRODUCTS ได้เมื่อมีข้อมูลจริงแล้ว)
+export default function Products({
+  products: incoming = [],
+  packages: incomingPackages = [],
+  search,
+  setSearch,
+  addToCart,
+}) {
   const list = incoming.length ? incoming : SAMPLE_PRODUCTS;
+  const packageList = mergePackages(incomingPackages);
+
   const [tab, setTab] = useState('products'); // 'products' | 'packages'
   const [filter, setFilter] = useState('ทั้งหมด');
   const [selected, setSelected] = useState(null); // { item, kind }
+  const [publicReviews, setPublicReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setReviewsLoading(true);
+    setReviewsError('');
+    getPublishedReviews(20)
+      .then((data) => { if (active) setPublicReviews(data); })
+      .catch((error) => {
+        if (active) setReviewsError(error?.message || 'โหลดรีวิวจากผู้ใช้งานไม่สำเร็จ');
+      })
+      .finally(() => { if (active) setReviewsLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   const categories = ['ทั้งหมด', ...new Set(list.map((p) => p.category).filter(Boolean))];
   const visibleProducts = filter === 'ทั้งหมด' ? list : list.filter((p) => p.category === filter);
 
   const q = (search || '').trim().toLowerCase();
   const visiblePackages = q
-    ? packages.filter((p) => `${p.name} ${p.description}`.toLowerCase().includes(q))
-    : packages;
+    ? packageList.filter((p) => `${p.name} ${p.description || ''}`.toLowerCase().includes(q))
+    : packageList;
 
-  const handleAdd = (item) => addToCart(item);
-  const open = (kind) => (item) => setSelected({ item, kind });
+  const handleAdd = (item, itemKind = kind) => {
+    if (itemKind === 'package') {
+      addToCart({
+        ...item,
+        itemType: 'package',
+        category: 'แพ็กเกจติดตั้ง',
+        icon: '⚡',
+        tone: 'green',
+      });
+      return;
+    }
+    addToCart({ ...item, itemType: 'product' });
+  };
+
+  const open = (itemKind) => (item) => setSelected({ item, kind: itemKind });
 
   const items = tab === 'products' ? visibleProducts : visiblePackages;
   const kind = tab === 'products' ? 'product' : 'package';
+  const pageAverage = publicReviews.length
+    ? publicReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / publicReviews.length
+    : 0;
 
   return (
     <div className="page-wrap">
@@ -442,14 +573,14 @@ export default function Products({ products: incoming = [], packages = DEFAULT_P
       <PageIntro
         eyebrow="SOLAR SHOP"
         title="เลือกอุปกรณ์ที่ใช่"
-        description="อุปกรณ์โซลาร์เซลล์คุณภาพ พร้อมคำแนะนำจากผู้เชี่ยวชาญ"
+        description="อุปกรณ์โซลาร์เซลล์คุณภาพ พร้อมแพ็กเกจติดตั้งและคำแนะนำจากผู้เชี่ยวชาญ"
       >
         <div className="search-field">
           <Search size={18} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหาสินค้าที่คุณสนใจ..."
+            placeholder="ค้นหาสินค้าหรือแพ็กเกจที่คุณสนใจ..."
           />
         </div>
       </PageIntro>
@@ -459,7 +590,7 @@ export default function Products({ products: incoming = [], packages = DEFAULT_P
           สินค้าทั้งหมด <span>{list.length}</span>
         </button>
         <button type="button" role="tab" aria-selected={tab === 'packages'} className={tab === 'packages' ? 'on' : ''} onClick={() => setTab('packages')}>
-          <Zap size={16} /> แพ็กเกจติดตั้ง <span>{packages.length}</span>
+          <Zap size={16} /> แพ็กเกจติดตั้ง <span>{packageList.length}</span>
         </button>
       </div>
 
@@ -477,22 +608,73 @@ export default function Products({ products: incoming = [], packages = DEFAULT_P
       {items.length ? (
         <div className="sx-grid">
           {items.map((item) => (
-            <ItemCard key={item.id} item={item} kind={kind} onView={open(kind)} onAdd={handleAdd} />
+            <ItemCard
+              key={item.id}
+              item={item}
+              kind={kind}
+              itemReviews={matchReviewsForItem(publicReviews, item, kind)}
+              onView={open(kind)}
+              onAdd={handleAdd}
+            />
           ))}
         </div>
       ) : (
         <div className="empty-state">
           <Search size={28} />
-          <h3>{(tab === 'products' ? list.length : packages.length) ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการในระบบ'}</h3>
-          <p>{(tab === 'products' ? list.length : packages.length) ? 'ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น' : 'โปรดกลับมาเยี่ยมชมอีกครั้งในภายหลัง'}</p>
+          <h3>{(tab === 'products' ? list.length : packageList.length) ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการในระบบ'}</h3>
+          <p>{(tab === 'products' ? list.length : packageList.length) ? 'ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น' : 'โปรดกลับมาเยี่ยมชมอีกครั้งในภายหลัง'}</p>
         </div>
       )}
+
+      <section className="sx-page-reviews" aria-label="รีวิวจากผู้ใช้จริง">
+        <div className="sx-page-reviews-head">
+          <div>
+            <div className="eyebrow">CUSTOMER REVIEWS</div>
+            <h2>รีวิวจากผู้ใช้จริง</h2>
+            <p>ความคิดเห็นจากลูกค้าที่สั่งซื้อสินค้าและใช้บริการติดตั้งจริง</p>
+          </div>
+          {publicReviews.length > 0 && (
+            <div className="sx-review-summary">
+              <strong>{pageAverage.toFixed(1)}</strong>
+              <span aria-label={`${pageAverage.toFixed(1)} จาก 5 ดาว`}>
+                {'★'.repeat(Math.round(pageAverage))}{'☆'.repeat(5 - Math.round(pageAverage))}
+              </span>
+              <small>จาก {publicReviews.length} รีวิว</small>
+            </div>
+          )}
+        </div>
+        {reviewsLoading && <p className="sx-reviews-message" role="status">กำลังโหลดรีวิวจากผู้ใช้งาน…</p>}
+        {!reviewsLoading && reviewsError && <p className="sx-reviews-message" role="alert">{reviewsError}</p>}
+        {!reviewsLoading && !reviewsError && publicReviews.length === 0 && (
+          <p className="sx-reviews-message">ยังไม่มีรีวิวจากผู้ใช้ที่เผยแพร่</p>
+        )}
+        {!reviewsLoading && !reviewsError && publicReviews.length > 0 && (
+          <div className="sx-page-reviews-grid">
+            {publicReviews.map((review) => (
+              <article className="sx-review-card" key={review.id}>
+                <div className="sx-review-meta">
+                  <div>
+                    <strong>{review.customer_name || 'ผู้ใช้งานจริง'}</strong>
+                    {review.target_label && <div className="sx-review-target">{review.target_label}</div>}
+                  </div>
+                  <time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString('th-TH')}</time>
+                </div>
+                <div className="sx-review-stars" aria-label={`${review.rating} จาก 5 ดาว`}>
+                  {'★'.repeat(Number(review.rating))}{'☆'.repeat(5 - Number(review.rating))}
+                </div>
+                <p>{review.comment}</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       {selected && (
         <DetailModal
           key={selected.item.id}
           item={selected.item}
           kind={selected.kind}
+          publicReviews={publicReviews}
           onClose={() => setSelected(null)}
           onAdd={handleAdd}
         />

@@ -28,11 +28,22 @@ export async function getMyQuotes() {
   const user = await getUser();
   const { data, error } = await supabase
     .from('quotations')
-    .select('*,quotation_items(id,description,quantity,unit_price,line_total)')
+    .select('*,quotation_items(*)')
     .eq('customer_id', user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
+}
+
+export async function getQuotationByOrderId(orderId) {
+  if (!supabase || !orderId) return null;
+  const { data, error } = await supabase
+    .from('quotations')
+    .select('id,quote_number,status,valid_until,net_total,total')
+    .eq('order_id', orderId)
+    .maybeSingle();
+  if (error) return null;
+  return data;
 }
 
 export async function respondToQuote(quoteId, accepted) {

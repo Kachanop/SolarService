@@ -3,6 +3,7 @@ import { ArrowRight, CalendarDays, Check, Printer, ShieldCheck, ShoppingBag, Wre
 import { Money, PageIntro } from '../components/Shared.jsx';
 import { supabase } from '../lib/supabase.js';
 import { createPromptPayQr, getPromptPayPaymentStatus } from '../services/paymentService.js';
+import { getQuotationByOrderId } from '../services/customerService.js';
 import { searchAddressByProvince } from 'thai-address-database';
 // ใช้แบบ namespace เพื่อไม่ให้แอปพังถ้าชื่อฟังก์ชันใน bookingService ไม่ตรง (ดูหมายเหตุใน createInstallBooking)
 import * as bookingService from '../services/bookingService.js';
@@ -147,7 +148,7 @@ function getTodayDateValue() {
 
 export function Cart({ cart, setCart, navigate }) {
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  return <div className="page-wrap"><PageIntro eyebrow="YOUR CART" title="ตะกร้าสินค้า" description="ตรวจสอบรายการสินค้าก่อนดำเนินการสั่งซื้อ" /><div className="cart-layout"><div className="cart-items">{cart.length ? cart.map((item) => <article className="cart-item" key={item.id}><span className={`cart-product-icon ${item.tone}`}>{item.icon}</span><div className="cart-item-info"><small>{item.category}</small><h3>{item.name}</h3><strong><Money value={item.price} /></strong></div><div className="quantity-control"><button aria-label="ลดจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id ? { ...current, quantity: Math.max(1, current.quantity - 1) } : current))}>−</button><span>{item.quantity}</span><button aria-label="เพิ่มจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id ? { ...current, quantity: current.quantity + 1 } : current))}>+</button></div><button className="remove-item" aria-label="ลบสินค้า" onClick={() => setCart((items) => items.filter((current) => current.id !== item.id))}><X size={17} /></button></article>) : <div className="empty-state"><ShoppingBag size={30} /><h3>ยังไม่มีสินค้าในตะกร้า</h3><p>เลือกชมอุปกรณ์โซลาร์เซลล์ที่เหมาะกับบ้านคุณ</p><a className="button button-green" href="#/products">เลือกซื้อสินค้า <ArrowRight size={16} /></a></div>}</div>{cart.length > 0 && <aside className="summary-card"><h3>สรุปคำสั่งซื้อ</h3><div><span>ยอดรวมสินค้า</span><strong><Money value={subtotal} /></strong></div><div><span>ค่าจัดส่ง</span><strong>คำนวณภายหลัง</strong></div><hr /><div className="summary-total"><span>ยอดรวม</span><strong><Money value={subtotal} /></strong></div><button className="button button-green" onClick={() => navigate('/checkout')}>ดำเนินการสั่งซื้อ <ArrowRight size={16} /></button><p><ShieldCheck size={14} /> ชำระเงินอย่างปลอดภัย</p></aside>}</div></div>;
+  return <div className="page-wrap"><PageIntro eyebrow="YOUR CART" title="ตะกร้าสินค้า" description="ตรวจสอบรายการสินค้าและแพ็กเกจก่อนดำเนินการสั่งซื้อ" /><div className="cart-layout"><div className="cart-items">{cart.length ? cart.map((item) => <article className="cart-item" key={`${item.itemType || 'product'}-${item.id}`}><span className={`cart-product-icon ${item.tone || 'green'}`}>{item.icon || '⚡'}</span><div className="cart-item-info"><small>{item.category || (item.itemType === 'package' ? 'แพ็กเกจติดตั้ง' : 'สินค้า')}</small><h3>{item.name}</h3><strong><Money value={item.price} /></strong></div><div className="quantity-control"><button aria-label="ลดจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product') ? { ...current, quantity: Math.max(1, current.quantity - 1) } : current))}>−</button><span>{item.quantity}</span><button aria-label="เพิ่มจำนวน" onClick={() => setCart((items) => items.map((current) => current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product') ? { ...current, quantity: current.quantity + 1 } : current))}>+</button></div><button className="remove-item" aria-label="ลบสินค้า" onClick={() => setCart((items) => items.filter((current) => !(current.id === item.id && (current.itemType || 'product') === (item.itemType || 'product'))))}><X size={17} /></button></article>) : <div className="empty-state"><ShoppingBag size={30} /><h3>ยังไม่มีสินค้าในตะกร้า</h3><p>เลือกชมอุปกรณ์โซลาร์เซลล์และแพ็กเกจที่เหมาะกับบ้านคุณ</p><a className="button button-green" href="#/products">เลือกซื้อสินค้า <ArrowRight size={16} /></a></div>}</div>{cart.length > 0 && <aside className="summary-card"><h3>สรุปคำสั่งซื้อ</h3><div><span>ยอดรวมสินค้า</span><strong><Money value={subtotal} /></strong></div><div><span>ค่าจัดส่ง</span><strong>คำนวณภายหลัง</strong></div><hr /><div className="summary-total"><span>ยอดรวม</span><strong><Money value={subtotal} /></strong></div><button className="button button-green" onClick={() => navigate('/checkout')}>ดำเนินการสั่งซื้อ <ArrowRight size={16} /></button><p><ShieldCheck size={14} /> ชำระเงินอย่างปลอดภัย</p></aside>}</div></div>;
 }
 
 export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
@@ -162,6 +163,8 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     notes: '',
   });
   const [orderId, setOrderId] = useState('');
+  const [linkedQuote, setLinkedQuote] = useState(null);
+  const [paidSummary, setPaidSummary] = useState(null);
   const [qrPayment, setQrPayment] = useState(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
   const [paymentMessage, setPaymentMessage] = useState('');
@@ -221,18 +224,13 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
 
   // สร้างการจองช่างหลังชำระเงินสำเร็จ และผูกกับคำสั่งซื้อ
   async function createInstallBooking(id) {
-    /* หมายเหตุ: ชื่อฟิลด์ด้านล่างเป็นการคาดเดา ให้ปรับให้ตรงกับ createBooking ใน services/bookingService.js
-       และถ้าตาราง bookings มีคอลัมน์ order_id จะผูกกับคำสั่งซื้อได้ทันที */
     if (typeof bookingService.createBooking !== 'function') throw new Error('ไม่พบฟังก์ชันสร้างการจอง (createBooking)');
     return bookingService.createBooking({
-      order_id: id,
-      slot_start: selectedSlot.start,
-      preferred_at: selectedSlot.start,
-      name: shipping.name,
-      phone: shipping.phone,
+      serviceType: 'installation',
+      preferredAt: selectedSlot.start,
+      phone: shipping.phone.replace(/\D/g, '').slice(0, 10),
       address: shippingAddress,
       province: installProvince,
-      service_type: 'installation',
       notes: `ติดตั้งอุปกรณ์จากคำสั่งซื้อ ${id}`,
     });
   }
@@ -240,9 +238,29 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   async function markPaid(id) {
     if (paidHandledRef.current) return;
     paidHandledRef.current = true;
+    const summaryItems = (qrPayment?.orderItems || []).length
+      ? qrPayment.orderItems
+      : cart.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        lineTotal: item.price * item.quantity,
+      }));
+    setPaidSummary({
+      orderId: id,
+      createdAt: new Date().toISOString(),
+      items: summaryItems,
+      amountInBaht: qrPayment?.amountInBaht ?? subtotal,
+    });
     setPaid(true);
     setCart([]);
     setToast('ชำระเงินเรียบร้อยแล้ว');
+
+    try {
+      const quote = await getQuotationByOrderId(id);
+      if (quote) setLinkedQuote(quote);
+    } catch {
+      // ignore if quotation query fails
+    }
 
     if (wantsTechnician && selectedSlot) {
       try {
@@ -353,10 +371,19 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
           p_shipping_name: shipping.name,
           p_shipping_phone: shipping.phone,
           p_shipping_address: shippingAddress,
-          p_items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
+          p_items: cart.map((item) => (
+            item.itemType === 'package'
+              ? { package_id: item.id, quantity: item.quantity }
+              : { product_id: item.id, quantity: item.quantity }
+          )),
           p_notes: `${shipping.notes || ''}${installNote}`.trim(),
         });
-        if (error) throw error;
+        if (error) {
+          if (/product_id/i.test(error.message || '') && cart.some((item) => item.itemType === 'package')) {
+            throw new Error('กรุณารัน migration 20261127060000_package_checkout_and_10_baht_test.sql ใน Supabase SQL Editor ก่อนสั่งซื้อแพ็กเกจ');
+          }
+          throw error;
+        }
         if (typeof data !== 'string') throw new Error('ไม่สามารถสร้างคำสั่งซื้อได้');
         activeOrderId = data;
         setOrderId(activeOrderId);
@@ -384,10 +411,16 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
   }
 
   if (paid) {
+    const summary = paidSummary || {
+      orderId,
+      createdAt: new Date().toISOString(),
+      items: qrPayment?.orderItems || [],
+      amountInBaht: qrPayment?.amountInBaht ?? subtotal,
+    };
     return <div className="page-wrap">
       <style>{CSS}</style>
-      <PageIntro eyebrow="PAYMENT COMPLETE" title="ชำระเงินเรียบร้อย" description="ระบบได้รับการยืนยันการชำระเงินผ่าน PromptPay แล้ว" />
-      <div className="success-panel">
+      <PageIntro eyebrow="PAYMENT COMPLETE" title="ชำระเงินเรียบร้อย" description="ระบบได้รับการยืนยันการชำระเงินผ่าน PromptPay และออกใบเสนอราคาเรียบร้อยแล้ว" />
+      <div className="success-panel no-print">
         <span><Check size={28} /></span>
         <h2>ขอบคุณสำหรับคำสั่งซื้อ</h2>
         <p>หมายเลขคำสั่งซื้อ {orderId}</p>
@@ -398,8 +431,55 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
         {bookingInfo?.status === 'failed' && (
           <p className="sx-note sx-note-warn">ชำระเงินสำเร็จ แต่นัดช่างยังไม่สำเร็จ ({bookingInfo.message}) กรุณาติดต่อเจ้าหน้าที่หรือจองช่างใหม่ที่หน้า “การจองของฉัน”</p>
         )}
-        <button className="button button-green" onClick={() => navigate('/tracking')}>ติดตามคำสั่งซื้อ <ArrowRight size={16} /></button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button className="button button-green" type="button" onClick={() => navigate('/tracking')}>ติดตามคำสั่งซื้อ <ArrowRight size={16} /></button>
+          {linkedQuote && (
+            <button className="button button-outline" type="button" onClick={() => navigate('/quotes')}>ดูใบเสนอราคาของฉัน</button>
+          )}
+        </div>
       </div>
+
+      <section className="promptpay-qr-panel payment-quotation" style={{ marginTop: '24px' }}>
+        <div className="payment-quotation-document">
+          <header className="payment-quotation-header">
+            <div>
+              <span className="payment-quotation-brand">SOLARSERVICE</span>
+              <h2>ใบเสนอราคา (QUOTATION)</h2>
+              <p>เอกสารยืนยันรายการหลังชำระเงินสำเร็จ</p>
+            </div>
+            <button className="button button-outline no-print" type="button" onClick={printPaymentQuotation}>
+              <Printer size={15} /> พิมพ์ / บันทึก PDF
+            </button>
+          </header>
+
+          <div className="payment-quotation-meta">
+            <div><small>เลขที่ใบเสนอราคา</small><strong>{linkedQuote?.quote_number || `QT-${String(orderId).slice(0, 8).toUpperCase()}`}</strong></div>
+            <div><small>เลขที่คำสั่งซื้อ</small><strong>{orderId}</strong></div>
+            <div><small>วันที่ออกเอกสาร</small><strong>{new Date(summary.createdAt).toLocaleDateString('th-TH', { dateStyle: 'long' })}</strong></div>
+          </div>
+
+          <div className="payment-quotation-customer">
+            <strong>ข้อมูลผู้สั่งซื้อ</strong>
+            <span>{shipping.name}</span>
+            <span>{shipping.phone}</span>
+            <span>{shippingAddress}</span>
+          </div>
+
+          <div className="payment-quotation-table-wrap">
+            <table className="payment-quotation-table">
+              <thead><tr><th>รายการ</th><th>จำนวน</th><th>รวม</th></tr></thead>
+              <tbody>
+                {(summary.items || []).map((item, index) => (
+                  <tr key={`${item.name}-${index}`}>
+                    <td>{item.name}</td><td>{item.quantity}</td><td><Money value={item.lineTotal} /></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr><th colSpan="2">ยอดสุทธิที่ชำระแล้ว</th><th><Money value={summary.amountInBaht} /></th></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
     </div>;
   }
 
@@ -420,17 +500,14 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
           <header className="payment-quotation-header">
             <div>
               <span className="payment-quotation-brand">SOLARSERVICE</span>
-              <h2>ใบเสนอราคาและชำระเงิน</h2>
-              <p>สรุปรายการสินค้าและบริการ</p>
+              <h2>ชำระเงินผ่าน PromptPay</h2>
+              <p>สรุปรายการคำสั่งซื้อ (ใบเสนอราคาจะออกให้หลังชำระเงินสำเร็จ)</p>
             </div>
-            <button className="button button-outline no-print" type="button" onClick={printPaymentQuotation}>
-              <Printer size={15} /> พิมพ์ / บันทึก PDF
-            </button>
           </header>
 
           <div className="payment-quotation-meta">
             <div><small>เลขที่อ้างอิงคำสั่งซื้อ</small><strong>{orderId}</strong></div>
-            <div><small>วันที่ออกเอกสาร</small><strong>{new Date(qrPayment.createdAt || Date.now()).toLocaleDateString('th-TH', { dateStyle: 'long' })}</strong></div>
+            <div><small>วันที่ทำรายการ</small><strong>{new Date(qrPayment.createdAt || Date.now()).toLocaleDateString('th-TH', { dateStyle: 'long' })}</strong></div>
           </div>
 
           <div className="payment-quotation-customer">

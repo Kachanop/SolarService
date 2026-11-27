@@ -63,11 +63,11 @@ const TRACKING_FILTER_LABELS = {
   completed: 'เสร็จสิ้น',
 };
 
-export default function CustomerWorkspace({ route, authUser, setToast }) {
+export default function CustomerWorkspace({ route, authUser, navigate, setToast }) {
   if (route === '/orders') return <CustomerOrders authUser={authUser} setToast={setToast} />;
   if (route === '/quotes') return <CustomerQuotes setToast={setToast} />;
   if (route === '/tracking') return <CustomerTracking setToast={setToast} />;
-  if (route === '/reviews') return <CustomerReviews setToast={setToast} />;
+  if (route === '/reviews') return <CustomerReviews navigate={navigate} setToast={setToast} />;
   return <CustomerAfterSales setToast={setToast} />;
 }
 
@@ -132,6 +132,7 @@ function CustomerQuotes({ setToast }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const [previewQuote, setPreviewQuote] = useState(null);
   useEffect(() => {
     let active = true;
     getMyQuotes().then((data) => { if (active) { setQuotes(data); setError(''); } }).catch((err) => { if (active) setError(err instanceof Error ? err.message : 'โหลดใบเสนอราคาไม่สำเร็จ'); }).finally(() => { if (active) setLoading(false); });
@@ -141,14 +142,75 @@ function CustomerQuotes({ setToast }) {
     try { await respondToQuote(quote.id, accepted); setToast(accepted ? 'อนุมัติใบเสนอราคาเรียบร้อยแล้ว' : 'ปฏิเสธใบเสนอราคาเรียบร้อยแล้ว'); setRefresh((value) => value + 1); }
     catch (err) { setToast(err instanceof Error ? err.message : 'บันทึกผลใบเสนอราคาไม่สำเร็จ'); }
   }
+  function printQuoteSheet() {
+    document.body.classList.add('print-payment-quotation');
+    window.addEventListener('afterprint', () => document.body.classList.remove('print-payment-quotation'), { once: true });
+    window.print();
+    window.setTimeout(() => document.body.classList.remove('print-payment-quotation'), 1000);
+  }
   return <div className="workspace-wrap"><div className="workspace-heading"><div><div className="eyebrow">MY QUOTATIONS</div><h1>ใบเสนอราคาของฉัน</h1><p>รายละเอียดและสถานะดึงจากฐานข้อมูล ใบเสนอราคาที่ส่งอนุมัติเท่านั้นที่สามารถตอบรับได้</p></div></div>
     {error && <ErrorBox error={error} />} {loading && <Loading />}
     {!loading && !quotes.length && <div className="technician-empty"><FileText size={26} /><strong>ยังไม่มีใบเสนอราคา</strong></div>}
     <div className="bk-history-list">{quotes.map((quote) => <article className="bk-history-card" key={quote.id}>
       <div className="bk-history-heading"><strong>{quote.quote_number}</strong><span className={`status-pill ${quote.status === 'approved' ? 'green' : quote.status === 'rejected' ? 'gray' : 'yellow'}`}>{quote.status}</span></div>
-      <div className="bk-history-details"><span><CalendarDays size={15} /> ครบกำหนด: {quote.valid_until || '—'}</span><span><Package size={15} /> รวม {money(quote.net_total ?? quote.total)}</span>{quote.notes && <p>{quote.notes}</p>}</div>
-      {quote.status === 'sent' && <div className="bk-history-actions"><button className="button button-green small-button" type="button" onClick={() => respond(quote, true)}><Check size={14} />อนุมัติราคา</button><button className="button button-outline small-button" type="button" onClick={() => respond(quote, false)}>ปฏิเสธราคา</button></div>}
+      <div className="bk-history-details">
+        <span><CalendarDays size={15} /> ครบกำหนด: {quote.valid_until || '—'}</span>
+        <span><Package size={15} /> รวม {money(quote.net_total ?? quote.total)}</span>
+        {(quote.quotation_items || []).map((item) => (
+          <span key={item.id}>{item.description} × {item.quantity} ({money(item.line_total ?? item.unit_price * item.quantity)})</span>
+        ))}
+        {quote.notes && <p>{quote.notes}</p>}
+      </div>
+      <div className="bk-history-actions">
+        <button className="button button-outline small-button" type="button" onClick={() => setPreviewQuote(quote)}><FileText size={14} /> ดู / พิมพ์ใบเสนอราคา</button>
+        {quote.status === 'sent' && <>
+          <button className="button button-green small-button" type="button" onClick={() => respond(quote, true)}><Check size={14} />อนุมัติราคา</button>
+          <button className="button button-outline small-button" type="button" onClick={() => respond(quote, false)}>ปฏิเสธราคา</button>
+        </>}
+      </div>
     </article>)}</div>
+    {previewQuote && <div
+      className="account-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`ใบเสนอราคา ${previewQuote.quote_number}`}
+      onClick={(event) => { if (event.target === event.currentTarget) setPreviewQuote(null); }}
+    >
+      <div className="payment-quotation-document" style={{ maxWidth: '680px', width: '100%', background: '#fff', padding: '24px', borderRadius: '16px', maxHeight: '90vh', overflow: 'auto' }}>
+        <header className="payment-quotation-header">
+          <div>
+            <span className="payment-quotation-brand">SOLARSERVICE</span>
+            <h2>ใบเสนอราคา (QUOTATION)</h2>
+            <p>สรุปรายการแพ็กเกจและอุปกรณ์โซลาร์เซลล์</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }} className="no-print">
+            <button className="button button-outline small-button" type="button" onClick={printQuoteSheet}>พิมพ์ / บันทึก PDF</button>
+            <button className="button button-dark small-button" type="button" onClick={() => setPreviewQuote(null)}>ปิด</button>
+          </div>
+        </header>
+        <div className="payment-quotation-meta">
+          <div><small>เลขที่ใบเสนอราคา</small><strong>{previewQuote.quote_number}</strong></div>
+          <div><small>วันที่ออกเอกสาร</small><strong>{dateTime(previewQuote.created_at)}</strong></div>
+          <div><small>ใช้ได้ถึง</small><strong>{previewQuote.valid_until || '—'}</strong></div>
+        </div>
+        <div className="payment-quotation-table-wrap">
+          <table className="payment-quotation-table">
+            <thead><tr><th>รายการ</th><th>จำนวน</th><th>รวม</th></tr></thead>
+            <tbody>
+              {(previewQuote.quotation_items?.length ? previewQuote.quotation_items : [{ id: 'default', description: previewQuote.notes || 'แพ็กเกจติดตั้งโซลาร์เซลล์', quantity: 1, line_total: previewQuote.total }]).map((item) => (
+                <tr key={item.id}>
+                  <td>{item.description}</td>
+                  <td>{item.quantity}</td>
+                  <td>{money(item.line_total ?? item.unit_price * item.quantity)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot><tr><th colSpan="2">ยอดสุทธิ</th><th>{money(previewQuote.net_total ?? previewQuote.total)}</th></tr></tfoot>
+          </table>
+        </div>
+        {previewQuote.notes && <p className="payment-quotation-service">{previewQuote.notes}</p>}
+      </div>
+    </div>}
   </div>;
 }
 
@@ -241,7 +303,7 @@ function CustomerTracking({ setToast }) {
   </div>;
 }
 
-function CustomerReviews({ setToast }) {
+function CustomerReviews({ navigate, setToast }) {
   const [reviewable, setReviewable] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -406,6 +468,13 @@ function CustomerReviews({ setToast }) {
           <p>{review.comment}</p>
           <span>{dateTime(review.created_at)}</span>
         </div>
+        {review.is_published && navigate && (
+          <div className="bk-history-actions">
+            <button type="button" className="button button-outline small-button" onClick={() => navigate('/products')}>
+              ดูสินค้าและรีวิวบนหน้าร้าน <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
       </article>;
     })}</div>}
   </div>;

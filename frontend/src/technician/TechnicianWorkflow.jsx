@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Calendar, Check, ClipboardList, ImagePlus, MapPin, Phone, Save, Send, User, Wrench, X } from 'lucide-react';
-import { getInstallationImages, getInstallationTechnicians, getMyWorkflowAssignments, getSurveyImageUrl, saveInstallationProgress, saveSurveyDraft, submitSurvey, uploadInstallationImages, uploadSurveyImages, updateAssignment } from '../services/technicianWorkflowService.js';
+import { getInstallationImages, getMyWorkflowAssignments, getSurveyImageUrl, saveInstallationProgress, saveSurveyDraft, submitSurvey, uploadInstallationImages, uploadSurveyImages, updateAssignment } from '../services/technicianWorkflowService.js';
 import './technicianJob.css';
 
 const emptyForm = (booking, survey) => ({
@@ -26,8 +26,6 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
   const [error, setError] = useState('');
   const [files, setFiles] = useState([]);
   const [photos, setPhotos] = useState([]);
-  const [installationTechnicians, setInstallationTechnicians] = useState([]);
-  const [installationTechnicianId, setInstallationTechnicianId] = useState('');
   const [form, setForm] = useState(emptyForm(null, null));
   const [installNotes, setInstallNotes] = useState('');
   const [installStatus, setInstallStatus] = useState('in_progress');
@@ -43,12 +41,6 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
     finally { setLoading(false); }
   }
   useEffect(() => { reload(); }, [authUser?.id]);
-  useEffect(() => {
-    if (route !== '/survey') return undefined;
-    let active = true;
-    getInstallationTechnicians().then((data) => { if (active) setInstallationTechnicians(data); }).catch((reason) => { if (active) setError(reason.message || 'โหลดรายชื่อช่างติดตั้งไม่สำเร็จ'); });
-    return () => { active = false; };
-  }, [route, authUser?.id]);
 
   const surveyAssignments = assignments.filter((a) => a.assignment_type === 'survey');
   const selected = surveyAssignments.find((a) => a.booking_id === selectedId) || surveyAssignments[0];
@@ -82,7 +74,7 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
     if (required.some((key) => !String(form[key] ?? '').trim())) { setError('กรุณากรอกข้อมูลสำรวจที่จำเป็นให้ครบก่อนส่งรายงาน'); return; }
     if (!/^0\d{9}$/.test(form.contact_phone)) { setError('กรุณากรอกเบอร์โทรศัพท์ 10 หลัก โดยขึ้นต้นด้วย 0'); return; }
     setSaving(true); setError('');
-    try { const survey = await saveSurveyDraft(selected.booking, authUser, form); if (files.length) await uploadSurveyImages(selected.booking, survey.id, authUser, files); await submitSurvey(selected.booking_id, installationTechnicianId); setFiles([]); setToast(installationTechnicianId ? 'ส่งรายงานและมอบหมายช่างติดตั้งแล้ว' : 'ส่งรายงานแล้ว รอ Admin มอบหมายช่างติดตั้ง'); navigate('/technician'); }
+    try { const survey = await saveSurveyDraft(selected.booking, authUser, form); if (files.length) await uploadSurveyImages(selected.booking, survey.id, authUser, files); await submitSurvey(selected.booking_id); setFiles([]); setToast('ส่งรายงานสำรวจสำเร็จ รอ Admin มอบหมายช่างติดตั้ง'); navigate('/technician'); }
     catch (reason) { setError(reason.message || 'ส่งรายงานไม่สำเร็จ'); }
     finally { setSaving(false); }
   }
@@ -188,16 +180,9 @@ export default function TechnicianWorkflow({ authUser, route, setToast, navigate
 
         {!surveyLocked && <section className="job-section">
           <h3>ส่งรายงาน</h3>
-          <div className="field">
-            <label className="field-label" htmlFor="install-tech">มอบหมายช่างติดตั้งตอนนี้ (ไม่บังคับ)</label>
-            <select id="install-tech" value={installationTechnicianId} onChange={(e) => setInstallationTechnicianId(e.target.value)}>
-              <option value="">ให้ Admin มอบหมายภายหลัง</option>
-              {installationTechnicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.full_name}</option>)}
-            </select>
-          </div>
           <div className="survey-actions">
             <button type="button" className="button button-outline" disabled={saving} onClick={() => saveDraft()}><Save size={15}/>บันทึกร่าง</button>
-            <button className="button button-green" disabled={saving || selected?.status !== 'in_progress'}><Send size={15}/>{saving ? 'กำลังบันทึก…' : 'ส่งรายงานและส่งต่องาน'}</button>
+            <button className="button button-green" disabled={saving || selected?.status !== 'in_progress'}><Send size={15}/>{saving ? 'กำลังบันทึก…' : 'ส่งรายงานสำรวจสำเร็จ'}</button>
           </div>
           {selected?.status !== 'in_progress' && <p className="hint">รับงานและเริ่มสำรวจก่อนส่งรายงาน</p>}
         </section>}
