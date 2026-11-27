@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check, LogIn, Menu, ShoppingCart, Sun, User, X } from 'lucide-react';
 import { supabase, supabaseConfigError } from './lib/supabase.js';
 import { products, packages as fallbackPackages } from './data/catalog.js';
-import { adminRoutes, pageTitles, roleMenus, routeFromHash, technicianRoutes } from './lib/routes.js';
+import { adminRoutes, pageTitles, roleMenus, routeFromHash, staffRoutes, technicianRoutes } from './lib/routes.js';
 import Home from './pages/Home.jsx';
 import Products from './pages/Products.jsx';
 import Packages from './pages/Packages.jsx';
@@ -190,6 +190,7 @@ function App() {
     if (!authUser || authLoading) return;
     const landingRoute = role === 'Admin' ? '/admin' : role === 'Technician' ? '/technician' : '/customer';
     if ((adminRoutes.has(route) && role !== 'Admin')
+      || (staffRoutes.has(route) && !['Staff', 'Admin'].includes(role))
       || (technicianRoutes.has(route) && !['Technician', 'Admin'].includes(role))) {
       navigate(landingRoute);
       return;
@@ -216,10 +217,13 @@ function App() {
     '/manage-technicians',
     '/installations', '/warranties', '/maintenance', '/tickets',
     '/manage-reviews', '/manage-cms', '/reports',
+    ...staffRoutes,
   ]);
   const screen = !authUser && protectedRoutes.has(route)
     ? '/login'
     : adminRoutes.has(route) && role !== 'Admin'
+      ? '/customer'
+      : staffRoutes.has(route) && !['Staff', 'Admin'].includes(role)
       ? '/customer'
       : technicianRoutes.has(route) && !['Technician', 'Admin'].includes(role)
         ? '/customer'
@@ -286,7 +290,8 @@ function App() {
   }
 
   const isWorkspace = Boolean(authUser);
-  const isAdminRoute = adminRoutes.has(route) || (role === 'Admin' && ['/account', '/profile'].includes(route));
+  const isAdminRoute = adminRoutes.has(route)
+    || (role === 'Admin' && (staffRoutes.has(route) || ['/account', '/profile'].includes(route)));
   const isTechnicianRoute = role === 'Technician' || technicianRoutes.has(route);
   const isTechnicianPortalPage = technicianRoutes.has(route);
   const activeMenu = roleMenus[role] || roleMenus.Guest;

@@ -72,6 +72,13 @@ const TICKET_STATUS_LABELS = {
   closed: 'ปิดงาน',
 };
 
+function getInstallmentStatusLabel(installment, today) {
+  if (installment.status === 'paid') return 'ชำระแล้ว';
+  if (installment.due_date < today) return 'เกินกำหนด';
+  if (installment.due_date === today) return 'ครบกำหนดวันนี้';
+  return 'รอชำระ';
+}
+
 export default function CustomerWorkspace({ route, authUser, navigate, setToast }) {
   if (route === '/orders') return <CustomerOrders authUser={authUser} setToast={setToast} />;
   if (route === '/quotes') return <CustomerQuotes setToast={setToast} />;
@@ -135,9 +142,10 @@ function CustomerOrders({ authUser, setToast }) {
         {(() => {
           const orderedInstallments = [...order.order_installments].sort((a, b) => a.installment_number - b.installment_number);
           const nextPendingId = orderedInstallments.find((item) => item.status === 'pending')?.id;
+          const today = new Date().toISOString().slice(0, 10);
           return orderedInstallments.map((installment) => (
             <div key={installment.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-              <span>งวด {installment.installment_number} · ครบกำหนด {installment.due_date} · {money(installment.amount)} · {installment.status === 'paid' ? 'ชำระแล้ว' : 'รอชำระ'}</span>
+              <span>งวด {installment.installment_number} · ครบกำหนด {installment.due_date} · {money(installment.amount)} · {getInstallmentStatusLabel(installment, today)}</span>
               {installment.status === 'pending' && installment.id === nextPendingId && (
                 <InstallmentPayment order={order} installment={installment} onPaid={() => setRefresh((value) => value + 1)} />
               )}

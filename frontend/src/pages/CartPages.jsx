@@ -822,7 +822,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
               <span><strong>ผ่อน 3 งวด ไม่มีดอกเบี้ย</strong><small>{subtotal >= 30 ? `แบ่งชำระ 3 ครั้ง งวดละประมาณ ${(subtotal / 3).toLocaleString('th-TH')} บาท` : 'ยอดรวมต้องไม่น้อยกว่า 30 บาท'}</small></span>
             </label>
           </div>
-          {paymentPlan === 'three_installments' && <p className="sx-note">งวดแรกชำระวันนี้ งวดที่ 2 และ 3 ครบกำหนดอีก 1 และ 2 เดือนตามลำดับ ชำระแต่ละงวดได้จากหน้าคำสั่งซื้อของฉัน</p>}
+          {paymentPlan === 'three_installments' && <p className="sx-note">งวดแรกชำระวันนี้ งวดที่ 2 และ 3 ครบกำหนดอีก 1 และ 2 เดือนตามลำดับ ระบบส่งอีเมลเตือน 3 วันก่อนและวันครบกำหนด ชำระแต่ละงวดผ่าน QR ได้จากหน้าคำสั่งซื้อของฉัน</p>}
         </fieldset>
 
         <fieldset className="sx-install full-width" style={{ border: 0, padding: 0, margin: 0 }} disabled={locked}>

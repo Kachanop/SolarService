@@ -1507,7 +1507,9 @@ export const adminService = {
   async getOrders() {
     if (supabase) {
       try {
-        const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase.from('orders')
+          .select('*,order_installments(id,installment_number,amount,due_date,status,paid_at)')
+          .order('created_at', { ascending: false });
         if (!error && data && data.length > 0) return data;
       } catch (e) {
         console.warn('Supabase orders error:', e);

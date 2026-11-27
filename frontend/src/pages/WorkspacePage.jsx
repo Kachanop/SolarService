@@ -10,6 +10,7 @@ import TechnicianDashboard from '../technician/TechnicianDashboard.jsx';
 import AccountPage from './AccountPage.jsx';
 import TechnicianWorkflow from '../technician/TechnicianWorkflow.jsx';
 import CustomerWorkspace from './customer/CustomerWorkspace.jsx';
+import StaffInstallments from './StaffInstallments.jsx';
 
 export default function WorkspacePage({ route, title, navigate, setToast, authUser, products = [], packages = [], addToCart }) {
   const isTechnician = ['/technician', '/schedule', '/jobs', '/survey-schedule', '/installation-schedule', '/survey', '/work-history', '/job-detail'].includes(route);
@@ -21,6 +22,7 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
   if (adminRoutes.has(route)) {
     return <AdminWorkspace route={route} title={title} navigate={navigate} authUser={authUser} setToast={setToast} />;
   }
+  if (route === '/staff-installments') return <StaffInstallments title={title} />;
   if (route === '/booking-history') {
     return <BookingHistory authUser={authUser} setToast={setToast} />;
   }

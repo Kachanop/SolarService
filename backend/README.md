@@ -21,6 +21,11 @@ Copy `.env.example` to `.env` and set the Supabase URL, Supabase service-role
 key, Stripe secret key, and webhook signing secret. Never expose these server
 secrets in frontend environment variables. The API confirms PromptPay intents
 server-side and returns the Stripe-hosted QR image URL to the React client.
+Installment reminders are scheduled by the Cloudflare Worker every five
+minutes, sent by Resend three days before and on each due date, and retried
+with backoff when delivery fails. Configure `RESEND_API_KEY`, a verified
+`EMAIL_FROM` address, and `FRONTEND_ORIGIN`; apply
+`20261128030000_installment_reminder_workflow.sql` before deploying the Worker.
 Products published in the admin catalog appear in the storefront with their
 admin-managed images. Checkout stores a price/name snapshot on the order; the
 QR response includes those order items and validates that their total matches

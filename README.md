@@ -313,6 +313,7 @@ VITE_API_BASE_URL=/api
 4. เปิด PromptPay ใน Stripe Dashboard และใช้ Stripe CLI ส่ง event `payment_intent.succeeded` ในเครื่องด้วย `stripe listen --forward-to localhost:3001/api/stripe/webhook` จากนั้นนำ signing secret ที่ CLI แสดงไปใส่ใน `STRIPE_WEBHOOK_SECRET`
 5. สำหรับ production ให้ตั้ง webhook ส่ง event `payment_intent.succeeded` ไปที่ `/api/stripe/webhook`
 6. เริ่ม API ด้วย `npm run dev:backend` และเริ่ม frontend อีก terminal ด้วย `npm run dev`
+7. สำหรับอีเมลเตือนผ่อนชำระ production ต้องตั้ง `RESEND_API_KEY`, `EMAIL_FROM` ที่ยืนยันโดเมนแล้ว และ `FRONTEND_ORIGIN` ใน Cloudflare Worker
 
 ### 5. การตั้งค่าฐานข้อมูลใน Supabase
 1. เข้าสู่ **Supabase Dashboard** ของโปรเจกต์
@@ -326,6 +327,8 @@ VITE_API_BASE_URL=/api
 9. รัน `backend/supabase/migrations/20261127020000_public_installation_product_reviews.sql` เพื่อแสดงรีวิวสินค้าที่ผูกกับงานติดตั้งซึ่งเสร็จสมบูรณ์
 10. รัน `backend/supabase/migrations/20261127030000_installation_product_review_targets.sql` เพื่อผูกรีวิวงานติดตั้งกับสินค้าแต่ละชิ้นในใบเสนอราคา และแสดงชื่อ/รูปสินค้าที่ลูกค้ามีสิทธิ์รีวิว
 11. รัน `backend/supabase/migrations/20261127040000_reviews_publish_immediately.sql` เพื่อเผยแพร่รีวิวใหม่ทันที โดยแอดมินยังสามารถซ่อนรีวิวภายหลังได้
+12. รัน `backend/supabase/migrations/20261128000000_customer_sales_workflows.sql` เพื่อเพิ่ม workflow คำสั่งซื้อและตารางผ่อนชำระ
+13. จากนั้นรัน `backend/supabase/migrations/20261128030000_installment_reminder_workflow.sql` เพื่อเปิดสิทธิ์ติดตามงวดสำหรับ Staff และบันทึกสถานะการส่งอีเมลเตือนแบบไม่ซ้ำ
 
 การ commit ไฟล์ migration เข้า Git จะยังไม่เปลี่ยนฐานข้อมูล Supabase โดยอัตโนมัติ ให้รัน SQL แต่ละไฟล์ตามลำดับใน **SQL Editor** ของโปรเจกต์ Supabase ก่อนใช้งาน
 

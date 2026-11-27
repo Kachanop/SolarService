@@ -544,6 +544,140 @@ export async function expirePendingPayments(env = process.env) {
   }
 }
 
+function dateOffset(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export async function sendInstallmentReminders(env = process.env) {
+  const missingEnvironment = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'RESEND_API_KEY', 'EMAIL_FROM']
+    .filter((name) => !env[name]);
+  if (missingEnvironment.length) {
+    throw new Error(`Missing installment reminder environment variables: ${missingEnvironment.join(', ')}`);
+  }
+
+  const supabase = createClient(
+    env.SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const today = new Date().toISOString().slice(0, 10);
+  const reminderDates = [today, dateOffset(today, 3)];
+  const dateFormatter = new Intl.DateTimeFormat('th-TH', {
+    dateStyle: 'long',
+    timeZone: 'Asia/Bangkok',
+  });
+  const sentForUsers = new Map();
+  let sentCount = 0;
+  const pageSize = 500;
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data: installments, error: installmentsError } = await supabase
+      .from('order_installments')
+      .select('id,order_id,installment_number,amount,due_date,orders!inner(order_number,customer_id,payment_plan,status)')
+      .eq('status', 'pending')
+      .in('due_date', reminderDates)
+      .eq('orders.payment_plan', 'three_installments')
+      .neq('orders.status', 'cancelled')
+      .order('due_date', { ascending: true })
+      .order('id', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (installmentsError) throw installmentsError;
+    if (!installments?.length) break;
+
+    for (const installment of installments) {
+      const order = Array.isArray(installment.orders) ? installment.orders[0] : installment.orders;
+      if (!order?.customer_id) continue;
+
+      const reminderType = installment.due_date === today ? 'due_date' : 'three_days_before';
+      const { data: claim, error: claimError } = await supabase.rpc('claim_installment_reminder', {
+        p_installment_id: installment.id,
+        p_reminder_type: reminderType,
+      });
+      if (claimError) throw claimError;
+      const delivery = claim?.[0];
+      if (!delivery) continue;
+
+      try {
+        let recipientEmail = sentForUsers.get(order.customer_id);
+        if (!recipientEmail) {
+          const { data, error } = await supabase.auth.admin.getUserById(order.customer_id);
+          if (error) throw error;
+          recipientEmail = data.user?.email;
+          if (!recipientEmail) throw new Error(`No email address for order ${order.order_number}`);
+          sentForUsers.set(order.customer_id, recipientEmail);
+        }
+
+        const dueDate = dateFormatter.format(new Date(`${installment.due_date}T00:00:00+07:00`));
+        const isDueToday = reminderType === 'due_date';
+        const subject = isDueToday
+          ? `แจ้งเตือนชำระเงินงวดที่ ${installment.installment_number} วันนี้`
+          : `แจ้งเตือน: งวดที่ ${installment.installment_number} ครบกำหนดในอีก 3 วัน`;
+        const orderUrl = env.FRONTEND_ORIGIN
+          ? `${env.FRONTEND_ORIGIN.replace(/\/$/, '')}/#/orders`
+          : '';
+        const text = [
+          `เรียนคุณ${order.shipping_name || 'ลูกค้า'}`,
+          '',
+          isDueToday
+            ? `งวดที่ ${installment.installment_number} จาก 3 ของคำสั่งซื้อ ${order.order_number} ครบกำหนดวันนี้ (${dueDate})`
+            : `งวดที่ ${installment.installment_number} จาก 3 ของคำสั่งซื้อ ${order.order_number} จะครบกำหนดวันที่ ${dueDate}`,
+          `ยอดชำระ ${Number(installment.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+          'กรุณาเข้าสู่ระบบและชำระงวดนี้ผ่าน QR ที่หน้าคำสั่งซื้อของฉัน',
+          orderUrl,
+          '',
+          'อีเมลฉบับนี้เป็นการแจ้งเตือนอัตโนมัติจาก SolarService',
+        ].filter((line) => line !== undefined).join('\n');
+
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+            'Idempotency-Key': delivery.delivery_id,
+          },
+          body: JSON.stringify({
+            from: env.EMAIL_FROM,
+            to: [recipientEmail],
+            subject,
+            text,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.message || `Resend request failed with status ${response.status}`);
+        }
+
+        const { error: updateError } = await supabase
+          .from('installment_reminder_deliveries')
+          .update({ status: 'sent', sent_at: new Date().toISOString(), provider_id: result.id || null })
+          .eq('id', delivery.delivery_id)
+          .eq('status', 'processing');
+        if (updateError) throw updateError;
+        sentCount += 1;
+      } catch (error) {
+        const retryDelaySeconds = Math.min(3600, 60 * (2 ** (delivery.attempt_count - 1)));
+        const { error: updateError } = await supabase
+          .from('installment_reminder_deliveries')
+          .update({
+            status: 'failed',
+            last_error: error instanceof Error ? error.message.slice(0, 1000) : 'Unknown email delivery error',
+            next_attempt_at: new Date(Date.now() + retryDelaySeconds * 1000).toISOString(),
+          })
+          .eq('id', delivery.delivery_id)
+          .eq('status', 'processing');
+        if (updateError) throw updateError;
+        console.error(`Installment reminder failed for order ${order.order_number}:`, error);
+      }
+    }
+
+    if (installments.length < pageSize) break;
+  }
+
+  return sentCount;
+}
+
 // สำหรับรันบน Render
 if (process.env.NODE_ENV !== 'production' || process.env.RENDER || process.env.PORT) {
   const port = process.env.PORT || 3000;

@@ -7,7 +7,7 @@ export const roleMenus = {
     { label: 'ติดตามงาน', path: '/tracking' },
     { label: 'ประกัน & ซ่อม', path: '/warranty' },
   ],
-  Staff: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'บัญชีของฉัน', path: '/account' }],
+  Staff: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'ติดตามผ่อนชำระ', path: '/staff-installments' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'บัญชีของฉัน', path: '/account' }],
   Technician: [
     { label: 'ภาพรวม', path: '/technician' },
     { label: 'ตารางนัดสำรวจ', path: '/survey-schedule' },
@@ -35,12 +35,14 @@ export const adminRoutes = new Set([
   '/manage-reviews', '/manage-cms', '/reports',
 ]);
 export const technicianRoutes = new Set(['/technician', '/schedule', '/jobs', '/survey-schedule', '/installation-schedule', '/survey', '/work-history', '/job-detail']);
+export const staffRoutes = new Set(['/staff-installments']);
 
 export const pageTitles = {
   '/customer': 'ภาพรวมของฉัน', '/bookings': 'การจองของฉัน', '/quotes': 'ใบเสนอราคา',
   '/booking-history': 'ประวัติการจอง', '/orders': 'คำสั่งซื้อของฉัน',
   '/tracking': 'ติดตามงานติดตั้ง', '/cart': 'ตะกร้าสินค้า', '/checkout': 'ยืนยันคำสั่งซื้อ',
   '/profile': 'บัญชีของฉัน', '/account': 'บัญชีของฉัน', '/reviews': 'รีวิวบริการ',
+  '/staff-installments': 'ติดตามผ่อนชำระ',
   '/warranty': 'ใบรับประกันและแจ้งซ่อม', '/maintenance': 'การบำรุงรักษา',
   '/technician': 'ภาพรวม', '/schedule': 'ตารางนัดหมาย', '/jobs': 'ภาพรวม',
   '/survey-schedule': 'ตารางนัดสำรวจ', '/installation-schedule': 'ตารางนัดติดตั้ง',

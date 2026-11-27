@@ -239,7 +239,9 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
                 <div>
                   <strong style={{ color: '#274b1c' }}><Money value={order.total} /></strong>
                   <small style={{ color: '#7a8878', fontSize: '10px', display: 'block' }}>
-                    {order.payment_method === 'bank_transfer' ? 'โอนเงินธนาคาร' : 'ชำระออนไลน์'}
+                    {order.payment_plan === 'three_installments'
+                      ? 'ผ่อน 3 งวด'
+                      : order.payment_method === 'bank_transfer' ? 'โอนเงินธนาคาร' : 'ชำระออนไลน์'}
                   </small>
                 </div>
 
@@ -401,6 +403,24 @@ export default function AdminOrders({ orders, onUpdateStatus, setToast }) {
                 </div>
               </div>
             </div>
+
+            {detailModal.payment_plan === 'three_installments' && <section style={{ marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '13px', margin: '0 0 8px', color: '#2b3b29' }}>ตารางผ่อนชำระ</h3>
+              <div className="bk-history-list">
+                {[...(detailModal.order_installments || [])]
+                  .sort((left, right) => left.installment_number - right.installment_number)
+                  .map((installment) => (
+                    <div className="bk-history-details" key={installment.id}>
+                      <strong>งวด {installment.installment_number}</strong>
+                      <span>ครบกำหนด {installment.due_date}</span>
+                      <span><Money value={installment.amount} /></span>
+                      <span className={`status-pill ${installment.status === 'paid' ? 'green' : 'yellow'}`}>
+                        {installment.status === 'paid' ? 'ชำระแล้ว' : 'รอชำระ'}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </section>}
 
             {/* Items Table */}
             <h3 style={{ fontSize: '13px', margin: '0 0 8px', color: '#2b3b29' }}>รายการสินค้าในคำสั่งซื้อ</h3>
