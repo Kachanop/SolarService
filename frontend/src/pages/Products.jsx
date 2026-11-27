@@ -30,8 +30,10 @@ const CSS = `
 .sx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 22px; margin-top: 18px; }
 .sx-card { display: flex; flex-direction: column; background: var(--sx-card); border: 1px solid var(--sx-line); border-radius: 18px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
 .sx-card:hover { border-color: #b9c9b1; box-shadow: 0 10px 26px rgba(39, 57, 44, .08); }
-.sx-card-media { position: relative; aspect-ratio: 4 / 3; background: var(--sx-green-soft); }
-.sx-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sx-card-media { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: var(--sx-green-soft); }
+.sx-card-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.sx-card-media.sx-product-media img { padding: 14px; box-sizing: border-box; object-fit: contain; }
+.sx-card-placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; color: var(--sx-muted); font-size: 14px; font-weight: 600; text-align: center; }
 .sx-badge { position: absolute; top: 12px; left: 12px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--sx-lime); color: var(--sx-green-dark); }
 .sx-badge-soft { background: #fff; border: 1px solid var(--sx-line); color: var(--sx-green); }
 .sx-badge.sx-inline { position: static; display: inline-block; margin-bottom: 10px; }
@@ -56,6 +58,7 @@ const CSS = `
 .sx-modal { position: relative; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); width: min(1120px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; background: #fff; border-radius: 22px; }
 .sx-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--sx-line); border-radius: 50%; background: #fff; color: var(--sx-green-dark); cursor: pointer; }
 .sx-modal-media { display: flex; min-width: 0; flex-direction: column; justify-content: center; background: var(--sx-green-soft); }
+.sx-modal-placeholder { display: grid; width: 100%; min-height: 340px; place-items: center; color: var(--sx-muted); font-weight: 600; text-align: center; }
 .sx-modal-media > img { width: 100%; height: min(72vh, 720px); min-height: 340px; object-fit: contain; display: block; }
 .sx-thumbs { display: flex; gap: 8px; padding: 10px; overflow-x: auto; }
 .sx-thumb { flex: 0 0 64px; height: 64px; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: none; cursor: pointer; }
@@ -92,6 +95,7 @@ const CSS = `
   .sx-overlay { padding: 10px; }
   .sx-modal { width: 100%; max-height: calc(100vh - 20px); grid-template-columns: minmax(0, 1fr); border-radius: 16px; }
   .sx-modal-media > img { height: min(48vh, 420px); min-height: 220px; }
+  .sx-modal-placeholder { min-height: 220px; }
   .sx-modal-body { padding: 24px 20px; }
   .sx-grid { grid-template-columns: 1fr; }
 }
@@ -100,92 +104,76 @@ const CSS = `
 /* ---------- helpers ---------- */
 const baht = (n) => `฿${Number(n || 0).toLocaleString('th-TH')}`;
 
-// รูป fallback (SVG ในตัว) เผื่อไม่มีรูปหรือโหลดไม่ขึ้น
-const FALLBACK_IMG =
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#eef2f6"/><g fill="none" stroke="#9aa7b5" stroke-width="6"><rect x="110" y="95" width="180" height="110" rx="6"/><path d="M110 132h180M110 168h180M170 95v110M230 95v110"/></g></svg>`
-  );
-
-// รูปจริงวางไว้ที่ public/images/products/<ชื่อไฟล์>.jpg (ใช้ BASE_URL เผื่อเว็บอยู่ใน /SolarService/)
 const photo = (name) => `${import.meta.env.BASE_URL}images/products/${name}.jpg`;
+const packagePhoto = (name) => `${import.meta.env.BASE_URL}images/packages/${name}.jpg`;
+const FALLBACK_IMG = photo('panel');
 
-const getImage = (item) => getSources(item)[0];
-
-// ถ้ารูปโหลดไม่ขึ้น ให้ลองรูปถัดไปในรายการ สุดท้ายเป็นภาพประกอบในตัว (ไม่มีรูปแตก)
+// หากรูปหลักโหลดไม่ขึ้น จะลองรูปสำรองก่อนใช้รูปแผงโซลาร์สำรอง
 const onImgError = (e, sources = []) => {
   const el = e.currentTarget;
   const step = Number(el.dataset.step || 1);
   if (step < sources.length) {
     el.dataset.step = String(step + 1);
     el.src = sources[step];
-  } else if (el.src !== FALLBACK_IMG) {
+  } else if (el.dataset.fallbackApplied !== 'true') {
+    el.dataset.fallbackApplied = 'true';
     el.src = FALLBACK_IMG;
   }
 };
 
-/* ---------- ภาพประกอบสินค้า (SVG ในตัว) ใช้ชั่วคราวจนกว่าจะใส่รูปจริง ---------- */
-const svgUri = (inner, bg = '#eaf0e8') =>
-  'data:image/svg+xml;utf8,' +
-  encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="${bg}"/>${inner}</svg>`);
-
-const panelSvg = (x, y, w, h, cols, rows) => {
-  let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#1d3b57" stroke="#d5dde3" stroke-width="5"/>`;
-  for (let i = 1; i < cols; i++) s += `<line x1="${x + (w / cols) * i}" y1="${y}" x2="${x + (w / cols) * i}" y2="${y + h}" stroke="#4d7596" stroke-width="1.5"/>`;
-  for (let j = 1; j < rows; j++) s += `<line x1="${x}" y1="${y + (h / rows) * j}" x2="${x + w}" y2="${y + (h / rows) * j}" stroke="#4d7596" stroke-width="1.5"/>`;
-  return s;
-};
-
-const illus = (kind) => {
-  switch (kind) {
-    case 'panel':
-      return svgUri(`<circle cx="330" cy="62" r="26" fill="#d8c85a"/>${panelSvg(95, 70, 210, 170, 6, 8)}<rect x="190" y="240" width="20" height="26" fill="#9aa7b0"/><rect x="150" y="264" width="100" height="8" rx="3" fill="#9aa7b0"/>`);
-    case 'panel-small':
-      return svgUri(`<circle cx="70" cy="60" r="24" fill="#d8c85a"/>${panelSvg(110, 85, 180, 140, 5, 6)}<rect x="190" y="225" width="20" height="24" fill="#9aa7b0"/><rect x="155" y="247" width="90" height="8" rx="3" fill="#9aa7b0"/>`);
-    case 'inverter':
-      return svgUri(`<rect x="110" y="55" width="180" height="190" rx="16" fill="#f7f9f7" stroke="#b9c4bd" stroke-width="4"/><rect x="135" y="80" width="130" height="70" rx="8" fill="#26402f"/><path d="M150 130l22-28 20 18 22-34 30 30" fill="none" stroke="#7bd88f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="150" cy="185" r="7" fill="#4a7c59"/><circle cx="175" cy="185" r="7" fill="#d8c85a"/><circle cx="200" cy="185" r="7" fill="#c9d2cc"/><rect x="135" y="212" width="130" height="10" rx="5" fill="#d5ddd7"/>`);
-    case 'hybrid':
-      return svgUri(`<rect x="85" y="60" width="130" height="180" rx="14" fill="#f7f9f7" stroke="#b9c4bd" stroke-width="4"/><rect x="105" y="82" width="90" height="52" rx="6" fill="#26402f"/><circle cx="115" cy="165" r="6" fill="#4a7c59"/><circle cx="137" cy="165" r="6" fill="#d8c85a"/><rect x="105" y="195" width="90" height="9" rx="4" fill="#d5ddd7"/><rect x="235" y="90" width="85" height="150" rx="12" fill="#2f5d46"/><rect x="250" y="106" width="55" height="12" rx="4" fill="#7bd88f"/><rect x="250" y="130" width="55" height="12" rx="4" fill="#7bd88f"/><rect x="250" y="154" width="55" height="12" rx="4" fill="#bfe8c8"/><rect x="250" y="178" width="55" height="12" rx="4" fill="#bfe8c8"/>`);
-    case 'battery':
-      return svgUri(`<rect x="130" y="48" width="140" height="205" rx="16" fill="#2f5d46"/><rect x="175" y="36" width="50" height="14" rx="4" fill="#9aa7b0"/><rect x="152" y="76" width="96" height="22" rx="5" fill="#7bd88f"/><rect x="152" y="108" width="96" height="22" rx="5" fill="#7bd88f"/><rect x="152" y="140" width="96" height="22" rx="5" fill="#7bd88f"/><rect x="152" y="172" width="96" height="22" rx="5" fill="#bfe8c8"/><rect x="152" y="204" width="96" height="22" rx="5" fill="#bfe8c8"/>`);
-    case 'mount':
-      return svgUri(`<g stroke="#8a97a0" stroke-width="12" stroke-linecap="round"><line x1="70" y1="110" x2="330" y2="110"/><line x1="70" y1="190" x2="330" y2="190"/></g><g fill="#b9c4bd"><rect x="110" y="92" width="22" height="116" rx="4"/><rect x="268" y="92" width="22" height="116" rx="4"/></g><g fill="#d8c85a"><circle cx="121" cy="110" r="7"/><circle cx="121" cy="190" r="7"/><circle cx="279" cy="110" r="7"/><circle cx="279" cy="190" r="7"/></g>`);
-    case 'house':
-      return svgUri(`<circle cx="335" cy="58" r="26" fill="#d8c85a"/><rect x="90" y="150" width="220" height="110" fill="#f7f9f7" stroke="#b9c4bd" stroke-width="4"/><rect x="185" y="195" width="30" height="65" fill="#9fb3a4"/><rect x="115" y="180" width="40" height="36" fill="#cfe3d3"/><rect x="245" y="180" width="40" height="36" fill="#cfe3d3"/><polygon points="70,152 200,60 330,152" fill="#3d5a47"/><polygon points="130,138 175,100 215,100 175,138" fill="#1d3b57" stroke="#d5dde3" stroke-width="3"/><polygon points="180,138 222,100 262,100 222,138" fill="#1d3b57" stroke="#d5dde3" stroke-width="3"/>`);
-    default:
-      return FALLBACK_IMG;
-  }
-};
-
-// URL รูปที่เป็นรูปจำลอง (placeholder) จะถูกข้าม เพื่อให้ไปใช้รูปจริงหรือภาพประกอบแทน
 const PLACEHOLDER_RE = /placehold|placeholder|dummyimage|fakeimg/i;
+const SVG_IMAGE_RE = /^(?:data:image\/svg\+xml)|\.svg(?:[?#]|$)/i;
 
-// เดาชนิดสินค้าจากชื่อ/หมวดหมู่ (รองรับทั้งไทยและอังกฤษ) เพื่อหาไฟล์รูปในโฟลเดอร์ public/images/products/
 const guessKind = (item) => {
   const t = `${item.name || ''} ${item.category || ''}`.toLowerCase();
   if (/inverter|อินเวอร์เตอร์/.test(t)) return 'inverter';
   if (/battery|แบตเตอรี่/.test(t)) return 'battery';
-  if (/rail|mount|accessor|ราง|โครง|อุปกรณ์เสริม/.test(t)) return 'mounting-kit';
+  if (/rail|mount|accessor|ราง|โครง|ติดตั้ง|อุปกรณ์เสริม/.test(t)) return 'mounting-kit';
   if (/panel|แผง|solar/.test(t)) return 'panel';
   return null;
 };
-const KIND_ILLUS = { inverter: 'inverter', battery: 'battery', 'mounting-kit': 'mount', panel: 'panel' };
 
-// ลำดับรูปที่จะลอง: ไฟล์ของเราเอง -> รูปจากฐานข้อมูล (ที่ไม่ใช่ placeholder) -> รูปสำรอง -> ภาพประกอบ
-const getSources = (item) => {
-  const kind = item.isSample ? null : guessKind(item);
-  const own = [item.image, item.image_url, item.imageUrl, ...(item.images || [])].filter((u) => u && !PLACEHOLDER_RE.test(u));
-  const list = [
-    ...(kind ? [photo(kind)] : []),
-    ...own,
-    ...(item.fallbacks || []),
-    illus(KIND_ILLUS[kind || guessKind(item)] || 'panel'),
-  ];
-  return [...new Set(list)];
+const isPaymentTestProduct = (item) => /test|ทดสอบ/i.test(`${item.name || ''} ${item.description || ''}`);
+
+const productPhotoName = (item) => {
+  const text = `${item.name || ''} ${item.category || ''}`.toLowerCase();
+  if (/battery|แบตเตอรี่/.test(text)) return 'battery';
+  if (/inverter|อินเวอร์เตอร์/.test(text) && /huawei|sun2000/.test(text)) return 'inverter-huawei';
+  return guessKind(item) || 'panel';
 };
 
-// รูปถ่ายจริงสำหรับแพ็กเกจ: ช่างติดตั้งแผงโซลาร์บนหลังคา (Wikipedia, CC0 ใช้เชิงพาณิชย์ได้โดยไม่ต้องขออนุญาต)
-const INSTALLER_PHOTO = 'https://upload.wikimedia.org/wikipedia/en/thumb/6/6c/PV_solar_installers_on_sloped_roof.jpg/800px-PV_solar_installers_on_sloped_roof.jpg';
+const productPhotoSource = (item) => {
+  const text = `${item.name || ''} ${item.description || ''}`.toLowerCase();
+  if (/450\s*w/i.test(text)) return packagePhoto('package-10kw');
+  if (/hybrid/i.test(text)) return photo('inverter-huawei');
+  return photo(productPhotoName(item));
+};
+
+const packagePhotoName = (item) => {
+  const systemSize = Number(item.system_size_kw);
+  if ([3, 5, 10].includes(systemSize)) return `package-${systemSize}kw`;
+  const text = `${item.name || ''} ${item.size || ''}`.toLowerCase();
+  const match = text.match(/\b(3|5|10)\s*k\s*w\b/i);
+  if (match) return `package-${match[1]}kw`;
+  if (/small|เริ่มต้น/.test(text)) return 'package-3kw';
+  if (/large|ครอบครัวใหญ่|โรงงาน/.test(text)) return 'package-10kw';
+  return 'package-5kw';
+};
+
+const getSources = (item, kind = 'product') => {
+  if (kind === 'product' && isPaymentTestProduct(item)) return [];
+  const localPhoto = kind === 'package'
+    ? packagePhoto(packagePhotoName(item))
+    : productPhotoSource(item);
+  const own = [item.image, item.image_url, item.imageUrl, ...(item.images || [])]
+    .filter((url) => url && !PLACEHOLDER_RE.test(url) && !SVG_IMAGE_RE.test(url));
+  const fallbacks = (item.fallbacks || [])
+    .filter((url) => url && !PLACEHOLDER_RE.test(url) && !SVG_IMAGE_RE.test(url));
+  const finalPhoto = kind === 'package' ? packagePhoto('package-5kw') : FALLBACK_IMG;
+  return [...new Set([localPhoto, ...own, ...fallbacks, finalPhoto])];
+};
+
+const getImage = (item, kind) => getSources(item, kind)[0];
 
 /* ---------- ตัวอย่างแพ็กเกจ (ถ้าไม่ส่ง prop packages เข้ามา) ----------
    เปลี่ยน image เป็นรูปจริงของคุณได้เลย เช่น '/images/pkg-5kw.jpg' หรือ URL เต็ม */
@@ -195,7 +183,7 @@ const DEFAULT_PACKAGES = [
     id: 'pkg-3kw',
     name: 'แพ็กเกจ 3 kW สำหรับบ้านขนาดเล็ก',
     price: 89000,
-    image: photo('package-3kw'), fallbacks: [INSTALLER_PHOTO, illus('house')],
+    image: packagePhoto('package-3kw'),
     description: 'ชุดโซลาร์รูฟท็อปครบชุด เหมาะกับบ้านที่ใช้ไฟเดือนละ 1,500–2,500 บาท',
     includes: ['แผงโซลาร์ 6 แผ่น', 'อินเวอร์เตอร์ 3 kW', 'โครงสร้างยึดหลังคา', 'ค่าติดตั้งและเดินสาย', 'รับประกันงานติดตั้ง 5 ปี'],
   },
@@ -204,7 +192,7 @@ const DEFAULT_PACKAGES = [
     id: 'pkg-5kw',
     name: 'แพ็กเกจ 5 kW สำหรับบ้านทั่วไป',
     price: 139000,
-    image: photo('package-5kw'), fallbacks: [INSTALLER_PHOTO, illus('house')],
+    image: packagePhoto('package-5kw'),
     description: 'คุ้มค่าที่สุดสำหรับครอบครัวที่ใช้แอร์หลายเครื่อง ลดค่าไฟได้ต่อเนื่อง',
     includes: ['แผงโซลาร์ 10 แผ่น', 'อินเวอร์เตอร์ 5 kW', 'ระบบมอนิเตอร์ผ่านแอป', 'ค่าติดตั้งและเดินสาย', 'รับประกันงานติดตั้ง 5 ปี'],
     popular: true,
@@ -214,7 +202,7 @@ const DEFAULT_PACKAGES = [
     id: 'pkg-10kw',
     name: 'แพ็กเกจ 10 kW สำหรับร้านค้า/โรงงานเล็ก',
     price: 259000,
-    image: photo('package-10kw'), fallbacks: [INSTALLER_PHOTO, illus('house')],
+    image: packagePhoto('package-10kw'),
     description: 'รองรับการใช้ไฟช่วงกลางวันสูง ช่วยลดต้นทุนพลังงานของธุรกิจ',
     includes: ['แผงโซลาร์ 20 แผ่น', 'อินเวอร์เตอร์ 10 kW', 'ระบบมอนิเตอร์ผ่านแอป', 'ค่าติดตั้งและเดินสาย', 'รับประกันงานติดตั้ง 5 ปี'],
   },
@@ -224,32 +212,35 @@ const DEFAULT_PACKAGES = [
 /* ---------- ตัวอย่างสินค้า (แสดงเมื่อระบบยังไม่ส่งสินค้าเข้ามา) ----------
    ราคาและรายละเอียดเป็นข้อมูลสมมติ ให้แก้เป็นของจริง และเปลี่ยน image เป็น path รูปจริงได้ */
 const SAMPLE_PRODUCTS = [
-  { isSample: true, id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: photo('panel-550w'), fallbacks: [illus('panel')],
+  { isSample: true, id: 'sample-1', name: 'แผงโซลาร์ Mono 550W', price: 4290, category: 'แผงโซลาร์', image: photo('panel'),
     description: 'แผงโมโนคริสตัลไลน์ประสิทธิภาพสูง ทนแดด ทนฝน เหมาะกับหลังคาบ้านและโรงงาน',
     specs: { 'กำลังไฟ': '550 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี', 'ประกันกำลังผลิต': '25 ปี' }, popular: true },
-  { isSample: true, id: 'sample-2', name: 'แผงโซลาร์ Mono 450W', price: 3490, category: 'แผงโซลาร์', image: photo('panel-450w'), fallbacks: [illus('panel-small')],
+  { isSample: true, id: 'sample-2', name: 'แผงโซลาร์ Mono 450W', price: 3490, category: 'แผงโซลาร์', image: photo('panel'),
     description: 'ขนาดกะทัดรัด ติดตั้งง่าย เหมาะกับพื้นที่หลังคาจำกัด',
     specs: { 'กำลังไฟ': '450 W', 'ประเภท': 'Mono PERC', 'ประกันผลิตภัณฑ์': '12 ปี' } },
-  { isSample: true, id: 'sample-3', name: 'อินเวอร์เตอร์ On-Grid 5 kW', price: 32900, category: 'อินเวอร์เตอร์', image: photo('inverter-5kw'), fallbacks: [illus('inverter')],
+  { isSample: true, id: 'sample-3', name: 'อินเวอร์เตอร์ On-Grid 5 kW', price: 32900, category: 'อินเวอร์เตอร์', image: photo('inverter'),
     description: 'ต่อเข้าระบบไฟบ้านโดยตรง ดูผลผลิตไฟผ่านแอปบนมือถือได้ทุกเวลา',
     specs: { 'กำลังไฟ': '5 kW', 'ประสิทธิภาพ': '98%', 'การเชื่อมต่อ': 'Wi-Fi', 'ประกัน': '5 ปี' } },
-  { isSample: true, id: 'sample-4', name: 'อินเวอร์เตอร์ Hybrid 8 kW', price: 54900, category: 'อินเวอร์เตอร์', image: photo('inverter-hybrid-8kw'), fallbacks: [illus('hybrid')],
+  { isSample: true, id: 'sample-4', name: 'อินเวอร์เตอร์ Hybrid 8 kW', price: 54900, category: 'อินเวอร์เตอร์', image: photo('inverter'),
     description: 'รองรับการต่อแบตเตอรี่ ใช้ไฟต่อเนื่องแม้ไฟดับ เหมาะกับบ้านที่ต้องการความมั่นคงทางไฟฟ้า',
     specs: { 'กำลังไฟ': '8 kW', 'รองรับแบตเตอรี่': 'ได้', 'ประกัน': '5 ปี' } },
-  { isSample: true, id: 'sample-5', name: 'แบตเตอรี่ลิเธียม 5 kWh', price: 59900, category: 'แบตเตอรี่', image: photo('battery-5kwh'), fallbacks: [illus('battery')],
-    description: 'เก็บไฟส่วนเกินตอนกลางวันไว้ใช้ตอนกลางคืน อายุการใช้งานยาวนาน',
+  { isSample: true, id: 'sample-5', name: 'แบตเตอรี่ลิเธียม 5 kWh', price: 59900, category: 'แบตเตอรี่', image: photo('battery'),
+    description: 'แบตเตอรี่ LiFePO4 ทั่วไป รุ่นที่จำหน่ายอาจมีสเปกแตกต่างกัน',
     specs: { 'ความจุ': '5 kWh', 'เคมี': 'LiFePO4', 'รอบการชาร์จ': '6,000 รอบ', 'ประกัน': '10 ปี' } },
-  { isSample: true, id: 'sample-6', name: 'ชุดโครงยึดแผงบนหลังคา', price: 1890, category: 'อุปกรณ์เสริม', image: photo('mounting-kit'), fallbacks: [illus('mount')],
+  { isSample: true, id: 'sample-6', name: 'ชุดโครงยึดแผงบนหลังคา', price: 1890, category: 'อุปกรณ์เสริม', image: photo('mounting-kit'),
     description: 'โครงอะลูมิเนียมกันสนิม รองรับหลังคาเมทัลชีทและกระเบื้อง (ราคาต่อ 1 แผง)',
     specs: { 'วัสดุ': 'อะลูมิเนียม', 'รองรับลม': 'สูงสุด 180 กม./ชม.' } },
 ];
 
 /* ---------- การ์ดสินค้า / แพ็กเกจ ---------- */
 function ItemCard({ item, kind, onView, onAdd }) {
+  const isTestProduct = kind === 'product' && isPaymentTestProduct(item);
   return (
     <article className="sx-card">
-      <div className="sx-card-media">
-        <img src={getImage(item)} alt={item.name} loading="lazy" onError={(e) => onImgError(e, getSources(item))} />
+      <div className={`sx-card-media ${kind === 'product' ? 'sx-product-media' : ''}`}>
+        {isTestProduct
+          ? <span className="sx-card-placeholder">รายการทดสอบการชำระเงิน</span>
+          : <img src={getImage(item, kind)} alt={item.name} loading="lazy" onError={(e) => onImgError(e, getSources(item, kind))} />}
         {item.popular && <span className="sx-badge">ขายดี</span>}
         {kind === 'package' && !item.popular && <span className="sx-badge sx-badge-soft">รวมติดตั้ง</span>}
       </div>
@@ -289,8 +280,9 @@ function DetailModal({ item, kind, onClose, onAdd }) {
     };
   }, [onClose]);
 
-  const gallery = item.images && item.images.length > 1 ? item.images : null;
-  const [active, setActive] = useState(getImage(item));
+  const isTestProduct = kind === 'product' && isPaymentTestProduct(item);
+  const gallery = !isTestProduct && item.images && item.images.length > 1 ? item.images : null;
+  const [active, setActive] = useState(getImage(item, kind));
   const specs = item.specs && typeof item.specs === 'object' ? Object.entries(item.specs) : [];
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -326,7 +318,11 @@ function DetailModal({ item, kind, onClose, onAdd }) {
           <X size={20} />
         </button>
         <div className="sx-modal-media">
-          <img src={active} alt={item.name} onError={(e) => onImgError(e, getSources(item))} />
+          {isTestProduct
+            ? <div className="sx-modal-placeholder">รายการทดสอบการชำระเงิน</div>
+            : <>
+              <img src={active} alt={item.name} onError={(e) => onImgError(e, getSources(item, kind))} />
+            </>}
           {gallery && (
             <div className="sx-thumbs">
               {gallery.map((src) => (
@@ -337,7 +333,7 @@ function DetailModal({ item, kind, onClose, onAdd }) {
                   onClick={() => setActive(src)}
                   aria-label="ดูรูปนี้"
                 >
-                  <img src={src} alt="" onError={(e) => onImgError(e, getSources(item))} />
+                  <img src={src} alt="" onError={(e) => onImgError(e, getSources(item, kind))} />
                 </button>
               ))}
             </div>

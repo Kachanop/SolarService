@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, BadgeCheck, Eye, EyeOff, Sun } from 'lucide-reac
 import { supabase, supabaseConfigError } from '../lib/supabase.js';
 
 export function formatAuthError(error) {
+  const message = typeof error?.message === 'string' ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
   const messages = {
     'Invalid login credentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
     'Email not confirmed': 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ',
@@ -11,7 +12,10 @@ export function formatAuthError(error) {
     'New password should be different from the old password': 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม',
     'Failed to fetch': 'เชื่อมต่อ Supabase ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตและการตั้งค่า URL',
   };
-  return messages[error.message] || error.message;
+  if (error?.code === 'email_address_invalid' || /^Email address .+ is invalid$/i.test(message)) {
+    return 'Supabase ปฏิเสธอีเมลนี้ ตรวจสอบอีเมลจริงอีกครั้ง หากรูปแบบถูกต้องให้ผู้ดูแลตรวจการตั้งค่า Auth > Email ใน Supabase';
+  }
+  return messages[message] || message;
 }
 export default function AuthPage({ route, navigate, onAuthenticated, setToast }) {
   const isRegister = route === '/register';
@@ -33,7 +37,7 @@ export default function AuthPage({ route, navigate, onAuthenticated, setToast })
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const email = String(formData.get('email') || '');
+    const email = String(formData.get('email') || '').trim().toLowerCase();
     const password = String(formData.get('password') || '');
     setSubmitting(true);
 
@@ -71,8 +75,7 @@ export default function AuthPage({ route, navigate, onAuthenticated, setToast })
         onAuthenticated();
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
-      setErrorMessage(`ดำเนินการไม่สำเร็จ: ${formatAuthError({ message })}`);
+      setErrorMessage(`ดำเนินการไม่สำเร็จ: ${formatAuthError(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -93,7 +96,7 @@ export default function AuthPage({ route, navigate, onAuthenticated, setToast })
       <h1>{title}</h1>
       <p>{isRegister ? 'เริ่มต้นจัดการพลังงานในบ้านของคุณ' : isForgot ? 'กรอกอีเมลเพื่อรับลิงก์ตั้งรหัสผ่านใหม่' : isReset ? 'ตั้งรหัสผ่านใหม่เพื่อเข้าใช้งานบัญชี' : 'เข้าสู่ระบบเพื่อใช้งาน SolarService'}</p>
       {isRegister && <label>ชื่อ-นามสกุล<input name="full_name" required autoComplete="name" placeholder="ชื่อของคุณ" /></label>}
-      {!isReset && <label>อีเมล<input name="email" type="email" required autoComplete="email" placeholder="name@example.com" /></label>}
+      {!isReset && <label>อีเมล<input name="email" type="email" required autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="name@example.com" /></label>}
       {!isForgot && <label>รหัสผ่าน
         <span className="password-input-wrap">
           <input name="password" type={showPassword ? 'text' : 'password'} required minLength="8" autoComplete={isRegister || isReset ? 'new-password' : 'current-password'} placeholder="อย่างน้อย 8 ตัวอักษร" />

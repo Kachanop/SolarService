@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase.js';
 
+const adminProductImage = (name) => `${import.meta.env.BASE_URL}images/products/${name}.jpg`;
+
 // Default mock data for rich demonstration and fallback if tables don't exist yet in Supabase
 const defaultMockData = {
   packages: [
@@ -637,7 +639,7 @@ const defaultMockData = {
       price: 4290,
       compare_at_price: 4890,
       stock_quantity: 120,
-      image_url: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
+      image_url: adminProductImage('panel'),
       description: 'แผงโซลาร์เซลล์ Monocrystalline เทคโนโลยี HPBC ชั้นนำระดับโลก ประสิทธิภาพ 22.5% ทนทานรับประกัน 25 ปี',
       is_active: true,
       created_at: '2026-08-01T00:00:00Z',
@@ -651,7 +653,7 @@ const defaultMockData = {
       price: 32500,
       compare_at_price: 36000,
       stock_quantity: 18,
-      image_url: 'https://images.unsplash.com/photo-1558441719-8b489c63f7d1?w=600&auto=format&fit=crop&q=80',
+      image_url: adminProductImage('inverter-huawei'),
       description: 'อินเวอร์เตอร์ระบบ 1 Phase กำลัง 5 kW ประสิทธิภาพ 98.4% รองรับระบบ Optimizer และต่อแบตเตอรี่ได้โดยตรง รับประกันศูนย์ไทย 10 ปี',
       is_active: true,
       created_at: '2026-08-05T00:00:00Z',
@@ -665,7 +667,7 @@ const defaultMockData = {
       price: 68900,
       compare_at_price: 75000,
       stock_quantity: 8,
-      image_url: 'https://images.unsplash.com/photo-1620714223084-8fcacc6dfd8d?w=600&auto=format&fit=crop&q=80',
+      image_url: adminProductImage('battery'),
       description: 'โมดูลแบตเตอรี่ลิเธียมฟอสเฟต (LFP) 100% DOD ปลอดภัยสูง ดีไซน์หรูหราขยายความจุได้ถึง 30kWh',
       is_active: true,
       created_at: '2026-08-10T00:00:00Z',
@@ -679,7 +681,7 @@ const defaultMockData = {
       price: 12900,
       compare_at_price: 14500,
       stock_quantity: 35,
-      image_url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80',
+      image_url: adminProductImage('mounting-kit'),
       description: 'ชุดรางอลูมิเนียมเกรด 6005-T5 กันสนิม สกรูสแตนเลส 304 พร้อมสายไฟ PV1-F เบอร์ 4 และข้อต่อ MC4 มาตรฐานสากล',
       is_active: true,
       created_at: '2026-08-15T00:00:00Z',
