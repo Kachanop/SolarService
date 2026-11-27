@@ -1,6 +1,12 @@
 export const roleMenus = {
   Guest: [{ label: 'หน้าแรก', path: '/' }, { label: 'สินค้า', path: '/products' }, { label: 'แพ็กเกจติดตั้ง', path: '/packages' }, { label: 'บริการช่าง', path: '/services' }, { label: 'เกี่ยวกับเรา', path: '/about' }],
-  Customer: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'คำสั่งซื้อของฉัน', path: '/orders' }, { label: 'การจองของฉัน', path: '/booking-history' }, { label: 'ใบเสนอราคา', path: '/quotes' }, { label: 'ติดตามงาน', path: '/tracking' }, { label: 'ประกัน & แจ้งซ่อม', path: '/warranty' }, { label: 'รีวิว', path: '/reviews' }, { label: 'บัญชีของฉัน', path: '/account' }],
+  Customer: [
+    { label: 'ภาพรวม', path: '/customer' },
+    { label: 'สินค้า & แพ็กเกจ', path: '/products' },
+    { label: 'การจองของฉัน', path: '/booking-history' },
+    { label: 'ติดตามงาน', path: '/tracking' },
+    { label: 'ประกัน & ซ่อม', path: '/warranty' },
+  ],
   Staff: [{ label: 'ภาพรวม', path: '/customer' }, { label: 'สินค้าของเรา', path: '/products' }, { label: 'บัญชีของฉัน', path: '/account' }],
   Technician: [
     { label: 'ภาพรวม', path: '/technician' },

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronRight, ClipboardList, Clock3, Download, FileText, Plus, ShoppingBag, Sun, User, Wrench } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronRight, ClipboardList, Clock3, Download, FileText, Plus, ShieldCheck, ShoppingBag, Star, Sun, User, Wrench } from 'lucide-react';
+import { RecommendedShowcase } from '../components/Shared.jsx';
 import { supabase } from '../lib/supabase.js';
 import { adminRoutes } from '../lib/routes.js';
 import AdminWorkspace from './AdminWorkspace.jsx';
@@ -10,7 +11,7 @@ import AccountPage from './AccountPage.jsx';
 import TechnicianWorkflow from '../technician/TechnicianWorkflow.jsx';
 import CustomerWorkspace from './customer/CustomerWorkspace.jsx';
 
-export default function WorkspacePage({ route, title, navigate, setToast, authUser }) {
+export default function WorkspacePage({ route, title, navigate, setToast, authUser, products = [], packages = [], addToCart }) {
   const isTechnician = ['/technician', '/schedule', '/jobs', '/survey-schedule', '/installation-schedule', '/survey', '/work-history', '/job-detail'].includes(route);
   const isDashboard = ['/customer', '/technician', '/admin'].includes(route);
   const isBooking = route === '/bookings';
@@ -41,7 +42,14 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
     : [{ name: 'สำรวจพื้นที่บ้านของฉัน', date: '18 พ.ย. 2568 · 13:30 น.', customer: 'ทีมช่าง SolarService', status: 'ยืนยันแล้ว', tone: 'green' }, { name: 'ติดตั้งระบบโซลาร์ 5 kW', date: 'รออนุมัติใบเสนอราคา', customer: 'SolarService', status: 'รอดำเนินการ', tone: 'yellow' }];
   const actions = isTechnician
       ? [{ label: 'ดูตารางนัดหมาย', icon: <CalendarDays />, path: '/schedule' }, { label: 'งานที่ได้รับมอบหมาย', icon: <ClipboardList />, path: '/jobs' }, { label: 'บันทึกผลสำรวจ', icon: <FileText />, path: '/survey' }, { label: 'ประวัติงาน', icon: <Clock3 />, path: '/work-history' }]
-      : [{ label: 'จองช่างสำรวจ', icon: <CalendarDays />, path: '/bookings' }, { label: 'เลือกแพ็กเกจ', icon: <Sun />, path: '/packages' }, { label: 'ดูใบเสนอราคา', icon: <FileText />, path: '/quotes' }, { label: 'ติดตามงาน', icon: <Wrench />, path: '/tracking' }];
+      : [
+          { label: 'จองช่างสำรวจ', icon: <CalendarDays />, path: '/bookings' },
+          { label: 'คำสั่งซื้อของฉัน', icon: <ShoppingBag />, path: '/orders' },
+          { label: 'ใบเสนอราคา', icon: <FileText />, path: '/quotes' },
+          { label: 'ติดตามงาน', icon: <Wrench />, path: '/tracking' },
+          { label: 'ประกัน & แจ้งซ่อม', icon: <ShieldCheck />, path: '/warranty' },
+          { label: 'รีวิวสินค้า', icon: <Star />, path: '/reviews' },
+        ];
   function pageAction() {
     if (isBooking) return <Booking user={authUser} navigate={navigate} setToast={setToast} />;
     if (isSurvey) return <SurveyForm authUser={authUser} setToast={setToast} />;
@@ -57,6 +65,17 @@ export default function WorkspacePage({ route, title, navigate, setToast, authUs
   return <div className="workspace-wrap">
     <div className="workspace-heading"><div><div className="eyebrow">{isTechnician ? 'TECHNICIAN PORTAL' : 'MY SOLARSERVICE'}</div><h1>{title}</h1><p>{isTechnician ? 'จัดการงานสำรวจและติดตั้งของคุณได้ที่นี่' : 'จัดการการสั่งซื้อ การจอง และบริการของคุณได้ในที่เดียว'}</p></div><div className="workspace-heading-actions"><span className="today-label"><CalendarDays size={15} /> {new Date().toLocaleDateString('th-TH', { dateStyle: 'long' })}</span></div></div>
     {isDashboard && <div className="welcome-strip"><span><Sun size={19} /></span><p>สวัสดี, คุณ{userGreetingName} <small>{isTechnician ? 'มี 2 งานที่ต้องดำเนินการในวันนี้' : 'พร้อมเปลี่ยนบ้านให้เป็นพลังงานสะอาดหรือยัง?'}</small></p><ArrowRight size={18} /></div>}
+    {route === '/customer' && (
+      <div style={{ marginBottom: '28px' }}>
+        <RecommendedShowcase
+          products={products}
+          packages={packages}
+          addToCart={addToCart}
+          navigate={navigate}
+          sectionClassName="customer-recommended-section"
+        />
+      </div>
+    )}
     <div className="workspace-content"><div className="workspace-section-heading"><div><h2>{isDashboard ? 'รายการล่าสุด' : isBooking ? 'จองช่างเข้าสำรวจพื้นที่' : isSurvey ? 'บันทึกรายงานผลสำรวจ' : title}</h2><p>{isDashboard ? 'ติดตามความเคลื่อนไหวและเข้าถึงเมนูที่ใช้บ่อย' : 'ตรวจสอบรายละเอียดและจัดการข้อมูลของคุณ'}</p></div>{!isDashboard && <button className="button button-outline small-button" onClick={() => setToast('ดาวน์โหลดรายงานเรียบร้อยแล้ว')}><Download size={15} /> ส่งออก</button>}</div>{pageAction()}</div>
   </div>;
 }

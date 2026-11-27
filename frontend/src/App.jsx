@@ -332,7 +332,7 @@ function App() {
       <main>
         {authLoading && <div className="auth-loading" role="status">กำลังตรวจสอบสถานะสมาชิก…</div>}
         {!authLoading && screen === '/login' && route !== '/login' && <AuthPage route="/login" navigate={navigate} onAuthenticated={onAuthenticated} setToast={setToast} />}
-        {!authLoading && screen === '/' && <Home navigate={navigate} addToCart={addToCart} products={catalogProducts} />}
+        {!authLoading && screen === '/' && <Home navigate={navigate} addToCart={addToCart} products={catalogProducts} packages={catalogPackages} />}
         {!authLoading && screen === '/products' && <Products products={filteredProducts} packages={catalogPackages} search={search} setSearch={setSearch} addToCart={addToCart} authUser={authUser} navigate={navigate} setToast={setToast} />}
         {!authLoading && screen === '/packages' && <Packages navigate={navigate} packages={catalogPackages} addToCart={addToCart} authUser={authUser} setToast={setToast} />}
         {!authLoading && screen === '/services' && <Services navigate={navigate} />}
@@ -344,7 +344,7 @@ function App() {
           : <AccountPage authUser={authUser} role={role} navigate={navigate} setToast={setToast} signOut={signOut} />)}
         {!authLoading && screen === '/cart' && <Cart cart={cart} setCart={setCart} navigate={navigate} />}
         {!authLoading && screen === '/checkout' && <Checkout cart={cart} setCart={setCart} authUser={authUser} setToast={setToast} navigate={navigate} />}
-        {!authLoading && pageTitles[screen] && screen !== '/cart' && screen !== '/checkout' && screen !== '/account' && screen !== '/profile' && <WorkspacePage route={screen} title={pageTitles[screen]} navigate={navigate} setToast={setToast} authUser={authUser} />}
+        {!authLoading && pageTitles[screen] && screen !== '/cart' && screen !== '/checkout' && screen !== '/account' && screen !== '/profile' && <WorkspacePage route={screen} title={pageTitles[screen]} navigate={navigate} setToast={setToast} authUser={authUser} products={catalogProducts} packages={catalogPackages} addToCart={addToCart} />}
         {!authLoading && !['/', '/products', '/packages', '/services', '/about', '/contact', '/login', '/register', '/forgot-password', '/reset-password', '/cart', '/checkout', '/account', '/profile', ...Object.keys(pageTitles)].includes(screen) && <NotFound navigate={navigate} />}
       </main>
       <Footer navigate={navigate} />

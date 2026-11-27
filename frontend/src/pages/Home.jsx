@@ -1,8 +1,8 @@
 import React from 'react';
-import { ArrowRight, ArrowUpRight, Headphones, Leaf, Package, ShieldCheck, Sun, Wrench, Zap } from 'lucide-react';
-import { ProductCard } from '../components/Shared.jsx';
+import { ArrowRight, ArrowUpRight, Headphones, Leaf, ShieldCheck, Sun, Wrench, Zap } from 'lucide-react';
+import { RecommendedShowcase } from '../components/Shared.jsx';
 
-export default function Home({ navigate, addToCart, products: catalog }) {
+export default function Home({ navigate, addToCart, products: catalog = [], packages = [] }) {
   return <>
     <section className="hero">
       <div className="hero-copy">
@@ -35,11 +35,13 @@ export default function Home({ navigate, addToCart, products: catalog }) {
       <a href="#/services">ทำไมต้อง SolarService <ArrowRight size={15} /></a>
     </section>
 
-    <section className="section home-products">
-      <div className="section-heading"><div><div className="eyebrow">คัดสรรมาเพื่อคุณ</div><h2>พลังงานดี ๆ เริ่มที่นี่</h2><p>อุปกรณ์คุณภาพที่เราคัดมาเพื่อบ้านของคุณโดยเฉพาะ</p></div><a className="text-link" href="#/products">ดูสินค้าทั้งหมด <ArrowRight size={16} /></a></div>
-      {catalog.length ? <div className="product-grid">{catalog.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} addToCart={() => addToCart(product)} navigate={navigate} compact />)}</div>
-        : <div className="empty-state"><Package size={28} /><h3>ยังไม่มีสินค้าให้เลือก</h3><p>โปรดกลับมาเยี่ยมชมอีกครั้งในภายหลัง</p></div>}
-    </section>
+    <RecommendedShowcase
+      products={catalog}
+      packages={packages}
+      addToCart={addToCart}
+      navigate={navigate}
+      sectionClassName="section home-products"
+    />
     <section className="bottom-cta"><div><div className="eyebrow">เริ่มต้นง่ายกว่าที่คิด</div><h2>ยังไม่แน่ใจว่าบ้านคุณ<br />เหมาะกับระบบแบบไหน?</h2><p>ให้ช่างผู้เชี่ยวชาญเข้าสำรวจและออกแบบให้ฟรี ไม่มีค่าใช้จ่าย</p></div><a className="button button-dark" href="#/bookings">นัดช่างสำรวจฟรี <ArrowRight size={17} /></a></section>
   </>;
 }
