@@ -140,6 +140,18 @@ function getErrorMessage(error, fallback = 'เกิดข้อผิดพล
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isOrderableItem = (item) => UUID_RE.test(String(item.id));
+const ADDRESS_FIELDS = ['name', 'phone', 'addressLine', 'province', 'amphoe', 'district', 'zipcode'];
+
+function getSavedShipping(userId) {
+  if (!userId) return null;
+  try {
+    const saved = localStorage.getItem(`solarservice_checkout_address_${userId}`);
+    return saved ? JSON.parse(saved) : null;
+  } catch (error) {
+    console.error('Could not read saved checkout address:', error);
+    return null;
+  }
+}
 
 function getTodayDateValue() {
   const today = new Date();
@@ -153,7 +165,7 @@ export function Cart({ cart, setCart, navigate }) {
 }
 
 export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
-  const [shipping, setShipping] = useState({
+  const [shipping, setShipping] = useState(() => ({
     name: authUser?.user_metadata?.full_name || '',
     phone: '',
     addressLine: '',
@@ -162,7 +174,9 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     district: '',
     zipcode: '',
     notes: '',
-  });
+    ...getSavedShipping(authUser?.id),
+  }));
+  const loadedAddressUserId = useRef(authUser?.id);
   const [orderId, setOrderId] = useState('');
   const [paymentPlan, setPaymentPlan] = useState('full');
   const [installmentRows, setInstallmentRows] = useState([]);
@@ -201,6 +215,35 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
     `จังหวัด${shipping.province}`,
     shipping.zipcode,
   ].filter((part) => part.trim()).join(', ');
+
+  useEffect(() => {
+    const userId = authUser?.id;
+    if (!userId || loadedAddressUserId.current === userId) return;
+
+    const savedShipping = getSavedShipping(userId);
+    if (savedShipping) {
+      setShipping((current) => ({
+        ...current,
+        ...Object.fromEntries(ADDRESS_FIELDS
+          .filter((field) => typeof savedShipping[field] === 'string')
+          .map((field) => [field, savedShipping[field]])),
+      }));
+    }
+    loadedAddressUserId.current = userId;
+  }, [authUser?.id]);
+
+  useEffect(() => {
+    const userId = authUser?.id;
+    if (!userId || loadedAddressUserId.current !== userId) return;
+
+    try {
+      const savedShipping = Object.fromEntries(ADDRESS_FIELDS.map((field) => [field, shipping[field]]));
+      localStorage.setItem(`solarservice_checkout_address_${userId}`, JSON.stringify(savedShipping));
+    } catch (error) {
+      console.error('Could not save checkout address:', error);
+      setToast('บันทึกที่อยู่ในอุปกรณ์นี้ไม่สำเร็จ');
+    }
+  }, [authUser?.id, shipping, setToast]);
 
   useEffect(() => {
     const legacyItems = cart.filter((item) => item.itemType !== 'package' && !isOrderableItem(item));
@@ -756,6 +799,7 @@ export function Checkout({ cart, setCart, authUser, setToast, navigate }) {
           </label>
           <p className="sx-address-hint">เลือกพื้นที่ตามลำดับ จังหวัด → อำเภอ/เขต → ตำบล/แขวง ระบบเติมรหัสไปรษณีย์ให้อัตโนมัติ</p>
         </div>
+        <p className="sx-address-hint full-width">ระบบบันทึกชื่อ เบอร์โทร และที่อยู่นี้ไว้ในอุปกรณ์ เพื่อเติมให้อัตโนมัติครั้งถัดไป</p>
         <label className="full-width">หมายเหตุเพิ่มเติม
           <textarea rows="2" disabled={locked} value={shipping.notes} placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" onChange={(event) => setShipping({ ...shipping, notes: event.target.value })} />
         </label>
